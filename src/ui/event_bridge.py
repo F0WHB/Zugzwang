@@ -36,6 +36,10 @@ class EventBridge(QObject):
     captcha_challenge = Signal(str, bytes) # job_id, image_bytes
     solver_requested = Signal(str, str, list, str) # job_id, url, cookies, user_agent
 
+    # UI Notifications
+    toast_show = Signal(str, str, str, int) # title, subtitle, type, duration
+    rate_limit_detected = Signal()
+
     _instance = None
 
     def __init__(self):
@@ -69,7 +73,17 @@ class EventBridge(QObject):
         event_bus.subscribe(event_bus.SOLVER_REQUESTED, self._on_solver_requested)
         event_bus.subscribe(event_bus.TRIAL_LIMIT_REACHED, self._on_trial_limit_reached)
 
+        # UI Notifications
+        event_bus.subscribe("toast.show", self._on_toast_show)
+        event_bus.subscribe("rate_limit.detected", self._on_rate_limit_detected)
+
     # ── Internal Callbacks (running in background thread) ──
+
+    def _on_toast_show(self, title="", subtitle="", type="info", duration=4000, **kw):
+        self.toast_show.emit(title, subtitle, type, duration)
+
+    def _on_rate_limit_detected(self, **kw):
+        self.rate_limit_detected.emit()
 
     def _on_job_started(self, job_id: str, config=None, **k):
         self.job_started.emit(job_id, config)
@@ -101,16 +115,16 @@ class EventBridge(QObject):
     def _on_db_updated(self, records: list, **k):
         self.db_updated.emit(records)
 
-    def _on_export_completed(self, format: str, path: str, count: int = 0, **k):
+    def _on_export_completed(self, format: str, path: str, count: int, **k):
         self.export_completed.emit(format, path, count)
 
     def _on_export_failed(self, format: str, error: str, **k):
         self.export_failed.emit(format, error)
 
-    def _on_captcha_challenge(self, job_id: str, image: bytes, **k):
-        self.captcha_challenge.emit(job_id, image)
+    def _on_captcha_challenge(self, job_id: str, image_bytes: bytes, **k):
+        self.captcha_challenge.emit(job_id, image_bytes)
 
-    def _on_solver_requested(self, job_id: str, url: str, cookies: list, user_agent: str = "", **k):
+    def _on_solver_requested(self, job_id: str, url: str, cookies: list, user_agent: str, **k):
         self.solver_requested.emit(job_id, url, cookies, user_agent)
 
     def _on_trial_limit_reached(self, job_id: str, **k):

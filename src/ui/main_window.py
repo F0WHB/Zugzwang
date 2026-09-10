@@ -548,24 +548,22 @@ class MainWindow(FramelessWindow):
         event_bridge.job_failed.connect(lambda jid, err: _on_failed(error=err))
         event_bridge.trial_limit_reached.connect(lambda jid: _on_trial_limit())
 
-        # Support for direct toast requests via event_bus
-        from ..core.events import event_bus
-        
-        def _on_custom_toast(title="", subtitle="", type="info", duration=4000, **kw):
+        # Support for direct toast requests via event_bridge
+        def _on_custom_toast(title="", subtitle="", type="info", duration=4000):
             if type == "success": InfoBar.success(title, subtitle, duration=duration, parent=self.window())
             elif type == "error": InfoBar.error(title, subtitle, duration=duration, parent=self.window())
             elif type == "warning": InfoBar.warning(title, subtitle, duration=duration, parent=self.window())
             else: InfoBar.info(title, subtitle, duration=duration, parent=self.window())
         
-        event_bus.subscribe("toast.show", _on_custom_toast)
+        event_bridge.toast_show.connect(_on_custom_toast)
 
-        # Rate limit event from core event_bus
-        def _on_rate_limit(**kw):
+        # Rate limit event from event_bridge
+        def _on_rate_limit():
             InfoBar.warning(
                 "Rate limit detected — slowing down",
                 "", duration=3500, parent=self.window()
             )
-        event_bus.subscribe("rate_limit.detected", _on_rate_limit)
+        event_bridge.rate_limit_detected.connect(_on_rate_limit)
 
     def _setup_shortcuts(self):
         from PySide6.QtGui import QKeySequence, QShortcut
