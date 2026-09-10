@@ -488,6 +488,7 @@ class SettingsPage(QWidget):
         vl.addWidget(conf_group)
 
         # ── Product License (moved from Card 3) ──────────────────────────────
+        from PySide6.QtWidgets import QStyleFactory
         vl.addSpacing(8)
         lic_card = QFrame()
         lic_card.setObjectName("LicCard")
