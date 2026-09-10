@@ -24,7 +24,7 @@ from __future__ import annotations
 import traceback
 from typing import Callable, Any, Optional
 
-from PySide6.QtCore import QRunnable, QThreadPool, Signal, QObject
+from PySide6.QtCore import QRunnable, QThreadPool, Signal, QObject, Qt
 
 
 class WorkerSignals(QObject):
@@ -98,9 +98,9 @@ def run_in_thread(
     _pinned_signals.add(worker.signals)
     
     if on_result is not None:
-        worker.signals.result.connect(on_result)
+        worker.signals.result.connect(on_result, Qt.QueuedConnection)
     if on_error is not None:
-        worker.signals.error.connect(on_error)
+        worker.signals.error.connect(on_error, Qt.QueuedConnection)
     
     # Internal cleanup callback
     def _cleanup():
@@ -109,7 +109,7 @@ def run_in_thread(
         if on_finished is not None:
             on_finished()
             
-    worker.signals.finished.connect(_cleanup)
+    worker.signals.finished.connect(_cleanup, Qt.QueuedConnection)
     
     QThreadPool.globalInstance().start(worker)
     return worker
