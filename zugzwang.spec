@@ -44,6 +44,7 @@ datas += [
 hiddenimports = [
     'ddddocr',
     'onnxruntime',
+    'numpy',
     'PySide6.QtCore',
     'PySide6.QtGui',
     'PySide6.QtWidgets',
@@ -133,7 +134,7 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=['tkinter', 'matplotlib', 'numpy', 'pandas', 'scipy'],
+    excludes=['tkinter', 'matplotlib', 'pandas', 'scipy'],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,

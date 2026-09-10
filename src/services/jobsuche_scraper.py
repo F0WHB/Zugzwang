@@ -44,7 +44,7 @@ logger = get_logger(__name__)
 try:
     import ddddocr
     _DDDDOCR_AVAILABLE = True
-except ImportError:
+except (ImportError, Exception):
     _DDDDOCR_AVAILABLE = False
     ddddocr = None
 
