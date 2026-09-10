@@ -665,14 +665,37 @@ class JobsucheScraper:
             pass
 
     async def _select_angebotsart(self, page: Page) -> None:
-        """Select the configured offer type from the dropdown."""
+        """Select the configured offer type from tabs or legacy dropdown."""
         try:
-            target = self.config.offer_type
-            if target == "Arbeit":
-                return # Default is already 'Arbeit' usually, or it's the first option.
-                
+            target = (self.config.offer_type or "").strip()
+            if not target:
+                return
+
+            # Modern Jobsuche uses tabs: #suchbereich-tabbar-item-0 (Jobs) and #suchbereich-tabbar-item-1 (Ausbildung)
+            is_ausbildung = any(w in target.lower() for w in ["ausbildung", "duales studium", "lehre"])
+            is_jobs = any(w in target.lower() for w in ["arbeit", "job", "vollzeit", "teilzeit"])
+
+            if is_ausbildung:
+                tab = page.locator('#suchbereich-tabbar-item-1, [role="tab"]:has-text("Ausbildung"), a:has-text("Ausbildung")').first
+                if await tab.count() > 0 and await tab.is_visible(timeout=1_500):
+                    await tab.click()
+                    logger.info(f"[{self.job_id}] Switched search mode to Ausbildung via tab")
+                    await asyncio.sleep(0.15)
+                    return
+            elif is_jobs:
+                tab = page.locator('#suchbereich-tabbar-item-0, [role="tab"]:has-text("Jobs"), a:has-text("Jobs")').first
+                if await tab.count() > 0 and await tab.is_visible(timeout=1_500):
+                    await tab.click()
+                    logger.info(f"[{self.job_id}] Switched search mode to Jobs via tab")
+                    await asyncio.sleep(0.15)
+                    return
+
+            # Fallback for layouts with the dropdown button
             dropdown_btn = page.locator("button#angebotsart-dropdown-button")
-            await dropdown_btn.wait_for(state="visible", timeout=10_000)
+            if not await dropdown_btn.is_visible(timeout=1_500):
+                logger.debug(f"[{self.job_id}] Angebotsart dropdown not present, continuing")
+                return
+
             await dropdown_btn.click()
             await asyncio.sleep(0.1)
 
@@ -682,7 +705,7 @@ class JobsucheScraper:
                 f"#angebotsart-dropdownList button:has-text('{target}'), "
                 f"#angebotsart-dropdownList a:has-text('{target}')"
             ).first
-            await option.wait_for(state="attached", timeout=8_000)
+            await option.wait_for(state="attached", timeout=4_000)
             try:
                 await option.scroll_into_view_if_needed(timeout=1_500)
             except Exception:
@@ -691,7 +714,7 @@ class JobsucheScraper:
             await asyncio.sleep(0.1)
             logger.info(f"[{self.job_id}] Angebotsart set to {target}")
         except Exception as e:
-            logger.warning(f"[{self.job_id}] Could not set Angebotsart: {e}")
+            logger.debug(f"[{self.job_id}] Could not set Angebotsart: {e}")
 
     async def _select_radius(self, page: Page) -> None:
         """Select the configured radius (Umkreis) from the dropdown."""
