@@ -3,7 +3,7 @@
 ;   iscc installer.iss
 
 #define AppName "ZUGZWANG"
-#define AppVersion "1.1.0"
+#define AppVersion "1.1.1"
 #define AppPublisher "ZUGZWANG"
 #define AppExeName "ZUGZWANG.exe"
 #define AppId "{{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}"
@@ -41,11 +41,11 @@ ChangesEnvironment=no
 CloseApplications=yes
 CloseApplicationsFilter=ZUGZWANG.exe
 RestartApplications=no
-VersionInfoVersion=1.1.0.0
+VersionInfoVersion=1.1.1.0
 VersionInfoCompany={#AppPublisher}
 VersionInfoDescription={#AppName} Installer
 VersionInfoProductName={#AppName}
-VersionInfoProductVersion=1.1.0.0
+VersionInfoProductVersion=1.1.1.0
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -86,4 +86,4 @@ begin
   WizardForm.WelcomeLabel2.Height := ScaleY(170);
 end;
 
-; 1.1.0
+; 1.1.1

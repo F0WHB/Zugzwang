@@ -462,8 +462,8 @@ class AppSettings:
     auto_backup: bool = True
     backup_dir: str = ""
 
-    app_version: str = "1.1.0"
-    app_build: int = 7
+    app_version: str = "1.1.1"
+    app_build: int = 8
 
 
     # Free Trial Tracking
@@ -474,4 +474,4 @@ class AppSettings:
     trial_email_count: int = 0
     trial_email_last_reset_date: str = ""
 
-# 1.1.0
+# 1.1.1

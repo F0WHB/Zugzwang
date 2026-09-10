@@ -582,4 +582,4 @@ def _strip_html_tags(html: str) -> str:
     return text.strip()
 
 
-# 1.1.0
+# 1.1.1

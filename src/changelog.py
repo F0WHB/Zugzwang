@@ -1,15 +1,31 @@
 # ZUGZWANG Changelog Definitions
 # Contains version history and changes for the "What's New" dialog.
 
-APP_VERSION = "1.1.0"
+APP_VERSION = "1.1.1"
 
 CHANGELOG = [
     {
-        "version": "1.1.0",
+        "version": "1.1.1",
         "date": "September 10, 2026",
         "label": "STABLE",
         "label_color": "#30D158",
         "changes": [
+            {
+                "type": "fixed",
+                "text": "Headed CAPTCHA Solver Bridge — Fixed event callback parameter handling so the real browser window launches immediately, focuses in front, and synchronizes cookies seamlessly when security challenges appear on Jobsuche or Google Maps."
+            },
+            {
+                "type": "fixed",
+                "text": "Resolved Watchdog SIGSEGV Memory Fault — Eliminated unsafe cross-thread stack frame inspections (sys._current_frames) on Apple Silicon / macOS ARM64 to ensure 100% app stability."
+            },
+            {
+                "type": "improved",
+                "text": "Zero-Lag Asyncio & SQLite Performance — Removed invasive runtime frame inspections from release builds, restoring native C-speed execution and fluid responsiveness during intense scraping runs."
+            },
+            {
+                "type": "fixed",
+                "text": "Smart Update Version Comparison Engine — Re-engineered version comparator to strict SemVer standards, ensuring pre-release versions (Beta / RC) reliably detect and prompt for stable upgrade releases."
+            },
             {
                 "type": "new",
                 "text": "Native Pro-Apple Attachments & Zeugnisse Dialog — Re-architected certificate management with an ultra-sleek macOS card modal, featuring interactive drag-and-drop reordering, fluid animations, instant PDF previewing, and inline document removal."
@@ -26,6 +42,14 @@ CHANGELOG = [
                 "type": "new",
                 "text": "Azubiyo Intelligent Job & Training Scraper — Added automated extraction for Azubiyo listings with fast pagination, location filtering, and direct company contact discovery."
             },
+        ],
+    },
+    {
+        "version": "1.1.0 Beta6",
+        "date": "September 10, 2026",
+        "label": "BETA",
+        "label_color": "#0A84FF",
+        "changes": [
             {
                 "type": "new",
                 "text": "Redesigned macOS Toast Notification System — Introduced a floating native macOS card (#2C2C2E, 14px radius, 0.5px border, 400px fixed width, zero shadow) with role-colored badges, clean typography, smooth physics animations, and persistent top-right window anchoring."
@@ -648,7 +672,7 @@ CHANGELOG = [
 
 CHANGELOG_AR = [
     {
-        "version": "1.1.0",
+        "version": "1.1.1",
         "date": "10 سبتمبر 2026",
         "label": "مستقر",
         "label_color": "#30D158",
@@ -659,6 +683,22 @@ CHANGELOG_AR = [
             "removed": "مُزال"
         },
         "changes": [
+            {
+                "type": "fixed",
+                "text": "جسر حل كابتشا المتصفح الحقيقي (Headed CAPTCHA Solver) — إصلاح معالجة معاملات رد النداء لفتح نافذة المتصفح الحقيقي فوراً وإحضارها للمقدمة ومزامنة ملفات تعريف الارتباط بسلاسة عند ظهور الكابتشا في Jobsuche أو خرائط Google."
+            },
+            {
+                "type": "fixed",
+                "text": "معالجة خطأ الذاكرة SIGSEGV في مراقب العمليات — إزالة عمليات فحص إطارات العمليات غير الآمنة عبر الخيوط (sys._current_frames) على أجهزة Apple Silicon لضمان استقرار التطبيق بنسبة 100% ومنع الانهيار."
+            },
+            {
+                "type": "improved",
+                "text": "أداء سريع وخفيف لـ Asyncio و SQLite — التخلص من تتبع المكدس البطيء في نسخ الإصدارات الرسمية، واستعادة السرعة الأصلية وسلاسة الواجهة أثناء عمليات البحث والاستخراج المكثفة."
+            },
+            {
+                "type": "fixed",
+                "text": "محرك مقارنة الإصدارات الذكي للتحديثات — إعادة هندسة مقارن الإصدارات وفق المعايير الدقيقة لضمان اكتشاف الإصدارات التجريبية (Beta / RC) للإصدارات المستقرة الأحدث ومطالبة المستخدم بالترقية فوراً."
+            },
             {
                 "type": "new",
                 "text": "نافذة إدارة المرفقات والشهادات (Zeugnisse) بتصميم Apple الاحترافي — إعادة بناء شاملة لنافذة المرفقات بأسلوب بطاقات macOS الفاخر، مع دعم إعادة الترتيب التفاعلي بالسحب والإفلات (Drag & Drop)، وحركات انسيابية، ومعاينة فورية للمستندات وحذف سهل."
@@ -675,9 +715,23 @@ CHANGELOG_AR = [
                 "type": "new",
                 "text": "مستخرج وظائف وتدريب Azubiyo الذكي — إضافة محرك استخراج تلقائي متطور لمنصة Azubiyo مع دعم التصفح والتصفية حسب الموقع الجغرافي واستخراج بيانات التواصل المباشرة للشركات."
             },
+        ],
+    },
+    {
+        "version": "1.1.0 Beta6",
+        "date": "10 سبتمبر 2026",
+        "label": "تجريبي",
+        "label_color": "#0A84FF",
+        "type_labels": {
+            "new": "جديد",
+            "improved": "مُحسَّن",
+            "fixed": "مُصلَّح",
+            "removed": "مُزال"
+        },
+        "changes": [
             {
                 "type": "new",
-                "text": "نظام إشعارات Toast بتصميم macOS الأصلي — تصميم بطاقة macOS عائمة أنيقة (#2C2C2E، نصف قطر 14px، حدود 0.5px، عرض 400px، بدون ظلال غير مرغوبة) مع شارات ملونة للأيقونات (#0A84FF للمعلومات والتقدم، #3A3A3C مع أيقونات ملونة للنجاح والأخطاء)، وخطوط محسّنة وموقع ثابت في الزاوية العلوية اليمنى مع حركات انسيابية."
+                "text": "نظام إشعارات Toast بتصميم macOS الأصلي — تصميم بطاقة macOS عائمة أنيقة (#2C2C2E، نصف قطر 14px، حدود 0.5px، عرض 400px، بدون ظلال غير مرغوبة) مع شارات ملونة للأيقونات وخطوط محسّنة وموقع ثابت في الزاوية العلوية اليمنى مع حركات انسيابية."
             },
             {
                 "type": "improved",
@@ -1339,4 +1393,4 @@ CHANGELOG_AR = [
     }
 ]
 
-# 1.1.0
+# 1.1.1

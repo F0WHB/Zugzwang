@@ -481,4 +481,4 @@ class WhatsNewDialog(QDialog):
         self.fade_out.start()
 
 
-# 1.1.0
+# 1.1.1

@@ -181,11 +181,11 @@ if sys.platform == 'darwin':
         info_plist={
             'CFBundleName': 'ZUGZWANG',
             'CFBundleDisplayName': 'ZUGZWANG',
-            'CFBundleVersion': '1.1.0',
-            'CFBundleShortVersionString': '1.1.0',
+            'CFBundleVersion': '1.1.1',
+            'CFBundleShortVersionString': '1.1.1',
             'NSHighResolutionCapable': 'True',
         },
     )
 
 
-# 1.1.0
+# 1.1.1

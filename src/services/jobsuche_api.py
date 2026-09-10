@@ -225,4 +225,4 @@ def _publication_sort_key(record: LeadRecord) -> tuple[int, str]:
 
     return (1, value)
 
-# 1.1.0
+# 1.1.1

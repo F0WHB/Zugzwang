@@ -4,7 +4,7 @@
 ; Build: makensis installer.nsi
 
 !define APP_NAME "ZUGZWANG"
-!define APP_VERSION "1.1.0"
+!define APP_VERSION "1.1.1"
 !define APP_PUBLISHER "ZUGZWANG"
 !define APP_EXE "ZUGZWANG.exe"
 !define APP_GUID "{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}"
@@ -24,7 +24,7 @@ SetCompressor /SOLID lzma
 BrandingText "ZUGZWANG Installer"
 
 ; Metadata
-VIProductVersion "1.1.0.0"
+VIProductVersion "1.1.1.0"
 VIAddVersionKey "ProductName" "${APP_NAME}"
 VIAddVersionKey "ProductVersion" "${APP_VERSION}"
 VIAddVersionKey "CompanyName" "${APP_PUBLISHER}"
@@ -133,4 +133,4 @@ Section "Uninstall"
   DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_GUID}"
 SectionEnd
 
-; 1.1.0
+; 1.1.1

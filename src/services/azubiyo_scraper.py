@@ -671,4 +671,4 @@ class AzubiyoScraper:
             self._total_errors += 1
             return []
 
-# 1.1.0
+# 1.1.1

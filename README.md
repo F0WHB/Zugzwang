@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/whbexc/Zugzwang/releases"><img alt="Version" src="https://img.shields.io/badge/version-1.1.0-30D158?style=for-the-badge"></a>
+  <a href="https://github.com/whbexc/Zugzwang/releases"><img alt="Version" src="https://img.shields.io/badge/version-1.1.1-30D158?style=for-the-badge"></a>
   <img alt="Platform" src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-30D158?style=for-the-badge">
   <img alt="Python" src="https://img.shields.io/badge/python-3.11+-5AC8FA?style=for-the-badge">
   <img alt="Automation" src="https://img.shields.io/badge/browser-Playwright-FF9F0A?style=for-the-badge">
@@ -35,31 +35,27 @@ Instead of juggling multiple browser tabs, scrapers, Excel sheets, and email dra
 
 ---
 
-## ⚡ How It Works in 3 Easy Steps
+## ⚡ Highlights
 
-```text
-  [ 1. Search ]               [ 2. Personalize ]               [ 3. Send ]
-  Pick your target      ──>   Auto-merge cover letters   ──>   Send with human-paced
-  profession & city           with your attached CV            delays via safe SMTP
-```
-
-1. **Search**: Enter a job title or industry (e.g. *Fachinformatiker*, *Elektriker*, *Marketing*) and a German city.
-2. **Review & Tailor**: Select leads from your results. Customize your cover letter template once, and ZUGZWANG replaces placeholders (`{{FIRMA}}`, `{{BERUF}}`, `{{ANREDE}}`) instantly for every company.
-3. **Send**: Click Send. The background queue dispatches emails one by one with natural randomized intervals to keep your mailbox safe.
+- **Multi-Source Scraping** — Bundesagentur für Arbeit (Jobsuche), Google Maps Places, Ausbildung.de, Aubi-plus, Das Örtliche, Azubiyo.
+- **Intelligent Email Extraction** — Direct page scraping, Impressum/Datenschutz discovery, pattern scoring, MX validation, and domain-wide harvesting.
+- **Headless & Headed Browser Engines** — Automated Chromium engine with dynamic cookie banner dismissal, stealth headers, and interactive headed CAPTCHA solving.
+- **Rich Lead Enrichment** — Automatic phone, street address, website, postal code, and social link discovery.
+- **Direct SMTP Outreach Workflow** — Built-in email composer with customizable templates, rate-limiting, and PDF attachment merge.
+- **Comprehensive Data Export** — CSV, Excel (`.xlsx`), JSON, and PDF report generation.
+- **Modern Fluent Dark UI** — macOS Obsidian aesthetics, glassmorphism accents, keyboard navigation, and responsive real-time streaming updates.
 
 ---
 
-## 🚀 Download & Installation
+## 📦 Downloads (v1.1.1)
 
-### Download Standalone Application (Recommended)
+Download pre-built standalone binaries from the **[GitHub Releases](https://github.com/whbexc/Zugzwang/releases)** page:
 
-Get the latest installer from the **[Releases Page](https://github.com/whbexc/Zugzwang/releases)**:
-
-| Platform | Download | Instructions |
-| :--- | :--- | :--- |
-| **🪟 Windows** | `ZUGZWANG_Setup_1.1.0.exe` | Run the installer and launch from your Start Menu. |
-| **🍎 macOS** | `ZUGZWANG_macOS_1.1.0.zip` | Unzip, drag `ZUGZWANG.app` to **Applications**, and run the Gatekeeper command below. |
-| **🐧 Linux** | `ZUGZWANG_Linux_1.1.0.tar.gz` | Extract archive and run `./ZUGZWANG`. |
+| Platform | File | Instructions |
+|---|---|---|
+| **🪟 Windows** | `ZUGZWANG_Setup_1.1.1.exe` | Run the installer and launch from your Start Menu. |
+| **🍎 macOS** | `ZUGZWANG_macOS_1.1.1.zip` | Unzip, drag `ZUGZWANG.app` to **Applications**, and run the Gatekeeper command below. |
+| **🐧 Linux** | `ZUGZWANG_Linux_1.1.1.tar.gz` | Extract archive and run `./ZUGZWANG`. |
 
 > [!NOTE]  
 > **macOS First-Time Setup (Ad-Hoc Signing):**  
@@ -210,4 +206,4 @@ See full version history and release notes in the in-app **What's New** dialog o
 
 Copyright &copy; 2026 ZUGZWANG. All rights reserved.  
 ZUGZWANG is designed for legitimate recruitment, job searching, and business contact outreach. Users are responsible for complying with relevant local regulations (including GDPR and anti-spam laws) regarding unsolicited commercial communications.
-<!-- 1.1.0 -->
+<!-- 1.1.1 -->

@@ -339,8 +339,6 @@ class MainWindow(FramelessWindow):
         if last_seen != changelog_version:
             self._startup_upgrade_prompt_pending = True
             QTimer.singleShot(1000, self._show_whats_new)
-            config_manager.settings.last_seen_version = changelog_version
-            config_manager.save()
 
         # ── Improvement 3: Unified Toast Notification ───────────────────────────────────
         # Uses ToastNotification (aliased as InfoBar) globally
@@ -668,6 +666,8 @@ class MainWindow(FramelessWindow):
         )
         dialog = WhatsNewDialog(current_version=APP_VERSION, parent=self)
         dialog.exec()
+        config_manager.settings.last_seen_version = APP_VERSION
+        config_manager.save()
         logger.info("[startup] What's New dialog closed")
         if self._startup_upgrade_prompt_pending:
             logger.info("[startup] Scheduling startup upgrade prompt after What's New")
@@ -1085,4 +1085,4 @@ class MainWindow(FramelessWindow):
         painter.fillRect(self.rect(), QColor(_BG))
         painter.end()
 
-# 1.1.0
+# 1.1.1

@@ -1508,4 +1508,4 @@ class GlassToolTipFilter(QObject):
             self.tooltip.hide()
         return False
 
-# 1.1.0
+# 1.1.1

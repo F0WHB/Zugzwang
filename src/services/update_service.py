@@ -29,9 +29,35 @@ def _parse_version_parts(raw: str) -> tuple[tuple[int, ...], str]:
     return numeric, suffix
 
 
+def _compare_suffixes(current_suffix: str, latest_suffix: str) -> int:
+    if current_suffix == latest_suffix:
+        return 0
+    # A version without suffix is a final stable release.
+    # A version with a suffix (beta, alpha, rc) is a pre-release, which is older than stable.
+    if current_suffix and not latest_suffix:
+        return -1  # current (beta) is older than latest (stable)
+    if latest_suffix and not current_suffix:
+        return 1   # current (stable) is newer than latest (beta)
+
+    # Both have suffixes. Split into text and numeric parts (e.g. 'beta', 6)
+    def split_sub(s):
+        match = re.match(r"^([a-zA-Z]+)(\d*)$", s)
+        if match:
+            return match.group(1), int(match.group(2)) if match.group(2) else 0
+        return s, 0
+
+    c_tag, c_val = split_sub(current_suffix)
+    l_tag, l_val = split_sub(latest_suffix)
+    if c_tag != l_tag:
+        return 1 if c_tag > l_tag else -1
+    if c_val != l_val:
+        return 1 if c_val > l_val else -1
+    return 0
+
+
 def _compare_versions(current: str, latest: str) -> int:
     """
-    Compare app versions with support for developer suffixes like 1.0.9b.
+    Compare app versions with support for pre-release suffixes (e.g., 1.1.0 Beta6 vs 1.1.1).
     Returns:
       1  -> current is newer
       0  -> same
@@ -49,17 +75,7 @@ def _compare_versions(current: str, latest: str) -> int:
     if current_num < latest_num:
         return -1
 
-    if current_suffix == latest_suffix:
-        return 0
-    if current_suffix and not latest_suffix:
-        return 1
-    if latest_suffix and not current_suffix:
-        return -1
-    if current_suffix > latest_suffix:
-        return 1
-    if current_suffix < latest_suffix:
-        return -1
-    return 0
+    return _compare_suffixes(current_suffix, latest_suffix)
 
 
 def _extract_release_build(release_data: dict) -> int:
@@ -155,16 +171,23 @@ class UpdateWorker(QThread):
             system = platform.system().lower()
             
             for asset in assets:
-                name = asset["name"].lower()
-                if system == "windows" and (name.endswith(".exe") or name.endswith(".msi")):
-                    download_url = asset["browser_download_url"]
+                name = asset.get("name", "").lower()
+                if system == "windows" and (name.endswith(".exe") or name.endswith(".msi") or (name.endswith(".zip") and "win" in name)):
+                    download_url = asset.get("browser_download_url", "")
                     break
-                elif system == "darwin" and name.endswith(".zip") and "macos" in name:
-                    download_url = asset["browser_download_url"]
+                elif system == "darwin" and (name.endswith(".dmg") or (name.endswith(".zip") and ("mac" in name or "darwin" in name or "zugzwang" in name))):
+                    download_url = asset.get("browser_download_url", "")
                     break
-                elif system == "linux" and name.endswith(".tar.gz") and "linux" in name:
-                    download_url = asset["browser_download_url"]
+                elif system == "linux" and (name.endswith(".tar.gz") or name.endswith(".appimage") or name.endswith(".deb")) and ("linux" in name or "zugzwang" in name):
+                    download_url = asset.get("browser_download_url", "")
                     break
+            
+            if not download_url:
+                # Fallback to the first asset or release HTML page
+                if assets and assets[0].get("browser_download_url"):
+                    download_url = assets[0]["browser_download_url"]
+                else:
+                    download_url = data.get("html_url", "")
             
             if download_url:
                 display_version = latest_version
@@ -240,4 +263,4 @@ class UpdateService(QObject):
             
         sys.exit(0)
 
-# 1.1.0
+# 1.1.1
