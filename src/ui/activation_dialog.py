@@ -1,3 +1,4 @@
+from src.ui.toast_system import ToastNotification
 """
 ZUGZWANG - Activation Dialog (macOS Redesign)
 "Apple Style" - Premium, minimal, highly-polished.
@@ -10,7 +11,7 @@ from PySide6.QtWidgets import (
     QLineEdit, QFrame, QGraphicsDropShadowEffect, QPushButton
 )
 from qfluentwidgets import (
-    FluentIcon, IconWidget, LineEdit, InfoBar, InfoBarPosition
+    FluentIcon, IconWidget, LineEdit, InfoBarPosition
 )
 from .theme import Theme
 from ..core.security import LicenseManager
@@ -40,16 +41,17 @@ class ActivationDialog(QDialog):
         self.container.setObjectName("MainContainer")
         self.container.setStyleSheet("""
             QFrame#MainContainer {
-                background: rgba(36, 36, 38, 0.75);
+                background: #2C2C2E;
                 border: 1px solid rgba(255, 255, 255, 0.1);
                 border-radius: 14px;
             }
         """)
-        self.container.setFixedWidth(460)
+        self.setFixedWidth(410)
+        self.container.setFixedWidth(410)
         dialog_layout.addWidget(self.container)
         
         layout = QVBoxLayout(self.container)
-        layout.setContentsMargins(28, 28, 28, 24)
+        layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(0)
         layout.setSizeConstraint(QVBoxLayout.SetFixedSize)
         
@@ -61,35 +63,40 @@ class ActivationDialog(QDialog):
         header_layout.setSpacing(14)
         
         icon_chip = QFrame()
-        icon_chip.setFixedSize(36, 36)
-        icon_chip.setStyleSheet("background: rgba(255, 255, 255, 0.05); border-radius: 8px;")
+        icon_chip.setFixedSize(40, 40)
+        icon_chip.setStyleSheet("background: #3A3A3C; border-radius: 9px;")
         chip_layout = QVBoxLayout(icon_chip)
         chip_layout.setContentsMargins(0, 0, 0, 0)
-        icon = IconWidget(FluentIcon.VPN)
+        
+        # Use SHIELD if available, fallback to VPN/Safe
+        icon_type = getattr(FluentIcon, "SHIELD", FluentIcon.VPN)
+        icon = IconWidget(icon_type)
         icon.setFixedSize(18, 18)
-        icon.setStyleSheet("color: #E5E5EA; background: transparent;")
+        icon.setStyleSheet("color: #FFFFFF; background: transparent;")
         chip_layout.addWidget(icon, 0, Qt.AlignCenter)
         
         header_layout.addWidget(icon_chip, 0, Qt.AlignTop)
         
         header_text_layout = QVBoxLayout()
         header_text_layout.setSpacing(2)
-        title = QLabel("Activate ZUGZWANG Pro")
+        from ..core.i18n import get_language, tr
+        title = QLabel(tr("activation.title", get_language(None)))
         title.setStyleSheet("""
             color: #FFFFFF; 
             background: transparent;
-            font-family: "-apple-system", "SF Pro Text", sans-serif; 
-            font-size: 15px; 
+            font-family: "-apple-system", "SF Pro Display", sans-serif; 
+            font-size: 17px; 
             font-weight: 600;
         """)
         header_text_layout.addWidget(title)
         
-        subtitle = QLabel("Unlock pro features and remove trial limits")
+        subtitle = QLabel(tr("activation.subtitle", get_language(None)))
         subtitle.setStyleSheet("""
-            color: rgba(255, 255, 255, 0.45); 
+            color: #8E8E93; 
             background: transparent;
             font-family: "-apple-system", "SF Pro Text", sans-serif; 
-            font-size: 12.5px;
+            font-size: 13px;
+            font-weight: 400;
         """)
         header_text_layout.addWidget(subtitle)
         
@@ -97,65 +104,73 @@ class ActivationDialog(QDialog):
         header_layout.addStretch(1)
         
         layout.addLayout(header_layout)
-        layout.addSpacing(24)
+        layout.addSpacing(20)
         
         # ━━━━━━━━━━━━━━━━━━━━━━━━━
         # 2. PERSUASION / BENEFITS
         # ━━━━━━━━━━━━━━━━━━━━━━━━━
         benefits_layout = QVBoxLayout()
-        benefits_layout.setSpacing(10)
+        benefits_layout.setSpacing(11)
+        benefits_layout.setContentsMargins(0, 0, 0, 0)
         
         def _make_prop(text: str):
             row = QHBoxLayout()
-            row.setSpacing(10)
-            chk = IconWidget(FluentIcon.ACCEPT)
-            chk.setFixedSize(12, 12)
-            chk.setStyleSheet("color: rgba(255, 255, 255, 0.4); background: transparent;")
+            row.setSpacing(12)
+            row.setContentsMargins(0, 0, 0, 0)
+            
+            chk = QLabel("✓")
+            chk.setStyleSheet("color: #0A84FF; background: transparent; font-family: '-apple-system', sans-serif; font-size: 14px; font-weight: 300; letter-spacing: 0px;")
+            
             lbl = QLabel(text)
-            lbl.setStyleSheet("color: #D1D1D6; background: transparent; font-family: '-apple-system', 'SF Pro Text', sans-serif; font-size: 13px; font-weight: 400;")
+            lbl.setStyleSheet("color: #EBEBF0; background: transparent; font-family: '-apple-system', 'SF Pro Text', sans-serif; font-size: 14px; font-weight: 400; letter-spacing: 0px; line-height: 1.4;")
+            
             row.addWidget(chk, 0, Qt.AlignVCenter)
             row.addWidget(lbl, 1, Qt.AlignVCenter)
             return row
             
-        benefits_layout.addLayout(_make_prop("Unlimited automated PDF generation"))
-        benefits_layout.addLayout(_make_prop("Dynamic personalization of your Anschreiben"))
-        benefits_layout.addLayout(_make_prop("Unlimited mass email broadcasts"))
-        benefits_layout.addLayout(_make_prop("Deep website scanning for hidden contacts"))
-        benefits_layout.addLayout(_make_prop("Unlimited Google Maps lead extraction"))
-        benefits_layout.addLayout(_make_prop("Priority customer support & updates"))
-        benefits_layout.addLayout(_make_prop("Removal of all free trial restrictions"))
+        benefits_layout.addLayout(_make_prop(tr("activation.f1", get_language(None))))
+        benefits_layout.addLayout(_make_prop(tr("activation.f2", get_language(None))))
+        benefits_layout.addLayout(_make_prop(tr("activation.f3", get_language(None))))
+        benefits_layout.addLayout(_make_prop(tr("activation.f4", get_language(None))))
+        benefits_layout.addLayout(_make_prop(tr("activation.f5", get_language(None))))
+        benefits_layout.addLayout(_make_prop(tr("activation.f6", get_language(None))))
+        benefits_layout.addLayout(_make_prop(tr("activation.f7", get_language(None))))
         layout.addLayout(benefits_layout)
         
-        layout.addSpacing(24)
+        layout.addSpacing(20)
         
         # ━━━━━━━━━━━━━━━━━━━━━━━━━
         # 3. FOCAL TASK (PRODUCT KEY)
         # ━━━━━━━━━━━━━━━━━━━━━━━━━
-        key_lbl = QLabel("PRODUCT KEY")
+        key_lbl = QLabel(tr("activation.key", get_language(None)))
         key_lbl.setStyleSheet("color: #8E8E93; background: transparent; font-family: '-apple-system', sans-serif; font-size: 11px; font-weight: 600; letter-spacing: 0.5px;")
         layout.addWidget(key_lbl)
         layout.addSpacing(6)
         
-        self.key_input = LineEdit()
+        from PySide6.QtWidgets import QLineEdit
+        self.key_input = QLineEdit()
         self.key_input.setPlaceholderText("ZUG-XXXX-XXXX-XXXX")
-        self.key_input.setFixedHeight(34)
+        self.key_input.setFixedHeight(40)
+        self.key_input.setAttribute(Qt.WA_MacShowFocusRect, 0)
         self.key_input.setStyleSheet("""
-            LineEdit {
-                background: rgba(255, 255, 255, 0.04);
-                border: 1px solid rgba(255, 255, 255, 0.08);
+            QLineEdit {
+                background: #1C1C1E;
+                border: 1px solid rgba(255, 255, 255, 0.16);
                 border-radius: 6px;
                 color: #FFFFFF;
-                font-family: "Menlo", "Menlo", monospace;
-                font-size: 13px; padding: 0 10px; letter-spacing: 1px;
+                font-family: "SF Mono", "Menlo", monospace;
+                font-size: 13px; padding: 8px 12px; letter-spacing: 1px;
+                outline: none;
             }
-            LineEdit:focus { 
-                border: 1px solid rgba(10, 132, 255, 0.6);
-                background: rgba(255, 255, 255, 0.06);
+            QLineEdit:focus { 
+                border: 1px solid #0A84FF;
+                background: #1C1C1E;
+                outline: none;
             }
         """)
         self.key_input.textChanged.connect(self._on_key_changed)
         layout.addWidget(self.key_input)
-        layout.addSpacing(16)
+        layout.addSpacing(14)
         
         # ━━━━━━━━━━━━━━━━━━━━━━━━━
         # 4. SUBORDINATE REFERENCE (MACHINE ID)
@@ -163,7 +178,7 @@ class ActivationDialog(QDialog):
         mid_layout = QHBoxLayout()
         mid_layout.setSpacing(8)
         
-        mid_lbl = QLabel("Machine ID")
+        mid_lbl = QLabel(tr("activation.machine", get_language(None)))
         mid_lbl.setStyleSheet("color: #8E8E93; background: transparent; font-family: '-apple-system', sans-serif; font-size: 11px; font-weight: 500;")
         mid_layout.addWidget(mid_lbl)
         
@@ -173,86 +188,96 @@ class ActivationDialog(QDialog):
         mid_layout.addWidget(self.mid_field)
         
         copy_btn = QPushButton()
-        copy_btn.setFixedSize(16, 16)
+        copy_btn.setFixedSize(28, 28)
         copy_btn.setCursor(Qt.PointingHandCursor)
         copy_btn.setIcon(FluentIcon.COPY.icon(color=QColor(142, 142, 147, 180)))
-        copy_btn.setStyleSheet("QPushButton { background: transparent; border: none; } QPushButton:hover { background: rgba(255,255,255,0.1); border-radius: 4px; }")
+        copy_btn.setIconSize(QSize(16, 16))
+        copy_btn.setStyleSheet("QPushButton { background: transparent; border: none; } QPushButton:hover { background: rgba(255,255,255,0.05); border-radius: 14px; }")
         copy_btn.clicked.connect(self._copy_id)
         mid_layout.addWidget(copy_btn)
         
         mid_layout.addStretch(1)
         layout.addLayout(mid_layout)
         
-        layout.addSpacing(20)
+        layout.addSpacing(14)
         
         # ━━━━━━━━━━━━━━━━━━━━━━━━━
-        # 5. FOOTER (Divider + Action Buttons)
+        # 5. FOOTER (Action Buttons)
         # ━━━━━━━━━━━━━━━━━━━━━━━━━
-        divider = QFrame()
-        divider.setFixedHeight(1)
-        divider.setStyleSheet("background: rgba(255, 255, 255, 0.08); border: none;")
-        layout.addWidget(divider)
-        layout.addSpacing(16)
         
-        footer = QHBoxLayout()
-        footer.setContentsMargins(0, 0, 0, 0)
-        footer.setSpacing(12)
-        
-        # Ghost support icons (LEFT)
         from PySide6.QtGui import QDesktopServices
         from PySide6.QtCore import QUrl
         def open_url(url): QDesktopServices.openUrl(QUrl(url))
         
-        tg_btn = QPushButton()
-        tg_btn.setFixedSize(22, 22)
-        tg_btn.setCursor(Qt.PointingHandCursor)
-        tg_btn.setIcon(FluentIcon.SEND.icon(color=QColor(255, 255, 255, 100)))
-        tg_btn.setStyleSheet("QPushButton { background: transparent; border: none; } QPushButton:hover { background: rgba(255, 255, 255, 0.1); border-radius: 4px; }")
-        tg_btn.clicked.connect(lambda: open_url("https://t.me/+OsHHWTSv_bVkZTM0"))
+        need_key_btn = QPushButton("Activation")
+        need_key_btn.setCursor(Qt.PointingHandCursor)
+        need_key_btn.setStyleSheet("""
+            QPushButton {
+                color: #30D158; 
+                background: transparent;
+                border: none;
+                font-family: '-apple-system', sans-serif; 
+                font-size: 14px; 
+                font-weight: 500;
+                letter-spacing: 0px;
+                text-transform: none;
+                text-align: center;
+                padding: 0;
+            }
+            QPushButton:hover { color: #28CD53; text-decoration: underline; }
+        """)
+        need_key_btn.clicked.connect(lambda: open_url("https://wa.me/212663007212"))
+        layout.addWidget(need_key_btn)
         
-        wa_btn = QPushButton()
-        wa_btn.setFixedSize(22, 22)
-        wa_btn.setCursor(Qt.PointingHandCursor)
-        wa_btn.setIcon(FluentIcon.CHAT.icon(color=QColor(255, 255, 255, 100)))
-        wa_btn.setStyleSheet("QPushButton { background: transparent; border: none; } QPushButton:hover { background: rgba(255, 255, 255, 0.1); border-radius: 4px; }")
-        wa_btn.clicked.connect(lambda: open_url("https://wa.me/212663007212"))
+        layout.addSpacing(10)
         
-        footer.addWidget(tg_btn)
-        footer.addWidget(wa_btn)
+        footer = QHBoxLayout()
+        footer.setContentsMargins(0, 0, 0, 0)
+        footer.setSpacing(10)
         
-        footer.addStretch(1)
+        from PySide6.QtWidgets import QSizePolicy
         
         # Primary Action Pair (RIGHT)
         self.close_btn = QPushButton("Continue trial")
         self.close_btn.setCursor(Qt.PointingHandCursor)
-        self.close_btn.setFixedHeight(28)
+        self.close_btn.setFixedHeight(44)
         self.close_btn.setStyleSheet("""
             QPushButton {
                 background: transparent; 
-                border: 1px solid rgba(255, 255, 255, 0.15);
-                border-radius: 6px;
+                border: 1px solid rgba(255, 255, 255, 0.16);
+                border-radius: 10px;
                 color: #FFFFFF;
-                font-family: "-apple-system", "SF Pro Text", sans-serif; font-size: 13px; font-weight: 500;
-                padding: 0 16px;
+                font-family: "-apple-system", "SF Pro Text", sans-serif; font-size: 15px; font-weight: 500;
+                letter-spacing: 0px;
+                text-transform: none;
+                padding: 0 20px;
+                white-space: nowrap;
             }
             QPushButton:hover { background: rgba(255, 255, 255, 0.05); }
         """)
         self.close_btn.clicked.connect(self._on_exit_clicked)
+        self.close_btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         footer.addWidget(self.close_btn)
         
         self.activate_btn = QPushButton("Activate")
-        self.activate_btn.setFixedHeight(28)
+        self.activate_btn.setFixedHeight(44)
         self.activate_btn.setCursor(Qt.PointingHandCursor)
         self.activate_btn.setProperty("isValid", False)
         self.activate_btn.setStyleSheet("""
             QPushButton {
-                background: #2C2C2E;
-                color: #8E8E93;
+                background: rgba(10, 132, 255, 0.15);
+                color: rgba(10, 132, 255, 0.5);
                 border: none;
-                border-radius: 6px;
+                border-radius: 10px;
                 font-family: "-apple-system", "SF Pro Text", sans-serif;
-                font-size: 13px; font-weight: 500;
-                padding: 0 16px;
+                font-size: 15px; font-weight: 500;
+                letter-spacing: 0px;
+                text-transform: none;
+                padding: 0 20px;
+            }
+            QPushButton:disabled {
+                background: rgba(10, 132, 255, 0.15);
+                color: rgba(10, 132, 255, 0.5);
             }
             QPushButton[isValid="true"] {
                 background: #0A84FF;
@@ -262,6 +287,7 @@ class ActivationDialog(QDialog):
                 background: #0070DF; 
             }
         """)
+        self.activate_btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.activate_btn.setEnabled(False)
         self.activate_btn.clicked.connect(self._activate)
         footer.addWidget(self.activate_btn)
@@ -269,6 +295,11 @@ class ActivationDialog(QDialog):
         layout.addLayout(footer)
         
         self._refresh_machine_id()
+        
+        if self.parent():
+            self.adjustSize()
+            center = self.parent().geometry().center()
+            self.move(center.x() - self.width() // 2, center.y() - self.height() // 2)
 
     def _on_key_changed(self, text: str):
         self.key_input.blockSignals(True)
@@ -308,7 +339,7 @@ class ActivationDialog(QDialog):
             self._refresh_machine_id()
             machine_id = self.mid_field.text().strip()
         QGuiApplication.clipboard().setText(machine_id)
-        InfoBar.success("Copied", "Machine ID copied to clipboard.", duration=2000, position=InfoBarPosition.TOP, parent=self)
+        ToastNotification.success("Copied", "Machine ID copied to clipboard.", duration=2000, position=InfoBarPosition.TOP, parent=self)
 
     def _refresh_machine_id(self):
         machine_id = (LicenseManager.get_machine_id() or "").strip().upper()
@@ -317,18 +348,18 @@ class ActivationDialog(QDialog):
     def _activate(self):
         key = self.key_input.text().strip()
         if not key:
-            InfoBar.error("Required", "Please enter your license key.", duration=3000, parent=self)
+            ToastNotification.error("Required", "Please enter your license key.", duration=3000, parent=self)
             return
             
         if LicenseManager.activate(key):
             self.activated.emit()
             self.accept()
         else:
-            InfoBar.error("Invalid Key", "Product key does not match this machine.", duration=4000, parent=self)
+            ToastNotification.error("Invalid Key", "Product key does not match this machine.", duration=4000, parent=self)
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Escape:
             self.reject()
         super().keyPressEvent(event)
 
-# 1.1.0 Beta5.1
+# 1.1.0 Beta6

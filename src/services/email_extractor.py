@@ -187,6 +187,17 @@ _CONTACT_STOPWORDS = {
     "nürnberg", "duisburg", "bochum", "wuppertal", "bielefeld", "bonn", "münster",
     "uns", "wir", "ihre", "ihr", "unser", "unsere", "fragen", "ansprechpartner",
     "karriere", "stellenangebote", "job", "jobs", "team", "pflegedienstleitung",
+    "impressum", "datenschutz", "rechtliches", "netiquette", "titel", "stiftung",
+    "seniorendomizil", "seniorenresidenz", "pflegeheim", "ambulante", "pflege",
+    "co", "kg", "ggmbh", "ug", "verein", "gesellschaft", "ohg", "haftungsbeschränkt",
+    "haus", "residenz", "domizil", "klinik", "krankenhaus", "hilfe", "johanniter",
+    "caritas", "diakonie", "asb", "awo", "drk", "malteser", "startseite", "home",
+    "aktuelles", "news", "über", "leistungen", "angebote", "service", "preise",
+    "kosten", "faq", "antworten", "downloads", "galerie", "bilder", "videos",
+    "presse", "medien", "partner", "referenzen", "anfahrt", "agb", "sitemap",
+    "suche", "login", "newsletter", "facebook", "twitter", "instagram", "youtube",
+    "linkedin", "xing", "senioren", "seniorenpflege", "seniorenzentrum",
+    "pflegezentrum", "pflegedienst", "ambulanz", "sozialstation", "sozial", "zentrum",
 }
 
 def extract_contact_person_from_text(text: str) -> Optional[str]:
@@ -196,18 +207,17 @@ def extract_contact_person_from_text(text: str) -> Optional[str]:
 
     # 1. High-priority role titles (Ansprechpartner, PDL, HR Manager, etc.)
     role_pattern = re.compile(
-        r'\b(?:Ansprechpartner(?:in)?|Pflegedienstleitung|PDL|Pflegedirektor(?:in)?|'
-        r'Personalleitung|Personalabteilung|HR[\s-]*Manager(?:in)?|Einrichtungsleitung|'
-        r'Heimleitung|Geschäftsführer(?:in)?|Geschäftsleitung|Bewerbung(?:en)?\s+(?:an|bei))'
-        r'(?:\s*(?:\(PDL\)|/in|\s+für\s+[A-Za-zÄÖÜäöü]+))?\s*[:\-\s]\s*'
-        r'(?:(Frau|Herr)\s+)?'
-        r'((?:(?:[A-ZÄÖÜ][a-zA-Zäöüß\-]+|Dr\.|Prof\.|med\.|von|van|der|de|zu)\s*){2,4})',
-        re.IGNORECASE
+        r'\b(?:[Aa]nsprechpartner(?:in)?|[Pp]flegedienstleitung|PDL|pdl|[Pp]flegedirektor(?:in)?|'
+        r'[Pp]ersonalleitung|[Pp]ersonalabteilung|HR[\s-]*[Mm]anager(?:in)?|[Ee]inrichtungsleitung|'
+        r'[Hh]eimleitung|[Gg]eschäftsführer(?:in)?|[Gg]eschäftsleitung|[Bb]ewerbung(?:en)?\s+(?:an|bei))'
+        r'(?:\s*(?:\(PDL\)|/in|\s+für\s+[A-Za-zÄÖÜäöü]+))?\s*(?:[:\-\s]|ist|sind)\s*'
+        r'(?:([Ff]rau|[Hh]err)\s+)?'
+        r'((?:(?:[A-ZÄÖÜ][a-zA-Zäöüß\-]+|Dr\.|Prof\.|med\.|von|van|der|de|zu)\s*){2,4})'
     )
     for match in role_pattern.finditer(text):
         salutation = (match.group(1) or "").capitalize()
         raw_name = re.sub(r'[\s,;:!\?]+$', '', match.group(2)).strip()
-        words = raw_name.split()
+        words = re.split(r'[\s\-]+', raw_name)
         if len(words) >= 2 and not any(w.lower() in _CONTACT_STOPWORDS for w in words):
             if salutation in ("Frau", "Herr"):
                 return f"{salutation} {raw_name}"
@@ -220,7 +230,7 @@ def extract_contact_person_from_text(text: str) -> Optional[str]:
     for m in matches:
         salutation = m[0]
         name = re.sub(r'[\s,;:!\?]+$', '', m[1]).strip()
-        words = name.split()
+        words = re.split(r'[\s\-]+', name)
         if name and len(words) >= 1 and not any(w.lower() in _CONTACT_STOPWORDS for w in words):
             return f"{salutation} {name}"
             
@@ -242,6 +252,23 @@ def verify_email_domain_dns(email: str, timeout: float = 3.0) -> bool:
     """
     return _is_valid_email(email)
 
+def _normalize_email(email: str) -> str:
+    """Clean up and decode obfuscated emails (e.g. ROT13 or bracketed domains)."""
+    email = email.lower().strip()
+    email = email.replace("[at]", "@").replace("(at)", "@").replace("{at}", "@").replace("[ät]", "@")
+    email = email.replace("[at*]", "@").replace("&#064;", "@").replace("&#x40;", "@")
+    
+    # Check if it's a known ROT13 obfuscated TLD
+    rot13_tlds = {".qr", ".pbz", ".arg", ".bet", ".vasb", ".rh", ".ng", ".pu", ".tzou", ".hx"}
+    if any(email.endswith(tld) for tld in rot13_tlds):
+        import codecs
+        try:
+            email = codecs.decode(email, 'rot_13')
+        except Exception:
+            pass
+            
+    return email
+
 def extract_emails_from_text(text: str) -> list[str]:
     """Extract all valid, unique emails from a plain text string."""
     if not text:
@@ -258,11 +285,8 @@ def extract_emails_from_text(text: str) -> list[str]:
         # If the regex matched a group (the email itself), e will be the group
         # If the regex has no groups, e will be the whole match
         email = e if isinstance(e, str) else e[0]
-        # Final cleanup for the deobfuscated email
-        email = email.replace("[at]", "@").replace("(at)", "@").replace("{at}", "@").replace("[ät]", "@")
-        email = email.replace("[at*]", "@").replace("&#064;", "@").replace("&#x40;", "@")
         
-        key = email.lower().strip()
+        key = _normalize_email(email)
         if key not in seen and _is_valid_email(key):
             seen.add(key)
             result.append(key)
@@ -286,19 +310,19 @@ def extract_emails_from_html(html: str) -> list[str]:
 
     # 1. mailto: links — highest confidence (also URL-decode %40 etc.)
     for match in _MAILTO_PATTERN.finditer(html):
-        raw = unquote(match.group(1)).strip().lower()
+        raw = _normalize_email(unquote(match.group(1)))
         if _is_valid_email(raw):
             emails.add(raw)
 
     # 2. JSON-LD / structured data — "email" field
     for match in _JSONLD_EMAIL_PATTERN.finditer(html):
-        email = match.group(1).strip().lower()
+        email = _normalize_email(match.group(1))
         if _is_valid_email(email):
             emails.add(email)
 
     # 3. JSON-LD contactPoint → email
     for match in _JSONLD_CONTACT_PATTERN.finditer(html):
-        email = match.group(1).strip().lower()
+        email = _normalize_email(match.group(1))
         if _is_valid_email(email):
             emails.add(email)
 
@@ -460,6 +484,9 @@ def normalize_website(url: str) -> str:
 
 def _deobfuscate_text(text: str) -> str:
     """Replace common email obfuscation patterns with their real characters."""
+    # First decode URL encoded sequences like %20, %40, etc.
+    text = unquote(text)
+    
     for pattern, replacement in OBFUSCATION_PATTERNS:
         text = re.sub(pattern, replacement, text, flags=re.IGNORECASE)
     return text
@@ -555,4 +582,4 @@ def _strip_html_tags(html: str) -> str:
     return text.strip()
 
 
-# 1.1.0 Beta5.1
+# 1.1.0 Beta6

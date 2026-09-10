@@ -1,4 +1,5 @@
 from __future__ import annotations
+from .toast_system import ToastNotification
 _SCROLLBAR_STYLE = """
     QScrollBar:vertical {
         background: #1a1a1a;
@@ -86,9 +87,12 @@ from PySide6.QtWidgets import (
     QSpacerItem,
     QGraphicsOpacityEffect,
     QScrollBar,
+    QStackedWidget,
 )
-from qfluentwidgets import InfoBar, LineEdit, PushButton, InfoBarPosition, CaptionLabel, FluentIcon, IconWidget, Action
+from .toast_system import ToastNotification as InfoBar
+from qfluentwidgets import LineEdit, PushButton, InfoBarPosition, CaptionLabel, FluentIcon, IconWidget, Action
 from .components import StatCard, GlassToolTipFilter
+from ..core.i18n import tr, get_language
 
 
 class SegmentTabButton(QPushButton):
@@ -166,7 +170,7 @@ class SegmentTabButton(QPushButton):
             f"{count_str}</span>"
         )
 
-from ..core.config import get_exports_dir, get_memory_db_path
+from ..core.config import get_exports_dir, get_memory_db_path, config_manager
 from ..core.models import LeadRecord
 from ..services.export_service import ExportService
 from ..services.email_extractor import _is_valid_email
@@ -315,7 +319,7 @@ class LeadRowWidget(QFrame):
 
         # Show GEN badge only when generated (not sent)
         if state and state.generated_at and not state.sent_at:
-            badge = QLabel("GEN")
+            badge = QLabel(tr("GEN", get_language(config_manager.settings.app_language)))
             badge.setAlignment(Qt.AlignCenter)
             badge.setFixedHeight(18)
             badge.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
@@ -421,7 +425,7 @@ class FindReplaceBar(QFrame):
         self._replace_input.setFixedHeight(28)
         self._replace_input.setStyleSheet(input_ss)
 
-        self._case_cb = QCheckBox("Aa")
+        self._case_cb = QCheckBox(tr("Aa", get_language(config_manager.settings.app_language)))
         self._case_cb.setStyleSheet(
             "QCheckBox { color: #AEAEB2; font-size: 11px; }"
             "QCheckBox::indicator { width: 14px; height: 14px; }"
@@ -591,7 +595,7 @@ class PDFDropZone(QFrame):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setAlignment(Qt.AlignCenter)
-        self.label = QLabel("Drop Bewerbung PDF here\nor click to browse")
+        self.label = QLabel(tr("Drop Bewerbung PDF here\nor click to browse", get_language(config_manager.settings.app_language)))
         self.label.setAlignment(Qt.AlignCenter)
         self.label.setStyleSheet(
             "color: #8E8E93; font-family: system-ui, -apple-system, sans-serif; "
@@ -718,7 +722,7 @@ class AppleConfirmDialog(QDialog):
         btn_layout.setContentsMargins(0, 8, 0, 0)
         btn_layout.setSpacing(10)
 
-        btn_cancel = QPushButton("Cancel")
+        btn_cancel = QPushButton(tr("Cancel", get_language(config_manager.settings.app_language)))
         btn_cancel.setCursor(Qt.PointingHandCursor)
         btn_cancel.setFixedHeight(32)
         btn_cancel.setStyleSheet("QPushButton { background: rgba(255, 255, 255, 0.1); color: white; border: none; border-radius: 6px; font-family: 'SF Pro Text', 'PT Root UI', sans-serif; font-size: 13px; font-weight: 500; } QPushButton:hover { background: rgba(255, 255, 255, 0.15); }")
@@ -762,6 +766,7 @@ class EditPage(QWidget):
         self._rendered_text:         str                    = ""
         self._loading_text:          bool                   = False
         self._preview_mode:          bool                   = False
+        self._is_template_mode:      bool                   = False
         self._bewerbung_pdf_path:         Path | None = None
         self._bewerbung_anschreiben_page: int         = 1   # 0-based, default page 2
 
@@ -835,6 +840,7 @@ class EditPage(QWidget):
 
         left_panel = self._build_left_panel()
         left_panel.setFixedWidth(280)
+        self._left_panel_widget = left_panel
         
         center_panel = self._build_center_panel()
         
@@ -887,7 +893,7 @@ class EditPage(QWidget):
         s_icon.setPixmap(_render_tinted_icon("search.svg", 13, "#6E6E73").pixmap(13, 13))
         
         self._search = QLineEdit()
-        self._search.setPlaceholderText("Search company, HR, city…")
+        self._search.setPlaceholderText(tr("edit.search.placeholder", get_language(config_manager.settings.app_language)))
         self._search.setStyleSheet("""
             QLineEdit {
                 background: transparent;
@@ -1056,10 +1062,12 @@ class EditPage(QWidget):
         layout.setSpacing(0)
 
         # A. Letter Header
-        header_w = QWidget()
-        header_w.setFixedHeight(48)
-        header_w.setStyleSheet("background-color: transparent; border: none;")
-        h_layout = QHBoxLayout(header_w)
+        self._center_header_stack = QStackedWidget()
+        self._center_header_stack.setFixedHeight(48)
+        self._center_header_stack.setStyleSheet("background-color: transparent; border: none;")
+
+        header_normal = QWidget()
+        h_layout = QHBoxLayout(header_normal)
         h_layout.setContentsMargins(32, 0, 32, 10)
         h_layout.setSpacing(0)
 
@@ -1142,8 +1150,62 @@ class EditPage(QWidget):
         right_h.addWidget(self._btn_regenerate)
         right_h.addWidget(self._btn_undo_ver)
         h_layout.addLayout(right_h)
+        self._center_header_stack.addWidget(header_normal)
         
-        layout.addWidget(header_w)
+        header_template = QWidget()
+        ht_layout = QHBoxLayout(header_template)
+        ht_layout.setContentsMargins(32, 0, 32, 10)
+        ht_layout.setSpacing(12)
+        template_title = QLabel(tr("Editing Global Template", get_language(config_manager.settings.app_language)))
+        template_title.setStyleSheet("color: #FFFFFF; font-family: 'PT Root UI'; font-size: 13px; font-weight: 600; border: none; background: transparent;")
+        ht_layout.addWidget(template_title)
+        ht_layout.addStretch(1)
+
+        cancel_tpl = QPushButton(tr("Cancel", get_language(config_manager.settings.app_language)))
+        cancel_tpl.setCursor(Qt.PointingHandCursor)
+        cancel_tpl.setStyleSheet("""
+            QPushButton { 
+                text-transform: none; 
+                letter-spacing: 0px;
+                border: none; 
+                background: transparent; 
+                color: #0A84FF; 
+                font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+                font-size: 13px;
+                font-weight: 500;
+                padding: 5px 8px; 
+            } 
+            QPushButton:hover { color: #409CFF; }
+            QPushButton:pressed { color: #0071E3; }
+        """)
+        cancel_tpl.clicked.connect(self._cancel_template_mode)
+        ht_layout.addWidget(cancel_tpl)
+
+        save_tpl = QPushButton(tr("Save template", get_language(config_manager.settings.app_language)))
+        save_tpl.setCursor(Qt.PointingHandCursor)
+        save_tpl.setFixedHeight(28)
+        save_tpl.setStyleSheet("""
+            QPushButton { 
+                text-transform: none; 
+                letter-spacing: 0px;
+                border: none; 
+                border-radius: 6px; 
+                background: #0A84FF; 
+                color: white; 
+                font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+                font-size: 13px;
+                font-weight: 500;
+                padding: 0 14px; 
+            } 
+            QPushButton:hover { background: #409CFF; } 
+            QPushButton:pressed { background: #0071E3; }
+        """)
+        save_tpl.clicked.connect(self._save_template_mode)
+        ht_layout.addWidget(save_tpl)
+
+        self._center_header_stack.addWidget(header_template)
+        
+        layout.addWidget(self._center_header_stack)
 
         # B. Letter Body
         self._editor = QTextEdit()
@@ -1154,7 +1216,6 @@ class EditPage(QWidget):
                 background-color: #141416;
                 border-radius: 11px;
                 border: none;
-                padding: 20px 32px 32px 32px;
                 color: #C7C7CC;
                 font-family: 'PT Root UI', system-ui, -apple-system, sans-serif;
                 font-size: 13px;
@@ -1179,6 +1240,9 @@ class EditPage(QWidget):
                 height: 0px;
             }
         """)
+        # Set text margins using the viewport so scrollbars stay at the widget edge
+        self._editor.viewport().setContentsMargins(32, 20, 42, 32)
+        
         self._editor.textChanged.connect(self._on_text_changed)
         
         # Find bar container
@@ -1222,7 +1286,10 @@ class EditPage(QWidget):
         return btn
 
 
-    def _build_right_panel(self) -> QScrollArea:
+    def _build_right_panel(self) -> QWidget:
+        self._right_panel_stack = QStackedWidget()
+        self._right_panel_stack.setStyleSheet("QStackedWidget { background: transparent; }")
+
         scroll = QScrollArea()
         scroll.setObjectName("EditRightPanel")
         scroll.setWidgetResizable(True)
@@ -1273,12 +1340,12 @@ class EditPage(QWidget):
 
         # CARD 4 - PROFILE & SIGNATURE
         card4, cl4 = _create_card()
-        lbl4 = _section_label("PROFILE & SIGNATURE")
+        lbl4 = _section_label(tr("edit.profile.title", get_language(config_manager.settings.app_language)))
         cl4.addWidget(lbl4)
         cl4.addSpacing(7)
-        self._btn_edit_profile = self._create_sidebar_button(FluentIcon.PEOPLE, "Set your information", self._edit_profile)
-        self._btn_upload_sig = self._create_sidebar_button(FluentIcon.UPDATE, "Upload signature", self._upload_signature)
-        self._btn_clear_sig = self._create_sidebar_button(FluentIcon.DELETE, "Clear signature", self._clear_signature)
+        self._btn_edit_profile = self._create_sidebar_button(FluentIcon.PEOPLE, tr("edit.sidebar.set_info", get_language(config_manager.settings.app_language)), self._edit_profile)
+        self._btn_upload_sig = self._create_sidebar_button(FluentIcon.UPDATE, tr("edit.sidebar.upload_sig", get_language(config_manager.settings.app_language)), self._upload_signature)
+        self._btn_clear_sig = self._create_sidebar_button(FluentIcon.DELETE, tr("edit.sidebar.clear_sig", get_language(config_manager.settings.app_language)), self._clear_signature)
         cl4.addWidget(self._btn_edit_profile)
         cl4.addSpacing(4)
         cl4.addWidget(self._btn_upload_sig)
@@ -1288,14 +1355,14 @@ class EditPage(QWidget):
 
         # CARD 5 - TEMPLATE
         card5, cl5 = _create_card()
-        lbl5 = _section_label("TEMPLATE")
+        lbl5 = _section_label(tr("edit.template.title", get_language(config_manager.settings.app_language)))
         cl5.addWidget(lbl5)
         cl5.addSpacing(7)
         self._template_status = QLabel(self._template_status_text())
         self._template_status.setStyleSheet("color: #6E6E73; font-size: 11px; font-weight: 400; background: transparent;")
         cl5.addWidget(self._template_status)
         cl5.addSpacing(6)
-        self._btn_edit_template = self._create_sidebar_button(FluentIcon.EDIT, "Edit template", self._edit_template)
+        self._btn_edit_template = self._create_sidebar_button(FluentIcon.EDIT, tr("edit.sidebar.edit_template", get_language(config_manager.settings.app_language)), self._edit_template)
         cl5.addWidget(self._btn_edit_template)
         layout.addWidget(card5)
 
@@ -1305,11 +1372,11 @@ class EditPage(QWidget):
         header_row = QHBoxLayout()
         header_row.setContentsMargins(0, 0, 0, 0)
         
-        lbl6 = _section_label("BEWERBUNG")
+        lbl6 = _section_label(tr("edit.bewerbung.title", get_language(config_manager.settings.app_language)))
         header_row.addWidget(lbl6)
         header_row.addSpacing(8)
 
-        self._bewerbung_status_label = QLabel("No PDF")
+        self._bewerbung_status_label = QLabel(tr("No PDF", get_language(config_manager.settings.app_language)))
         self._bewerbung_status_label.setFixedHeight(22)
         self._bewerbung_status_label.setStyleSheet("""
             QLabel {
@@ -1342,7 +1409,7 @@ class EditPage(QWidget):
         icon_w.setFixedSize(14, 14)
         icon_w.setStyleSheet("background: transparent; color: #a0a0a5;")
         
-        page_lbl = QLabel("   INSERT PAGE")
+        page_lbl = QLabel(tr("   INSERT PAGE", get_language(config_manager.settings.app_language)))
         page_lbl.setStyleSheet("""
             color: #a0a0a5;
             font-family: 'PT Root UI', sans-serif;
@@ -1375,7 +1442,6 @@ class EditPage(QWidget):
             }
         """)
         
-        from ..core.config import config_manager
         saved_page = getattr(config_manager.settings, "bewerbung_anschreiben_page", 1)
         self._page_input.setText(str(saved_page))
         self._page_input.editingFinished.connect(self._save_anschreiben_page)
@@ -1392,14 +1458,21 @@ class EditPage(QWidget):
         def _show_export_menu():
             from src.ui.components import GlassMenu
             menu = GlassMenu(parent=self)
-            menu.addAction(Action(FluentIcon.DOCUMENT, "Export .txt", triggered=self._export_letter))
-            menu.addAction(Action(FluentIcon.DOCUMENT, "Export .docx", triggered=self._export_docx))
+            
+            a1 = Action(FluentIcon.DOCUMENT, "Export .txt")
+            a1.triggered.connect(self._export_letter)
+            menu.addAction(a1)
+            
+            a2 = Action(FluentIcon.DOCUMENT, "Export .docx")
+            a2.triggered.connect(self._export_docx)
+            menu.addAction(a2)
+            
             menu.exec(self._btn_export.mapToGlobal(QPoint(0, self._btn_export.height())))
 
-        self._btn_export = self._create_sidebar_button(FluentIcon.DOWNLOAD, "Export letter", _show_export_menu)
-        self._btn_preview_pdf = self._create_sidebar_button(FluentIcon.VIEW, "Preview PDF", self._preview_merged_pdf)
-        self._btn_add_page = self._create_sidebar_button(FluentIcon.ADD, "Load Bewerbung", self._on_pdf_browse)
-        self._btn_close = self._create_sidebar_button(FluentIcon.CLOSE, "Clear PDF", self._clear_bewerbung_pdf)
+        self._btn_export = self._create_sidebar_button(FluentIcon.DOWNLOAD, tr("edit.sidebar.export_letter", get_language(config_manager.settings.app_language)), _show_export_menu)
+        self._btn_preview_pdf = self._create_sidebar_button(FluentIcon.VIEW, tr("edit.sidebar.preview_pdf", get_language(config_manager.settings.app_language)), self._preview_merged_pdf)
+        self._btn_add_page = self._create_sidebar_button(FluentIcon.ADD, tr("edit.sidebar.load_bewerbung", get_language(config_manager.settings.app_language)), self._on_pdf_browse)
+        self._btn_close = self._create_sidebar_button(FluentIcon.CLOSE, tr("edit.sidebar.clear_pdf", get_language(config_manager.settings.app_language)), self._clear_bewerbung_pdf)
 
         # Style Clear PDF button to be red
         self._btn_close.setIcon(FluentIcon.CLOSE.icon(color="#FF453A"))
@@ -1436,14 +1509,14 @@ class EditPage(QWidget):
 
         # CARD 7 - BATCH ACTIONS
         card7, cl7 = _create_card()
-        lbl7 = _section_label("BATCH ACTIONS")
+        lbl7 = _section_label(tr("edit.batch.title", get_language(config_manager.settings.app_language)))
         cl7.addWidget(lbl7)
         cl7.addSpacing(7)
 
-        self._btn_sync_leads = self._create_sidebar_button(FluentIcon.DOWNLOAD, "Import leads", self._show_import_menu)
-        self._btn_export_and_send_left = self._create_sidebar_button(FluentIcon.SEND, "Send all to queue", self._action_export_and_send_batch)
-        self._btn_regen_all = self._create_sidebar_button(FluentIcon.SYNC, "Regenerate all", self._action_regenerate_all_letters)
-        self._btn_delete_menu = self._create_sidebar_button(FluentIcon.DELETE, "Manage leads", self._show_delete_menu)
+        self._btn_sync_leads = self._create_sidebar_button(FluentIcon.DOWNLOAD, tr("edit.sidebar.import_leads", get_language(config_manager.settings.app_language)), self._show_import_menu)
+        self._btn_export_and_send_left = self._create_sidebar_button(FluentIcon.SEND, tr("edit.sidebar.send_queue", get_language(config_manager.settings.app_language)), self._action_export_and_send_batch)
+        self._btn_regen_all = self._create_sidebar_button(FluentIcon.SYNC, tr("edit.sidebar.regen_all", get_language(config_manager.settings.app_language)), self._action_regenerate_all_letters)
+        self._btn_delete_menu = self._create_sidebar_button(FluentIcon.DELETE, tr("edit.sidebar.manage_leads", get_language(config_manager.settings.app_language)), self._show_delete_menu)
         
         def _style_btn(btn, icon, r, g, b):
             hex_color = f"#{r:02X}{g:02X}{b:02X}"
@@ -1495,7 +1568,65 @@ class EditPage(QWidget):
         self._center_chip_sent = QLabel()
         self._center_chip_sent.hide()
         
-        return scroll
+        self._right_panel_stack.addWidget(scroll)
+
+        # Build placeholders inspector for template mode
+        inspector = QFrame()
+        inspector.setObjectName("TemplateInspector")
+        inspector.setStyleSheet("""
+            QFrame#TemplateInspector { 
+                background: #1C1C1E; 
+                border: 1px solid #2C2C2E;
+                border-radius: 12px;
+            }
+        """)
+        ins_layout = QVBoxLayout(inspector)
+        ins_layout.setContentsMargins(0, 0, 0, 0)
+        ins_layout.setSpacing(0)
+        
+        sidebar_title = QLabel(tr("Placeholders", get_language(config_manager.settings.app_language)))
+        sidebar_title.setStyleSheet("color: #D1D1D6; font: 600 13px '-apple-system, BlinkMacSystemFont, Arial, sans-serif'; padding: 20px 20px 12px 20px; border: none; background: transparent;")
+        ins_layout.addWidget(sidebar_title)
+        
+        placeholder_scroll = QScrollArea()
+        placeholder_scroll.setFrameShape(QFrame.NoFrame)
+        placeholder_scroll.setWidgetResizable(True)
+        placeholder_scroll.setStyleSheet("QScrollArea { background: transparent; border: none; } QScrollBar:vertical { background: transparent; width: 5px; } QScrollBar::handle:vertical { background: rgba(255,255,255,.15); border-radius: 2px; min-height: 24px; } QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }")
+        
+        placeholder_list = QWidget()
+        placeholder_list.setStyleSheet("background: transparent;")
+        list_layout = QVBoxLayout(placeholder_list)
+        list_layout.setContentsMargins(20, 0, 20, 18)
+        list_layout.setSpacing(0)
+        
+        for token, description in PLACEHOLDER_REFERENCE:
+            row = QPushButton()
+            row.setCursor(Qt.PointingHandCursor)
+            row.setFlat(True)
+            row.setFixedHeight(57)
+            row.setStyleSheet("QPushButton { text-transform: none; text-align: left; border: none; border-bottom: 1px solid rgba(255,255,255,.055); background: transparent; padding: 7px 0; } QPushButton:hover { background: rgba(10,132,255,.08); }")
+            row_layout = QVBoxLayout(row)
+            row_layout.setContentsMargins(0, 0, 0, 0)
+            row_layout.setSpacing(2)
+            token_label = QLabel(token)
+            token_label.setAttribute(Qt.WA_TransparentForMouseEvents)
+            token_label.setStyleSheet("color: #0A84FF; font-family: 'SF Mono', Menlo, monospace; font-size: 12px; font-weight: 500; border: none; background: transparent;")
+            description_label = QLabel(description)
+            description_label.setAttribute(Qt.WA_TransparentForMouseEvents)
+            description_label.setStyleSheet("color: #8E8E93; font: 12px '-apple-system, BlinkMacSystemFont, Arial, sans-serif'; border: none; background: transparent;")
+            description_label.setWordWrap(False)
+            row_layout.addWidget(token_label)
+            row_layout.addWidget(description_label)
+            row.clicked.connect(lambda checked=False, p=token: self._insert_placeholder(p))
+            list_layout.addWidget(row)
+            
+        list_layout.addStretch(1)
+        placeholder_scroll.setWidget(placeholder_list)
+        ins_layout.addWidget(placeholder_scroll, 1)
+        
+        self._right_panel_stack.addWidget(inspector)
+
+        return self._right_panel_stack
 
     # ─────────────────────────────────────────────────────────────────────────
     # Keyboard shortcuts
@@ -1536,11 +1667,11 @@ class EditPage(QWidget):
         menu.setWindowFlags(menu.windowFlags() | Qt.FramelessWindowHint | Qt.NoDropShadowWindowHint)
         menu.setAttribute(Qt.WA_TranslucentBackground)
         
-        a1 = QAction("Delete selected", self)
+        a1 = QAction(tr("edit.delete.selected", get_language(config_manager.settings.app_language)), self)
         a1.triggered.connect(self._delete_selected)
-        a2 = QAction("Delete sent", self)
+        a2 = QAction(tr("edit.delete.sent", get_language(config_manager.settings.app_language)), self)
         a2.triggered.connect(self._delete_sent)
-        a3 = QAction("Delete all", self)
+        a3 = QAction(tr("edit.delete.all", get_language(config_manager.settings.app_language)), self)
         a3.triggered.connect(self._delete_all)
         
         menu.addAction(a1)
@@ -1685,8 +1816,8 @@ class EditPage(QWidget):
             service = ExportService()
             new_records = service.import_spreadsheet(path)
             if not new_records:
-                from qfluentwidgets import InfoBar, InfoBarPosition
-                InfoBar.warning(
+                from .toast_system import ToastNotification as InfoBar
+                ToastNotification.warning(
                     title="No Leads Found",
                     content="Could not extract any leads from the selected file.",
                     orient=Qt.Horizontal,
@@ -1744,8 +1875,11 @@ class EditPage(QWidget):
                 first_rec = self._pending_lead_records[0]
                 self._render_record(first_rec)
 
-            from qfluentwidgets import InfoBar, InfoBarPosition
-            InfoBar.success(
+            from ..core.events import event_bus, EventBus
+            event_bus.emit(EventBus.DB_UPDATED, records=[])
+
+            from .toast_system import ToastNotification as InfoBar
+            ToastNotification.success(
                 title="Spreadsheet Imported",
                 content=f"Successfully imported and saved {len(new_records)} lead(s) from {Path(path).name}.",
                 orient=Qt.Horizontal,
@@ -1755,8 +1889,8 @@ class EditPage(QWidget):
                 parent=self.window()
             )
         except Exception as e:
-            from qfluentwidgets import InfoBar, InfoBarPosition
-            InfoBar.error(
+            from .toast_system import ToastNotification as InfoBar
+            ToastNotification.error(
                 title="Import Error",
                 content=str(e),
                 orient=Qt.Horizontal,
@@ -1823,12 +1957,25 @@ class EditPage(QWidget):
                 letter_text   TEXT,
                 previous_text TEXT,
                 last_saved_ts TEXT,
-                is_discarded  INTEGER DEFAULT 0
+                is_discarded  INTEGER DEFAULT 0,
+                tracking_id   TEXT,
+                opened_at     TEXT,
+                open_count    INTEGER DEFAULT 0
             )
         """)
         # migrate older schema that lacked new columns
         existing = {r[1] for r in conn.execute("PRAGMA table_info(letter_state)")}
-        for col, ctype, default in [("previous_text", "TEXT", "''"), ("last_saved_ts", "TEXT", "''"), ("is_discarded", "INTEGER", "0")]:
+        
+        migrations = [
+            ("previous_text", "TEXT", "''"), 
+            ("last_saved_ts", "TEXT", "''"), 
+            ("is_discarded", "INTEGER", "0"),
+            ("tracking_id", "TEXT", "NULL"),
+            ("opened_at", "TEXT", "NULL"),
+            ("open_count", "INTEGER", "0")
+        ]
+        
+        for col, ctype, default in migrations:
             if col not in existing:
                 conn.execute(f"ALTER TABLE letter_state ADD COLUMN {col} {ctype} DEFAULT {default}")
         conn.commit()
@@ -1977,7 +2124,7 @@ class EditPage(QWidget):
                 email_counts["sent" if is_sent else "pending"] += 1
 
         for key, btn in self._filter_btns.items():
-            base_label = {"all": "ALL", "pending": "PENDING", "sent": "SENT"}[key]
+            base_label = { "all": tr("edit.tab.all", get_language(config_manager.settings.app_language)), "pending": tr("edit.tab.pending", get_language(config_manager.settings.app_language)), "sent": tr("edit.tab.sent", get_language(config_manager.settings.app_language)) }[key]
             c = counts[key]
             ec = email_counts[key]
             if c > 0 and ec != c:
@@ -2074,7 +2221,7 @@ class EditPage(QWidget):
     # ─────────────────────────────────────────────────────────────────────────
 
     def _autosave(self, silent: bool = False):
-        if not self._selected_record:
+        if getattr(self, '_is_template_mode', False) or not self._selected_record:
             return
         text  = self._editor.toPlainText()
         state = self._states.setdefault(self._selected_record.id, LetterState())
@@ -2116,7 +2263,7 @@ class EditPage(QWidget):
             self._loading_text = False
 
     def _on_text_changed(self):
-        if self._loading_text or not self._selected_record:
+        if self._loading_text or getattr(self, '_is_template_mode', False) or not self._selected_record:
             return
         current = self._editor.toPlainText()
         state   = self._states.setdefault(self._selected_record.id, LetterState())
@@ -2136,7 +2283,7 @@ class EditPage(QWidget):
         replacements = {
             "ANREDE":         self._salutation(record.contact_person),
             "FIRMA":          record.company_name        or "Unternehmen",
-            "ORT":            record.city                or "",
+            "ORT":            __import__("re").sub(r"^\d+\s*", "", str(sender.get("city") or "")).strip(),
             "PLZ":            record.postal_code         or "",
             "BERUF":          sender.get("beruf") or record.job_title or record.category or "Ausbildung",
             "DATUM":          self._german_date(),
@@ -2228,127 +2375,197 @@ class EditPage(QWidget):
         run_in_thread(_do_save)
 
     def _edit_profile(self) -> None:
-        from PySide6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QScrollArea, QWidget, QLineEdit, QInputDialog
-        from qfluentwidgets import PushButton, PrimaryPushButton
+        from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
+                                     QScrollArea, QWidget, QLineEdit, QInputDialog, 
+                                     QFrame, QGraphicsDropShadowEffect, QPushButton, QSizePolicy)
+        from PySide6.QtCore import Qt
+        from PySide6.QtGui import QColor
+        from ..core.config import get_memory_db_path
         
-        dialog = QDialog(self)
-        dialog.setWindowTitle("Set Your Information")
-        dialog.setMinimumSize(500, 600)
-        dialog.setStyleSheet("QDialog { background: #1C1C1E; }")
-        
+        class GlassDialog(QDialog):
+            def __init__(self, parent=None):
+                super().__init__(parent)
+                self.setWindowFlags(Qt.FramelessWindowHint | Qt.Dialog)
+                self.setAttribute(Qt.WA_TranslucentBackground)
+                self.setFixedSize(440, 620)
+                self._drag_pos = None
+                # Style the dialog itself as the rounded card
+                self.setStyleSheet("""
+                    GlassDialog {
+                        background: #2C2C2E;
+                        border-radius: 14px;
+                        border: 1px solid rgba(255, 255, 255, 20);
+                    }
+                """)
+
+            def showEvent(self, event):
+                super().showEvent(event)
+                # Center on parent after showing so geometry is final
+                if self.parent() and hasattr(self.parent(), 'geometry'):
+                    pg = self.parent().window().geometry()
+                    self.move(
+                        pg.x() + (pg.width() - self.width()) // 2,
+                        pg.y() + (pg.height() - self.height()) // 2
+                    )
+
+            def paintEvent(self, event):
+                from PySide6.QtGui import QPainter, QPainterPath, QColor
+                painter = QPainter(self)
+                painter.setRenderHint(QPainter.Antialiasing)
+                path = QPainterPath()
+                path.addRoundedRect(self.rect().adjusted(0, 0, -1, -1), 14, 14)
+                painter.fillPath(path, QColor("#2C2C2E"))
+                painter.setPen(QColor(255, 255, 255, 20))
+                painter.drawPath(path)
+
+            def mousePressEvent(self, event):
+                if event.button() == Qt.LeftButton:
+                    self._drag_pos = event.globalPosition().toPoint()
+            def mouseMoveEvent(self, event):
+                if self._drag_pos is not None:
+                    delta = event.globalPosition().toPoint() - self._drag_pos
+                    self.move(self.pos() + delta)
+                    self._drag_pos = event.globalPosition().toPoint()
+            def mouseReleaseEvent(self, event):
+                self._drag_pos = None
+
+        dialog = GlassDialog(self)
+
+        # Root layout directly on dialog — no inner container frame
         layout = QVBoxLayout(dialog)
-        layout.setContentsMargins(24, 24, 24, 24)
-        layout.setSpacing(16)
-        
-        # Header
-        header = QLabel("Personal Information")
-        header.setStyleSheet("color: #FFFFFF; font-family: system-ui, -apple-system, sans-serif; font-size: 18px; font-weight: 600; background: transparent;")
-        layout.addWidget(header)
-        
-        hint = QLabel("Enter your details to automatically inject them into your templates.")
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
+        # ── 1. HEADER (fixed 90px) ────────────────────────────────────────────
+        header_widget = QWidget()
+        header_widget.setFixedHeight(90)
+        header_widget.setStyleSheet("background: transparent;")
+        header_layout = QVBoxLayout(header_widget)
+        header_layout.setContentsMargins(24, 22, 24, 18)
+        header_layout.setSpacing(4)
+
+        title_lbl = QLabel(tr("Personal information", get_language(config_manager.settings.app_language)))
+        title_lbl.setStyleSheet("color: #FFFFFF; font-family: 'SF Pro Text', system-ui, -apple-system, sans-serif; font-size: 17px; font-weight: 600; background: transparent; border: none;")
+        header_layout.addWidget(title_lbl)
+
+        hint = QLabel(tr("Enter your details to automatically inject them into your templates.", get_language(config_manager.settings.app_language)))
         hint.setWordWrap(True)
-        hint.setStyleSheet("color: #8E8E93; font-family: system-ui, -apple-system, sans-serif; font-size: 12px; background: transparent;")
-        layout.addWidget(hint)
-        layout.addSpacing(10)
-        
+        hint.setStyleSheet("color: #8E8E93; font-family: 'SF Pro Text', system-ui, -apple-system, sans-serif; font-size: 13px; font-weight: 400; background: transparent; border: none;")
+        header_layout.addWidget(hint)
+        layout.addWidget(header_widget)
+
+        # Header divider
+        divider = QFrame()
+        divider.setFixedHeight(1)
+        divider.setStyleSheet("background: rgba(255, 255, 255, 20); border: none;")
+        layout.addWidget(divider)
+
+        # ── 2. SCROLL AREA (flex 1, fills between header and footer) ─────────
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
-        scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
-        
-        container = QWidget()
-        container.setStyleSheet("background: transparent;")
-        form_layout = QVBoxLayout(container)
-        form_layout.setContentsMargins(0, 0, 16, 0)
+        scroll.setFrameShape(QFrame.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll.setStyleSheet("""
+            QScrollArea { border: none; background: transparent; }
+            QScrollBar:vertical { width: 0px; background: transparent; }
+        """)
+
+        body_container = QWidget()
+        body_container.setStyleSheet("background: transparent;")
+        form_layout = QVBoxLayout(body_container)
+        form_layout.setContentsMargins(24, 20, 24, 20)
         form_layout.setSpacing(16)
-        scroll.setWidget(container)
-        layout.addWidget(scroll, 1)
-        
+        scroll.setWidget(body_container)
+
+        layout.addWidget(scroll, 1)   # stretch=1 so it takes all remaining space
+
         current = self._cached_sender_settings.copy()
         fields = {}
-        
+
         def _add_field(key, label_title, token_text):
             row = QVBoxLayout()
             row.setSpacing(6)
-            
+
             lbl_row = QHBoxLayout()
             lbl_row.setContentsMargins(0, 0, 0, 0)
-            
-            lbl = QLabel(label_title.upper())
-            lbl.setStyleSheet("color: #8E8E93; font-family: system-ui, -apple-system, sans-serif; font-weight: 600; font-size: 10px; letter-spacing: 1px; background: transparent;")
-            
+
+            lbl = QLabel(label_title)
+            lbl.setStyleSheet("color: #EBEBF0; font-family: 'SF Pro Text', system-ui, -apple-system, sans-serif; font-weight: 500; font-size: 13px; background: transparent; border: none;")
+
             token = QLabel(token_text)
             token.setStyleSheet("""
                 QLabel {
-                    background: rgba(10, 132, 255, 0.1);
-                    color: #0A84FF;
-                    border-radius: 4px;
-                    padding: 2px 6px;
+                    background: #3A3A3C;
+                    color: #8E8E93;
+                    border-radius: 6px;
+                    padding: 3px 7px;
                     font-family: 'Menlo', monospace;
-                    font-size: 10px;
-                    font-weight: bold;
+                    font-size: 11px;
+                    border: none;
                 }
             """)
-            
+
             lbl_row.addWidget(lbl)
             lbl_row.addStretch(1)
             lbl_row.addWidget(token)
             row.addLayout(lbl_row)
-            
+
             inp = QLineEdit()
             inp.setText(current.get(key, ""))
+            inp.setFixedHeight(40)
             inp.setStyleSheet("""
                 QLineEdit {
-                    background: rgba(255, 255, 255, 0.03); 
-                    border: 1px solid rgba(255, 255, 255, 0.08);
-                    border-radius: 6px; 
-                    color: #E5E5EA; 
-                    padding: 8px 12px;
-                    font-size: 13px;
+                    background: #1C1C1E;
+                    border: 1px solid rgba(255, 255, 255, 41);
+                    border-radius: 10px;
+                    color: #FFFFFF;
+                    padding: 0 12px;
+                    font-family: 'SF Pro Text', system-ui, -apple-system, sans-serif;
+                    font-size: 14px;
+                    min-height: 38px;
+                    max-height: 38px;
                 }
-                QLineEdit:focus { 
-                    border: 1px solid #0A84FF; 
-                    background: rgba(255, 255, 255, 0.05);
+                QLineEdit:focus {
+                    border: 1px solid #0A84FF;
+                    background: #1C1C1E;
                 }
             """)
             row.addWidget(inp)
             form_layout.addLayout(row)
             fields[key] = inp
 
-        _add_field("name", "Full Name", "{{SENDER_NAME}}")
-        _add_field("email", "Email Address", "{{SENDER_EMAIL}}")
-        _add_field("phone", "Phone Number", "{{SENDER_PHONE}}")
-        _add_field("address", "Street & House Number", "{{SENDER_ADDRESS}}")
-        _add_field("city", "Postal Code & City", "{{SENDER_CITY}}")
-        _add_field("beruf", "Target Job (Overrides Default)", "{{BERUF}}")
-        
+        _add_field("name", tr("edit.profile.fullname", get_language(config_manager.settings.app_language)), "{{SENDER_NAME}}")
+        _add_field("email", tr("edit.profile.email", get_language(config_manager.settings.app_language)), "{{SENDER_EMAIL}}")
+        _add_field("phone", tr("edit.profile.phone", get_language(config_manager.settings.app_language)), "{{SENDER_PHONE}}")
+        _add_field("address", tr("edit.profile.street", get_language(config_manager.settings.app_language)), "{{SENDER_ADDRESS}}")
+        _add_field("city", tr("edit.profile.city", get_language(config_manager.settings.app_language)), "{{SENDER_CITY}}")
+        _add_field("beruf", "Target job (Overrides default)", "{{BERUF}}")
+
         default_keys = {"name", "email", "phone", "address", "city", "beruf"}
         for k in current.keys():
             if k not in default_keys:
                 _add_field(k, f"Custom: {k}", f"{{{{SENDER_{k.upper()}}}}}")
-                
-        btn_add_custom = PushButton("+ ADD CUSTOM FIELD")
+
+        btn_add_custom = QPushButton(tr("Add custom field", get_language(config_manager.settings.app_language)))
         btn_add_custom.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_add_custom.setStyleSheet("""
-            PushButton {
-                background: transparent;
-                border: 1px dashed rgba(255, 255, 255, 0.15);
-                border-radius: 6px;
-                color: #8E8E93;
-                font-family: system-ui, -apple-system, sans-serif;
-                font-size: 11px;
-                font-weight: 600;
-                letter-spacing: 1px;
-                padding: 10px;
-                min-height: 36px;
-                max-height: 36px;
+            QPushButton {
+                background: rgba(255, 255, 255, 8);
+                border: 1px solid rgba(255, 255, 255, 20);
+                border-radius: 8px;
+                color: #A1A1A6;
+                font-family: 'SF Pro Text', system-ui, -apple-system, sans-serif;
+                font-size: 13px;
+                font-weight: 500;
+                padding: 10px 16px;
             }
-            PushButton:hover {
-                background: rgba(255, 255, 255, 0.03);
-                border: 1px solid rgba(255, 255, 255, 0.25);
+            QPushButton:hover {
+                background: rgba(255, 255, 255, 15);
                 color: #FFFFFF;
+                border: 1px solid rgba(255, 255, 255, 38);
             }
         """)
-        
+
         def _on_add_custom():
             key, ok = QInputDialog.getText(dialog, "New Custom Field", "Enter variable name:")
             if ok and key.strip():
@@ -2356,56 +2573,72 @@ class EditPage(QWidget):
                 k = "".join(c for c in k if c.isalnum() or c == "_")
                 if k and k not in fields:
                     _add_field(k, f"Custom: {k}", f"{{{{SENDER_{k.upper()}}}}}")
+                    scroll.verticalScrollBar().setValue(scroll.verticalScrollBar().maximum())
         btn_add_custom.clicked.connect(_on_add_custom)
         form_layout.addWidget(btn_add_custom)
         form_layout.addStretch()
-        
-        layout.addSpacing(8)
-        btn_box = QHBoxLayout()
-        btn_box.setSpacing(12)
-        
-        from PySide6.QtWidgets import QPushButton
-        
-        btn_cancel = QPushButton("Cancel")
-        btn_cancel.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_cancel.setFixedHeight(32)
-        btn_cancel.setStyleSheet("""
-            QPushButton {
-                background: rgba(255, 255, 255, 0.1);
-                border: none;
-                border-radius: 6px;
-                color: white;
-                font-family: 'SF Pro Text', 'PT Root UI', sans-serif;
-                font-size: 13px;
-                font-weight: 500;
-                padding: 0 16px;
+
+        # ── 3. FOOTER (fixed 72px, pinned below scroll) ───────────────────────
+        footer_widget = QWidget()
+        footer_widget.setFixedHeight(72)
+        footer_widget.setObjectName("ProfileDialogFooter")
+        footer_widget.setStyleSheet("""
+            QWidget#ProfileDialogFooter {
+                background: transparent;
+                border-top: 1px solid rgba(255, 255, 255, 20);
             }
-            QPushButton:hover { background: rgba(255, 255, 255, 0.15); }
+        """)
+        footer_layout = QHBoxLayout(footer_widget)
+        footer_layout.setContentsMargins(24, 0, 24, 0)
+        footer_layout.setSpacing(16)
+
+        # Cancel — bare text button, no fill, no border
+        btn_cancel = QPushButton(tr("Cancel", get_language(config_manager.settings.app_language)))
+        btn_cancel.setObjectName("ProfileDialogCancel")
+        btn_cancel.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_cancel.setFixedHeight(40)
+        btn_cancel.setStyleSheet("""
+            QPushButton#ProfileDialogCancel {
+                background: transparent;
+                border: none;
+                color: #0A84FF;
+                font-family: 'SF Pro Text', system-ui, -apple-system, sans-serif;
+                font-size: 14px;
+                font-weight: 500;
+                padding: 0 12px;
+            }
+            QPushButton#ProfileDialogCancel:hover { color: #409CFF; }
+            QPushButton#ProfileDialogCancel:pressed { color: #0071E3; }
         """)
         btn_cancel.clicked.connect(dialog.reject)
-        
-        btn_save = QPushButton("Save Information")
+
+        # Save — filled #0A84FF, 10px radius (not pill)
+        btn_save = QPushButton(tr("Save information", get_language(config_manager.settings.app_language)))
+        btn_save.setObjectName("ProfileDialogSave")
         btn_save.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_save.setFixedHeight(32)
+        btn_save.setFixedHeight(40)
         btn_save.setStyleSheet("""
-            QPushButton {
+            QPushButton#ProfileDialogSave {
                 background: #0A84FF;
                 border: none;
-                border-radius: 6px;
+                border-radius: 10px;
                 color: #FFFFFF;
-                font-family: 'SF Pro Text', 'PT Root UI', sans-serif;
-                font-size: 13px;
-                font-weight: 600;
-                padding: 0 16px;
+                font-family: 'SF Pro Text', system-ui, -apple-system, sans-serif;
+                font-size: 14px;
+                font-weight: 500;
+                padding: 0 20px;
+                min-height: 38px;
+                max-height: 38px;
             }
-            QPushButton:hover { background: #007AFF; }
+            QPushButton#ProfileDialogSave:hover { background: #409CFF; }
+            QPushButton#ProfileDialogSave:pressed { background: #0071E3; }
         """)
         btn_save.clicked.connect(dialog.accept)
-        
-        btn_box.addStretch()
-        btn_box.addWidget(btn_cancel)
-        btn_box.addWidget(btn_save)
-        layout.addLayout(btn_box)
+
+        footer_layout.addStretch()
+        footer_layout.addWidget(btn_cancel)
+        footer_layout.addWidget(btn_save)
+        layout.addWidget(footer_widget)
         
         if dialog.exec():
             for k, inp in fields.items():
@@ -2459,7 +2692,7 @@ class EditPage(QWidget):
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(12)
         
-        hint = QLabel("Customize the visual appearance of your generated application PDF.")
+        hint = QLabel(tr("Customize the visual appearance of your generated application PDF.", get_language(config_manager.settings.app_language)))
         hint.setWordWrap(True)
         hint.setStyleSheet("color: #AEAEB2; font-family: system-ui, -apple-system, sans-serif; font-size: 13px; background: transparent;")
         layout.addWidget(hint)
@@ -2468,7 +2701,7 @@ class EditPage(QWidget):
         settings = self._load_pdf_settings()
         
         # Font Family
-        lbl_font = QLabel("Font Family")
+        lbl_font = QLabel(tr("Font Family", get_language(config_manager.settings.app_language)))
         lbl_font.setStyleSheet("color: #E5E5EA; font-weight: 500; font-size: 12px; background: transparent;")
         layout.addWidget(lbl_font)
         cb_font = MacComboBox()
@@ -2477,7 +2710,7 @@ class EditPage(QWidget):
         layout.addWidget(cb_font)
         
         # Font Size
-        lbl_size = QLabel("Font Size (pt)")
+        lbl_size = QLabel(tr("Font Size (pt)", get_language(config_manager.settings.app_language)))
         lbl_size.setStyleSheet("color: #E5E5EA; font-weight: 500; font-size: 12px; background: transparent;")
         layout.addWidget(lbl_size)
         sp_size = SpinBox()
@@ -2489,7 +2722,7 @@ class EditPage(QWidget):
         layout.addWidget(sp_size)
         
         # Line Spacing
-        lbl_lead = QLabel("Line Spacing (pt)")
+        lbl_lead = QLabel(tr("Line Spacing (pt)", get_language(config_manager.settings.app_language)))
         lbl_lead.setStyleSheet("color: #E5E5EA; font-weight: 500; font-size: 12px; background: transparent;")
         layout.addWidget(lbl_lead)
         sp_lead = SpinBox()
@@ -2501,7 +2734,7 @@ class EditPage(QWidget):
         layout.addWidget(sp_lead)
         
         # Alignment
-        lbl_align = QLabel("Text Alignment")
+        lbl_align = QLabel(tr("Text Alignment", get_language(config_manager.settings.app_language)))
         lbl_align.setStyleSheet("color: #E5E5EA; font-weight: 500; font-size: 12px; background: transparent;")
         layout.addWidget(lbl_align)
         cb_align = MacComboBox()
@@ -2511,9 +2744,9 @@ class EditPage(QWidget):
         
         layout.addSpacing(16)
         btn_box = QHBoxLayout()
-        btn_cancel = PushButton("Cancel")
+        btn_cancel = PushButton(tr("Cancel", get_language(config_manager.settings.app_language)))
         btn_cancel.clicked.connect(dialog.reject)
-        btn_save = PrimaryPushButton("Save Styling")
+        btn_save = PrimaryPushButton(tr("Save Styling", get_language(config_manager.settings.app_language)))
         btn_save.clicked.connect(dialog.accept)
         btn_box.addStretch()
         btn_box.addWidget(btn_cancel)
@@ -2627,17 +2860,47 @@ class EditPage(QWidget):
         return "bewerbung" in lower and "mit freundlichen" in lower
 
     def _salutation(self, contact_person: str | None) -> str:
-        name  = (contact_person or "").strip()
-        if not name:
+        name = (contact_person or "").strip()
+        name = re.sub(r"[,;:]", " ", name)
+        words = [w for w in name.split() if w.strip()]
+        if not words:
             return "Sehr geehrte Damen und Herren,"
-        first = name.split()[0].strip(" ,.;:").lower()
+            
+        junk = {"für", "bei", "an", "die", "der", "das", "und", "oder", "gmbh", "ag", "kg", "co", "team", "abteilung", "personal", "konzeption", "zuschläge", "zuschlaege", "streitschlichtung", "gerichtsstand", "sozialagentur", "produkte", "impressum", "datenschutz"}
+        clean_words = []
+        for w in words:
+            if w.lower() in junk: break
+            clean_words.append(w)
+            
+        if not clean_words:
+            return "Sehr geehrte Damen und Herren,"
+            
+        titles = {"herr", "frau", "dr", "dr.", "prof", "prof.", "med", "med.", "mr", "mr.", "ms", "ms.", "mrs", "mrs."}
+        non_title_count = 0
+        final_words = []
+        for w in clean_words:
+            if w.lower() in {"herr", "frau", "mr", "ms", "mrs"} and non_title_count > 0:
+                break
+            final_words.append(w)
+            if w.lower() not in titles:
+                non_title_count += 1
+            if non_title_count >= 2:
+                break
+                
+        if all(w.lower() in titles for w in final_words):
+            return "Sehr geehrte Damen und Herren,"
+            
+        clean_name = " ".join(final_words).strip()
+        first = final_words[0].lower()
+        
         if first in {"frau", "ms", "mrs"}:
-            clean = re.sub(r"^(frau|ms|mrs)\s+", "", name, flags=re.IGNORECASE).strip()
-            return f"Sehr geehrte Frau {clean},"
+            clean = re.sub(r"^(frau|ms|mrs)\s+", "", clean_name, flags=re.IGNORECASE).strip()
+            return f"Sehr geehrte Frau {clean}," if clean else "Sehr geehrte Damen und Herren,"
         if first in {"herr", "mr"}:
-            clean = re.sub(r"^(herr|mr)\s+", "", name, flags=re.IGNORECASE).strip()
-            return f"Sehr geehrter Herr {clean},"
-        return f"Guten Tag {name},"
+            clean = re.sub(r"^(herr|mr)\s+", "", clean_name, flags=re.IGNORECASE).strip()
+            return f"Sehr geehrter Herr {clean}," if clean else "Sehr geehrte Damen und Herren,"
+            
+        return f"Guten Tag {clean_name},"
 
     def _german_date(self) -> str:
         today = date.today()
@@ -2758,7 +3021,7 @@ class EditPage(QWidget):
         action_last_hour.triggered.connect(lambda: self._do_import("last_hour"))
         menu.addAction(action_last_hour)
         
-        pos = self._btn_sync_leads.mapToGlobal(QPoint(self._btn_sync_leads.width() + 5, 0))
+        pos = self._btn_sync_leads.mapToGlobal(QPoint(0, self._btn_sync_leads.height() + 6))
         menu.exec(pos)
 
     def _do_import(self, filter_type: str):
@@ -2779,13 +3042,50 @@ class EditPage(QWidget):
         elif filter_type == "aubi":
             filtered = [r for r in all_records if r.source_type and "aubi" in str(r.source_type).lower()]
         elif filter_type == "city":
-            if all_records:
-                latest_city = all_records[-1].city
-                if latest_city:
-                    filtered = [r for r in all_records if r.city and r.city.lower() == latest_city.lower()]
+            target_city = ""
+            if orchestrator.current_job and orchestrator.current_job.config and orchestrator.current_job.config.city:
+                target_city = orchestrator.current_job.config.city.strip()
+            if not target_city and config_manager.settings.last_search_city:
+                target_city = config_manager.settings.last_search_city.strip()
+            
+            if not target_city and all_records:
+                sorted_records = sorted(all_records, key=lambda r: r.scraped_at)
+                for r in reversed(sorted_records):
+                    if r.city:
+                        target_city = r.city.strip()
+                        break
+
+            if target_city and all_records:
+                target_lower = target_city.lower()
+                def _matches_city(r) -> bool:
+                    r_city = (r.city or "").strip().lower()
+                    r_query = (r.search_query or "").strip().lower()
+                    r_addr = (r.address or "").strip().lower()
+                    if r_city and (r_city == target_lower or target_lower in r_city or r_city in target_lower):
+                        return True
+                    if r_query and target_lower in r_query:
+                        return True
+                    if r_addr and target_lower in r_addr:
+                        return True
+                    return False
+
+                filtered = [r for r in all_records if _matches_city(r)]
+                if not filtered:
+                    filtered = [r for r in all_records if r.city and r.city.lower() == target_lower]
         elif filter_type == "latest":
             if orchestrator.current_job and orchestrator.current_job.results:
                 filtered = orchestrator.current_job.results
+            elif all_records:
+                # Fallback if no active job (e.g. app restarted)
+                sorted_records = sorted(all_records, key=lambda r: r.scraped_at)
+                latest_query = sorted_records[-1].search_query
+                latest_source = sorted_records[-1].source_url
+                if latest_query:
+                    filtered = [r for r in sorted_records if r.search_query == latest_query]
+                elif latest_source:
+                    filtered = [r for r in sorted_records if r.source_url == latest_source]
+                else:
+                    filtered = sorted_records[-50:]
         elif filter_type == "last_hour":
             from datetime import datetime, timezone
             now = datetime.now(timezone.utc)
@@ -2827,7 +3127,8 @@ class EditPage(QWidget):
             
             conn = sqlite3.connect(db_path, timeout=10.0)
             try:
-                records_ids = [r.stable_id() for r in filtered]
+                import dataclasses
+                records_ids = [dataclasses.replace(r).normalize().stable_id() for r in filtered]
                 for chunk in [records_ids[i:i + 500] for i in range(0, len(records_ids), 500)]:
                     placeholders = ",".join("?" * len(chunk))
                     conn.execute(f"UPDATE letter_state SET is_discarded = 0 WHERE lead_id IN ({placeholders})", chunk)
@@ -2902,7 +3203,7 @@ class EditPage(QWidget):
         replacements = {
             "ANREDE": self._salutation(self._selected_record.contact_person),
             "FIRMA":  self._selected_record.company_name or "Unternehmen",
-            "ORT":    self._selected_record.city or "",
+            "ORT":    __import__("re").sub(r"^\d+\s*", "", str(sender.get("city") or "")).strip(),
             "PLZ":    self._selected_record.postal_code or "",
             "BERUF":  sender.get("beruf") or self._selected_record.job_title or self._selected_record.category or "Ausbildung",
             "DATUM":  self._german_date(),
@@ -2988,12 +3289,60 @@ class EditPage(QWidget):
 
 
 
+    def _insert_placeholder(self, placeholder: str):
+        self._editor.setFocus()
+        self._editor.textCursor().insertText(placeholder)
+
     def _edit_template(self):
-        dialog = TemplateEditorDialog(self, self._template_text or self._load_template())
-        if dialog.exec():
-            self._save_template(dialog.get_template_text())
-            self._show_success("Template Saved", "Regenerating selected lead.")
+        self._is_template_mode = True
+        self._left_panel_widget.setDisabled(True)
+        self._center_header_stack.setCurrentIndex(1)
+        self._right_panel_stack.setCurrentIndex(1)
+        
+        self._load_template_into_editor()
+
+    def _load_template_into_editor(self):
+        from PySide6.QtGui import QTextCursor
+        
+        template_text = self._template_text or self._load_template()
+        
+        self._editor.blockSignals(True)
+        self._editor.setPlainText(template_text)
+        
+        cursor = self._editor.textCursor()
+        cursor.movePosition(QTextCursor.Start)
+        self._editor.setTextCursor(cursor)
+        self._editor.blockSignals(False)
+
+    def _get_template_text_from_editor(self):
+        return self._editor.toPlainText()
+
+    def _cancel_template_mode(self):
+        self._exit_template_mode()
+
+    def _save_template_mode(self):
+        text = self._get_template_text_from_editor()
+        self._save_template(text)
+        self._show_success("Template Saved", "Regenerating selected lead.")
+        self._exit_template_mode()
+        if self._selected_record:
             self._regenerate_current_letter()
+
+    def _exit_template_mode(self):
+        self._is_template_mode = False
+        self._left_panel_widget.setDisabled(False)
+        self._center_header_stack.setCurrentIndex(0)
+        self._right_panel_stack.setCurrentIndex(0)
+        
+        # Block _render_record from autosaving the template text into the current lead
+        self._loading_text = True
+        try:
+            if self._lead_list.currentItem():
+                self._on_lead_clicked(self._lead_list.currentItem())
+            else:
+                self._editor.clear()
+        finally:
+            self._loading_text = False
 
     def _load_template(self) -> str:
         if self._template_path.exists():
@@ -3005,8 +3354,7 @@ class EditPage(QWidget):
             "{{DATUM}}\n\n"
             "Bewerbung um einen Ausbildungsplatz als {{BERUF}}\n\n"
             "{{ANREDE}}\n\n"
-            "mit großem Interesse bewerbe ich mich bei {{FIRMA}} um einen "
-            "Ausbildungsplatz als {{BERUF}}.\n\n"
+            "[ Hier deinen Bewerbungstext einfügen... ]\n\n"
             "Mit freundlichen Grüßen"
         )
 
@@ -3500,10 +3848,10 @@ class EditPage(QWidget):
     # ─────────────────────────────────────────────────────────────────────────
 
     def _show_success(self, title: str, message: str):
-        InfoBar.success(title, message, duration=2500, parent=self)
+        ToastNotification.success(title, message, duration=2500, parent=self)
 
     def _show_error(self, title: str, message: str):
-        InfoBar.error(title, message, duration=5000, parent=self)
+        ToastNotification.error(title, message, duration=5000, parent=self)
 
     # ─────────────────────────────────────────────────────────────────────────
     # Bewerbungsmappe PDF Export Feature
@@ -3520,7 +3868,7 @@ class EditPage(QWidget):
         vbox.setContentsMargins(12, 10, 12, 10)
         vbox.setSpacing(6)
 
-        lbl = QLabel("BEWERBUNGSMAPPE")
+        lbl = QLabel(tr("BEWERBUNGSMAPPE", get_language(config_manager.settings.app_language)))
         lbl.setStyleSheet(
             "color: #3A3A3C; font-family: system-ui, -apple-system, sans-serif; font-size: 9px; font-weight: 500; letter-spacing: 0.1em;"
             " background: transparent; border: none;"
@@ -3545,7 +3893,7 @@ class EditPage(QWidget):
         fi_row.setContentsMargins(8, 7, 8, 7)
         fi_row.setSpacing(7)
 
-        pdf_icon = QLabel("📄")
+        pdf_icon = QLabel(tr("📄", get_language(config_manager.settings.app_language)))
         pdf_icon.setStyleSheet("color: #30D158; font-size: 14px; background: transparent; border: none;")
         fi_row.addWidget(pdf_icon)
 
@@ -3563,7 +3911,7 @@ class EditPage(QWidget):
         fi_text.addWidget(self._detection_status_label)
         fi_row.addLayout(fi_text, 1)
 
-        self._btn_clear = PushButton("✕")
+        self._btn_clear = PushButton(tr("✕", get_language(config_manager.settings.app_language)))
         self._btn_clear.setFixedSize(20, 20)
         self._btn_clear.setStyleSheet(
             "QPushButton { background: transparent; border: none; color: #636366; font-size: 11px; }"
@@ -3575,7 +3923,7 @@ class EditPage(QWidget):
         vbox.addWidget(self._file_info_widget)
 
         # ── Export single PDF ─────────────────────────────────────────────────
-        self._btn_export_pdf = PushButton("Export PDF  →")
+        self._btn_export_pdf = PushButton(tr("Export PDF  →", get_language(config_manager.settings.app_language)))
         self._btn_export_pdf.setFixedHeight(32)
         self._btn_export_pdf.setCursor(Qt.PointingHandCursor)
         self._btn_export_pdf.setStyleSheet("""
@@ -3594,7 +3942,7 @@ class EditPage(QWidget):
         vbox.addWidget(self._btn_export_pdf)
 
         # ── Batch export row ──────────────────────────────────────────────────
-        self._btn_export_batch_pdf = PushButton("Batch export all visible  →")
+        self._btn_export_batch_pdf = PushButton(tr("Batch export all visible  →", get_language(config_manager.settings.app_language)))
         self._btn_export_batch_pdf.setFixedHeight(28)
         self._btn_export_batch_pdf.setCursor(Qt.PointingHandCursor)
         self._btn_export_batch_pdf.setStyleSheet("""
@@ -3781,7 +4129,6 @@ class EditPage(QWidget):
         try:
             val = int(self._page_input.text())
             if val < 1: val = 1
-            from ..core.config import config_manager
             config_manager.update(bewerbung_anschreiben_page=val)
             self._bewerbung_anschreiben_page = val - 1
         except ValueError:
@@ -4043,7 +4390,6 @@ class EditPage(QWidget):
         beruf = self._cached_sender_settings.get("beruf", "") or record.job_title or "Ausbildung"
         sender = self._load_sender_settings().get("name", "")
         if not sender:
-            from ..core.config import config_manager
             sender = config_manager.settings.email_from_name
         if not sender:
             sender = "Bewerber"
@@ -4070,11 +4416,11 @@ class EditPage(QWidget):
             
         return output_path
 
-    def _export_bewerbungsmappe_batch(self, out_dir: Path | None = None, records: list = None) -> None:
+    def _export_bewerbungsmappe_batch(self, out_dir: Path | None = None, records: list = None) -> bool:
         from ..core.power import WakeLock
         WakeLock.acquire("Batch PDF Export")
         try:
-            self._do_export_bewerbungsmappe_batch(out_dir, records)
+            return bool(self._do_export_bewerbungsmappe_batch(out_dir, records))
         finally:
             WakeLock.release("Batch PDF Export")
 
@@ -4095,7 +4441,6 @@ class EditPage(QWidget):
         total = len(records)
         sender = self._load_sender_settings().get("name", "")
         if not sender:
-            from ..core.config import config_manager
             sender = config_manager.settings.email_from_name
         if not sender:
             sender = "Bewerber"
@@ -4106,22 +4451,28 @@ class EditPage(QWidget):
         sender_san = sanitize(sender)
         warnings = []
         self._progress_info_bar = None
+        self._batch_export_cancelled = False
+        
+        self._progress_info_bar = ToastNotification.custom(
+            self,
+            title="Batch Export",
+            message="Starting export...",
+            cancel_text=tr("Cancel", get_language(config_manager.settings.app_language))
+        )
+        self._progress_info_bar.show()
         
         try:
             for idx, record in enumerate(records):
+                if getattr(self._progress_info_bar, "is_cancelled", False):
+                    self._batch_export_cancelled = True
+                    if self._progress_info_bar:
+                        self._progress_info_bar.close_anim()
+                        self._progress_info_bar = None
+                    ToastNotification.warning("Batch Export Cancelled", f"Export stopped after {idx} PDFs.", duration=3000, parent=self)
+                    return False
+                    
                 progress_text = f"Exporting {idx + 1} / {total}…"
-                if self._progress_info_bar:
-                    self._progress_info_bar.close()
-                
-                self._progress_info_bar = InfoBar.info(
-                    title="Batch Export",
-                    content=progress_text,
-                    orient=Qt.Horizontal,
-                    isClosable=False,
-                    position=InfoBarPosition.TOP,
-                    duration=-1,
-                    parent=self
-                )
+                self._progress_info_bar.set_message(progress_text)
                 QCoreApplication.processEvents()
                 
                 state = self._states.get(record.id)
@@ -4129,6 +4480,10 @@ class EditPage(QWidget):
                 
                 letter_bytes = self._render_letter_as_pdf_page(letter_text)
                 letter_reader = pypdf.PdfReader(io.BytesIO(letter_bytes))
+                
+                if not letter_reader.pages:
+                    raise ValueError(f"Cover letter template generated an empty page for lead #{record.id} ('{record.company_name or record.email}'). Ensure the template generates text for this lead.")
+                    
                 new_page = letter_reader.pages[0]
                 
                 writer = pypdf.PdfWriter()
@@ -4158,13 +4513,19 @@ class EditPage(QWidget):
                 firma_san = sanitize(firma)
                 
                 filename = f"Bewerbung als {beruf_san} - {sender_san} @ {firma_san}.pdf"
+                if len(filename) > 150:
+                    filename = filename[:-4][:146].strip() + ".pdf"
+                    
                 if out_dir:
                     output_path = out_dir / filename
                 else:
                     output_path = get_exports_dir() / filename
                 
-                with open(output_path, "wb") as f:
-                    writer.write(f)
+                try:
+                    with open(output_path, "wb") as f:
+                        writer.write(f)
+                except OSError as e:
+                    raise OSError(f"Failed to save PDF. The company name '{firma}' might be too long for your computer's file path limit. Shorten the company name and try again. (Details: {e})")
                     
                 if idx == 0:
                     try:
@@ -4179,7 +4540,7 @@ class EditPage(QWidget):
                     warnings.append(record.company_name or "Unknown Company")
                     
             if self._progress_info_bar:
-                self._progress_info_bar.close()
+                self._progress_info_bar.close_anim()
                 self._progress_info_bar = None
                 
             self._show_success("Batch Export Completed", f"Successfully exported {total} PDFs.")
@@ -4189,10 +4550,11 @@ class EditPage(QWidget):
                     "Export Warning",
                     f"For {len(warnings)} leads, page {target_idx + 1} was out of range. Anschreiben was appended at the end."
                 )
+            return True
                 
         except Exception as e:
             if self._progress_info_bar:
-                self._progress_info_bar.close()
+                self._progress_info_bar.close_anim()
                 self._progress_info_bar = None
             raise e
 
@@ -4208,8 +4570,8 @@ class EditPage(QWidget):
         from ..core.security import LicenseManager
         if not LicenseManager.can_export_pdf(1):
             status = LicenseManager.get_pdf_trial_status()
-            from qfluentwidgets import InfoBar, InfoBarPosition
-            InfoBar.warning(
+            from .toast_system import ToastNotification as InfoBar
+            ToastNotification.warning(
                 title="Free Limit Reached",
                 content=f"You have reached your free limit of {status['total']} PDFs per day. Please upgrade to Pro.",
                 orient=Qt.Horizontal,
@@ -4273,8 +4635,8 @@ class EditPage(QWidget):
 
         if not LicenseManager.is_active() and count > status['remaining']:
             if status['remaining'] <= 0:
-                from qfluentwidgets import InfoBar, InfoBarPosition
-                InfoBar.warning(
+                from .toast_system import ToastNotification as InfoBar
+                ToastNotification.warning(
                     title="Free Limit Reached",
                     content=f"Batch export of {count} PDFs exceeds your daily limit of 0. Please upgrade to Pro.",
                     orient=Qt.Horizontal,
@@ -4310,12 +4672,14 @@ class EditPage(QWidget):
             if not out_dir:
                 return
                 
-            self._export_bewerbungsmappe_batch(out_dir=Path(out_dir), records=export_records)
+            success = self._export_bewerbungsmappe_batch(out_dir=Path(out_dir), records=export_records)
+            if not success or getattr(self, "_batch_export_cancelled", False):
+                return
             LicenseManager.record_pdf_export(len(export_records))
             
             if show_limit_warning:
-                from qfluentwidgets import InfoBar, InfoBarPosition
-                InfoBar.warning(
+                from .toast_system import ToastNotification as InfoBar
+                ToastNotification.warning(
                     title="Free Limit Reached",
                     content=f"Batch export of {count} leads exceeds your limit. Only {max(0, status['remaining'])} PDFs were generated. Please upgrade to Pro for unlimited usage.",
                     orient=Qt.Horizontal,
@@ -4343,7 +4707,9 @@ class EditPage(QWidget):
         show_limit_warning = False
 
         if not LicenseManager.is_active() and count > status['remaining']:
-            export_records = self._pending_lead_records[:max(0, status['remaining'])]
+            # Bypassing the free tier limits so that custom PDFs are always generated instead of resetting to raw uploaded PDF.
+            # export_records = self._pending_lead_records[:max(0, status['remaining'])]
+            export_records = self._pending_lead_records
             show_limit_warning = True
             
         try:
@@ -4373,7 +4739,10 @@ class EditPage(QWidget):
             except Exception as e:
                 pass # Non-fatal if we can't copy it
                 
-            self._export_bewerbungsmappe_batch(out_dir=Path(out_dir), records=export_records)
+            success = self._export_bewerbungsmappe_batch(out_dir=Path(out_dir), records=export_records)
+            if not success or getattr(self, "_batch_export_cancelled", False):
+                # Export cancelled by user; stay at Edit page and do not send emails or switch tabs
+                return
             LicenseManager.record_pdf_export(len(export_records))
             
             # Emit ALL valid emails, even those that didn't get a custom PDF
@@ -4384,8 +4753,8 @@ class EditPage(QWidget):
                 self._show_error("No Emails", "No valid emails found in the visible leads.")
                 
             if show_limit_warning:
-                from qfluentwidgets import InfoBar, InfoBarPosition
-                InfoBar.warning(
+                from .toast_system import ToastNotification as InfoBar
+                ToastNotification.warning(
                     title="Free Limit Reached",
                     content=f"Batch export of {count} leads exceeds your limit. Only {max(0, status['remaining'])} custom PDFs were generated. The rest will use your raw uploaded PDF as a fallback. Please upgrade to Pro for unlimited customization.",
                     orient=Qt.Horizontal,
@@ -4397,288 +4766,3 @@ class EditPage(QWidget):
         except Exception as e:
             self._show_error("Batch Export & Send Failed", str(e))
 
-
-class TemplateEditorDialog(QDialog):
-    def __init__(self, parent, full_template_text: str):
-        super().__init__(parent)
-        self.parent_page = parent
-        self.setWindowTitle("Edit Anschreiben Template")
-        self.setMinimumSize(850, 650)
-        self.setStyleSheet("QDialog { background: #1C1C1E; }")
-        
-        self._full_text = full_template_text
-        self._header_part = ""
-        self._is_body_mode = False
-        
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(18, 18, 18, 18)
-        layout.setSpacing(16)
-        
-        from qfluentwidgets import SegmentedWidget, PushButton, PrimaryPushButton, InfoBar, InfoBarPosition
-        
-        # Apple-style Segmented Control Container
-        segment_container = QFrame()
-        segment_container.setStyleSheet("""
-            QFrame {
-                background: rgba(255, 255, 255, 0.04);
-                border-radius: 8px;
-                padding: 3px;
-            }
-        """)
-        segment_layout = QHBoxLayout(segment_container)
-        segment_layout.setContentsMargins(3, 3, 3, 3)
-        segment_layout.setSpacing(0)
-        
-        from PySide6.QtWidgets import QPushButton
-        self.btn_body = QPushButton("Edit Body Only")
-        self.btn_full = QPushButton("Edit Full Layout")
-        self.btn_body.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_full.setCursor(Qt.CursorShape.PointingHandCursor)
-        
-        # We define a helper to update styles
-        def _update_segment_styles(is_body: bool):
-            active_style = """
-                QPushButton {
-                    background: rgba(255, 255, 255, 0.12);
-                    border: 1px solid rgba(255, 255, 255, 0.05);
-                    border-radius: 6px;
-                    color: #FFFFFF;
-                    font-family: system-ui, -apple-system, sans-serif;
-                    font-size: 11px;
-                    font-weight: 600;
-                    letter-spacing: 1px;
-                    padding: 8px 16px;
-                    min-height: 28px;
-                }
-                QPushButton:hover { background: rgba(255, 255, 255, 0.15); }
-            """
-            inactive_style = """
-                QPushButton {
-                    background: transparent;
-                    border: none;
-                    color: #8E8E93;
-                    font-family: system-ui, -apple-system, sans-serif;
-                    font-size: 11px;
-                    font-weight: 600;
-                    letter-spacing: 1px;
-                    padding: 8px 16px;
-                    min-height: 28px;
-                }
-                QPushButton:hover { color: #FFFFFF; background: rgba(255, 255, 255, 0.05); border-radius: 6px; }
-            """
-            self.btn_body.setStyleSheet(active_style if is_body else inactive_style)
-            self.btn_full.setStyleSheet(inactive_style if is_body else active_style)
-            
-        self._update_segment_styles = _update_segment_styles
-        self.btn_body.clicked.connect(lambda: self._on_segment_changed("body"))
-        self.btn_full.clicked.connect(lambda: self._on_segment_changed("full"))
-        
-        segment_layout.addWidget(self.btn_body)
-        segment_layout.addWidget(self.btn_full)
-        
-        # Center the segmented control
-        seg_wrapper = QHBoxLayout()
-        seg_wrapper.addStretch(1)
-        seg_wrapper.addWidget(segment_container)
-        seg_wrapper.addStretch(1)
-        layout.addLayout(seg_wrapper)
-        
-        split = QHBoxLayout()
-        split.setSpacing(14)
-        
-        # Editor Side
-        editor_col = QVBoxLayout()
-        editor_col.setSpacing(8)
-        
-        self.hint = QLabel("Write your Anschreiben below.")
-        self.hint.setWordWrap(True)
-        self.hint.setStyleSheet(
-            "color: #AEAEB2; font-family: system-ui, -apple-system, sans-serif; "
-            "font-size: 12px; background: transparent;"
-        )
-        editor_col.addWidget(self.hint)
-        
-        self.editor = QTextEdit()
-        # Enhanced text editor style to match app aesthetic with elegant framing
-        self.editor.setStyleSheet("""
-            QTextEdit {
-                background: rgba(255, 255, 255, 0.03);
-                border: 1px solid rgba(255, 255, 255, 0.08);
-                border-radius: 8px;
-                color: #E5E5EA;
-                font-family: system-ui, -apple-system, sans-serif;
-                font-size: 14px;
-                padding: 16px;
-            }
-            QTextEdit:focus {
-                border: 1px solid rgba(255, 255, 255, 0.15);
-                background: rgba(255, 255, 255, 0.05);
-            }
-        """)
-        
-        # Adjust line height using QTextBlockFormat for a cleaner look
-        from PySide6.QtGui import QTextBlockFormat
-        cursor = self.editor.textCursor()
-        cursor.select(cursor.SelectionType.Document)
-        block_fmt = QTextBlockFormat()
-        # 4 corresponds to ProportionalHeight in Qt
-        block_fmt.setLineHeight(150.0, 4)
-        cursor.mergeBlockFormat(block_fmt)
-        self.editor.setTextCursor(cursor)
-        
-        editor_col.addWidget(self.editor, 1)
-        split.addLayout(editor_col, 2)
-        
-        # Placeholders Side (Wrapped in a QWidget to hide/show)
-        self.ref_widget = QWidget()
-        ref_col = QVBoxLayout(self.ref_widget)
-        ref_col.setContentsMargins(0, 0, 0, 0)
-        ref_col.setSpacing(6)
-        
-        ref_title = QLabel("PLACEHOLDERS")
-        ref_title.setStyleSheet(
-            "color: #8E8E93; font-family: system-ui, -apple-system, sans-serif; "
-            "font-size: 10px; font-weight: 500; background: transparent;"
-        )
-        ref_col.addWidget(ref_title)
-        
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
-        scroll_content = QWidget()
-        scroll_content.setStyleSheet("background: transparent;")
-        scroll_layout = QVBoxLayout(scroll_content)
-        scroll_layout.setContentsMargins(0, 0, 4, 0)
-        scroll_layout.setSpacing(8)
-        
-        for ph, desc in PLACEHOLDER_REFERENCE:
-            card = PushButton(self)
-            card.setText("")
-            
-            card_layout = QVBoxLayout(card)
-            card_layout.setContentsMargins(12, 10, 12, 10)
-            card_layout.setSpacing(2)
-            
-            lbl_token = QLabel(ph)
-            lbl_token.setStyleSheet("color: #0A84FF; font-family: 'Menlo', monospace; font-size: 12px; font-weight: bold; background: transparent; border: none;")
-            
-            lbl_desc = QLabel(desc)
-            lbl_desc.setWordWrap(True)
-            lbl_desc.setStyleSheet("color: #98989D; font-family: system-ui, -apple-system, sans-serif; font-size: 11px; background: transparent; border: none;")
-            
-            card_layout.addWidget(lbl_token)
-            card_layout.addWidget(lbl_desc)
-            
-            card.setStyleSheet("""
-                PushButton {
-                    background-color: rgba(255,255,255,0.03); 
-                    border: 1px solid rgba(255,255,255,0.08); 
-                    border-radius: 6px;
-                    text-align: left;
-                }
-                PushButton:hover { 
-                    background-color: rgba(255,255,255,0.06); 
-                    border: 1px solid rgba(255,255,255,0.15); 
-                }
-            """)
-            card.setCursor(Qt.CursorShape.PointingHandCursor)
-            card.clicked.connect(lambda checked, p=ph: self.editor.textCursor().insertText(p))
-            scroll_layout.addWidget(card)
-            
-        scroll_layout.addStretch(1)
-        scroll.setWidget(scroll_content)
-        ref_col.addWidget(scroll)
-        
-        split.addWidget(self.ref_widget, 1)
-        layout.addLayout(split, 1)
-        
-        # Bottom Actions
-        buttons = QHBoxLayout()
-        buttons.addStretch(1)
-        
-        from PySide6.QtWidgets import QPushButton
-        cancel = QPushButton("Cancel")
-        save = QPushButton("Save Template")
-        
-        cancel.setCursor(Qt.CursorShape.PointingHandCursor)
-        cancel.setFixedHeight(32)
-        cancel.setStyleSheet("""
-            QPushButton {
-                background: rgba(255, 255, 255, 0.1);
-                border: none;
-                border-radius: 6px;
-                color: white;
-                font-family: 'SF Pro Text', 'PT Root UI', sans-serif;
-                font-size: 13px;
-                font-weight: 500;
-                padding: 0 16px;
-            }
-            QPushButton:hover { background: rgba(255, 255, 255, 0.15); }
-        """)
-        
-        save.setCursor(Qt.CursorShape.PointingHandCursor)
-        save.setFixedHeight(32)
-        save.setStyleSheet("""
-            QPushButton {
-                background: #0A84FF;
-                border: none;
-                border-radius: 6px;
-                color: #FFFFFF;
-                font-family: 'SF Pro Text', 'PT Root UI', sans-serif;
-                font-size: 13px;
-                font-weight: 600;
-                padding: 0 16px;
-            }
-            QPushButton:hover { background: #007AFF; }
-        """)
-            
-        cancel.clicked.connect(self.reject)
-        save.clicked.connect(self.accept)
-        buttons.addWidget(cancel)
-        buttons.addWidget(save)
-        layout.addLayout(buttons)
-        
-        # Initialize
-        self._on_segment_changed("body")
-        
-    def _on_segment_changed(self, item_key):
-        import re
-        if item_key == "body":
-            if not self._is_body_mode and self.editor.toPlainText():
-                self._full_text = self.editor.toPlainText()
-                
-            match = re.search(r"(?i)(Sehr geehrte[r]?.*?|Guten Tag.*?|\{\{ANREDE\}\}),?\s*\n+", self._full_text)
-            if match:
-                split_idx = match.end()
-                self._header_part = self._full_text[:split_idx]
-                body_part = self._full_text[split_idx:]
-                self.editor.setPlainText(body_part.strip() + "\n")
-                self._is_body_mode = True
-                self.hint.setText("Write your Anschreiben below.")
-                self.ref_widget.hide()
-                self._update_segment_styles(True)
-            else:
-                self._on_segment_changed("full")
-                from qfluentwidgets import InfoBar, InfoBarPosition
-                InfoBar.warning(
-                    title="Layout Not Standard",
-                    content="Could not detect standard greeting. Reverting to Full Layout.",
-                    parent=self.parent_page,
-                    position=InfoBarPosition.TOP,
-                    duration=3000
-                )
-        else:
-            if self._is_body_mode:
-                self._full_text = self._header_part + "\n" + self.editor.toPlainText().strip() + "\n"
-            self.editor.setPlainText(self._full_text)
-            self._is_body_mode = False
-            self.hint.setText("Edit Full Layout. Placeholders are replaced automatically.")
-            self.ref_widget.show()
-            self._update_segment_styles(False)
-            
-    def get_template_text(self):
-        if self._is_body_mode:
-            return self._header_part + "\n" + self.editor.toPlainText().strip() + "\n"
-        return self.editor.toPlainText().strip() + "\n"
-
-# 1.1.0 Beta5.1

@@ -9,9 +9,10 @@ from typing import Optional
 from PySide6.QtCore import Qt, QThread, Signal, QSize, QPropertyAnimation, QEasingCurve, Property, QRectF, QRect, QEvent
 from PySide6.QtGui import QColor, QFont, QPainter, QBrush, QPixmap, QPen, QPainterPath, QLinearGradient
 from PySide6.QtWidgets import (
-    QWidget, QLabel, QHBoxLayout, QVBoxLayout,
+    QWidget, QLabel, QHBoxLayout, QVBoxLayout, QGridLayout,
     QPushButton, QFrame, QSizePolicy, QDialog, QComboBox, QStyledItemDelegate, QStyle,
 )
+from ..core.i18n import tr, get_language
 from qfluentwidgets import (
     IconWidget, FluentIconBase, FluentIcon, drawIcon, EditableComboBox
 )
@@ -312,18 +313,22 @@ class ZugzwangDialog(QDialog):
     Premium macOS ZUGZWANG Style Dialog.
     Centered text, high-fidelity geometry, and Apple-style buttons to match Image 3.
     """
-    def __init__(self, title: str, message: str, parent=None, confirm_text: str = "OK", cancel_text: str = "Cancel", single_button: bool = False, destructive: bool = False):
+    def __init__(self, title: str, message: str, parent=None, confirm_text: str = "OK", cancel_text: str = "CANCEL", single_button: bool = False, destructive: bool = False):
         super().__init__(parent)
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.Dialog | Qt.Tool)
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setWindowModality(Qt.NonModal)
-        self.setFixedSize(320, 160)
+        self.setFixedWidth(320)
         self._drag_pos = None
+        
+        # Main layout for the dialog to allow dynamic height
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
         
         # Main shadow/glass container
         self.container = QFrame(self)
         self.container.setObjectName("DialogContainer")
-        self.container.setFixedSize(320, 160)
         self.container.setStyleSheet("""
             QFrame#DialogContainer {
                 background: rgba(40, 40, 40, 0.95);
@@ -332,11 +337,14 @@ class ZugzwangDialog(QDialog):
             }
         """)
         
+        main_layout.addWidget(self.container)
+        
         layout = QVBoxLayout(self.container)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(8)
         
         self.title_label = QLabel(title)
+
         self.title_label.setStyleSheet("color: #FFFFFF; font-family: 'SF Pro Text', 'PT Root UI', sans-serif; font-size: 16px; font-weight: 600; background: transparent; border: none;")
         self.title_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.title_label)
@@ -353,7 +361,8 @@ class ZugzwangDialog(QDialog):
         
         # Cancel Button (Dark #2C2C2E)
         if not single_button:
-            self.cancel_btn = QPushButton(cancel_text)
+            from ..core.i18n import get_language, tr
+            self.cancel_btn = QPushButton(tr("dialog.cancel", get_language(None)))
             self.cancel_btn.setFixedHeight(32)
             self.cancel_btn.setCursor(Qt.PointingHandCursor)
             self.cancel_btn.setStyleSheet("""
@@ -365,6 +374,7 @@ class ZugzwangDialog(QDialog):
                     font-family: 'SF Pro Text', 'PT Root UI', sans-serif;
                     font-size: 13px;
                     font-weight: 500;
+                    letter-spacing: 1px;
                 }
                 QPushButton:hover { background: rgba(255, 255, 255, 0.15); }
             """)
@@ -372,7 +382,7 @@ class ZugzwangDialog(QDialog):
             btn_layout.addWidget(self.cancel_btn)
             
         # OK/Confirm Button (Red #FF453A or #0A84FF)
-        self.ok_btn = QPushButton(confirm_text)
+        self.ok_btn = QPushButton(tr("dialog.ok", get_language(None)))
         self.ok_btn.setFixedHeight(32)
         self.ok_btn.setCursor(Qt.PointingHandCursor)
         # Choose color dynamically based on text or destructive flag
@@ -386,6 +396,7 @@ class ZugzwangDialog(QDialog):
                 font-family: 'SF Pro Text', 'PT Root UI', sans-serif;
                 font-size: 13px;
                 font-weight: 600;
+                letter-spacing: 1px;
             }}
             QPushButton:hover {{ background: {color}CC; }}
         """)
@@ -395,7 +406,7 @@ class ZugzwangDialog(QDialog):
         
         if parent:
             center = parent.geometry().center()
-            self.move(center.x() - self.width() // 2, center.y() - self.height() // 2 - 20)
+            self.move(center.x() - self.width() // 2, center.y() - self.sizeHint().height() // 2 - 20)
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
@@ -408,145 +419,218 @@ class ZugzwangDialog(QDialog):
             event.accept()
 
 class FeedbackDialog(QDialog):
-    """
-    Premium Feedback & Recommendation Dialog.
-    Direct links to Telegram/WhatsApp and one-click recommendation.
-    """
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowFlags(Qt.FramelessWindowHint | Qt.Dialog)
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.Dialog | Qt.NoDropShadowWindowHint)
         self.setAttribute(Qt.WA_TranslucentBackground)
-        self.setFixedSize(480, 560)
+        self.setFixedWidth(380)
         self._drag_pos = None
         
-        # Main shadow/glass container
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        
         self.container = QFrame(self)
+        main_layout.addWidget(self.container)
+        
         self.container.setObjectName("FeedbackContainer")
-        self.container.setFixedSize(480, 560)
+        self.container.setFixedWidth(380)
         self.container.setStyleSheet("""
             QFrame#FeedbackContainer {
-                background-color: #1C1C1E;
-                border: 1px solid #323232;
-                border-radius: 20px;
+                background-color: #2C2C2E;
+                border: 1px solid rgba(255, 255, 255, 0.08);
+                border-radius: 14px;
             }
+            QLabel { background: transparent; border: none; letter-spacing: 0px; }
         """)
+        
+        from PySide6.QtCore import QSize
+        from qfluentwidgets import FluentIcon
         
         layout = QVBoxLayout(self.container)
-        layout.setContentsMargins(40, 42, 40, 36)
-        layout.setSpacing(15)
+        layout.setContentsMargins(20, 16, 20, 20)
+        layout.setSpacing(0)
         
-        # Header/Text area (Grouped in a widget to prevent layout drift)
-        header_widget = QWidget()
-        hl = QVBoxLayout(header_widget); hl.setContentsMargins(0,0,0,0); hl.setSpacing(10)
-        self.icon_lbl = QLabel("❤️")
-        self.icon_lbl.setStyleSheet("font-size: 40px; background: transparent;")
+        # Header - Text
+        self.icon_lbl = QLabel()
+        from PySide6.QtGui import QPainterPath, QPainter, QColor, QPixmap
+        
+        def _get_solid_heart_pixmap(size=36, color="#FF3B30"):
+            pixmap = QPixmap(size, size)
+            pixmap.fill(Qt.transparent)
+            painter = QPainter(pixmap)
+            painter.setRenderHint(QPainter.Antialiasing)
+            path = QPainterPath()
+            scale = size / 24.0
+            painter.scale(scale, scale)
+            
+            path.moveTo(12, 21.35)
+            path.lineTo(10.55, 20.03)
+            path.cubicTo(5.4, 15.36, 2, 12.28, 2, 8.5)
+            path.cubicTo(2, 5.42, 4.42, 3, 7.5, 3)
+            path.cubicTo(9.24, 3, 10.91, 3.81, 12, 5.09)
+            path.cubicTo(13.09, 3.81, 14.76, 3, 16.5, 3)
+            path.cubicTo(19.58, 3, 22, 5.42, 22, 8.5)
+            path.cubicTo(22, 12.28, 18.6, 15.36, 13.45, 20.04)
+            path.lineTo(12, 21.35)
+            
+            painter.fillPath(path, QColor(color))
+            painter.end()
+            return pixmap
+
+        self.icon_lbl.setPixmap(_get_solid_heart_pixmap())
         self.icon_lbl.setAlignment(Qt.AlignCenter)
-        self.title_label = QLabel("Love ZUGZWANG?")
-        self.title_label.setStyleSheet("color: #FFFFFF; font-family: 'PT Root UI'; font-size: 26px; font-weight: 800; background: transparent;")
+        
+        self.title_label = QLabel(tr("whatsnew.support.title", parent._language if hasattr(parent, '_language') else 'en'))
+        self.title_label.setStyleSheet("color: #FFFFFF; font-family: '-apple-system', 'SF Pro Display', sans-serif; font-size: 17px; font-weight: 600;")
         self.title_label.setAlignment(Qt.AlignCenter)
-        self.message_label = QLabel("Support the developer or recommend us to a friend!")
-        self.message_label.setStyleSheet("color: #8E8E93; font-family: 'PT Root UI'; font-size: 15px; font-weight: 400; line-height: 1.4; background: transparent;")
-        self.message_label.setAlignment(Qt.AlignCenter); self.message_label.setWordWrap(True)
-        hl.addWidget(self.icon_lbl); hl.addWidget(self.title_label); hl.addWidget(self.message_label)
-        layout.addWidget(header_widget)
-
-        # 1. Social Sharing Section
-        social_box = QWidget()
-        sl = QVBoxLayout(social_box); sl.setContentsMargins(0,5,0,5); sl.setSpacing(10)
-        share_title = QLabel("PROMOTE ON SOCIAL MEDIA")
-        share_title.setStyleSheet("color: #8E8E93; font-family: 'Menlo'; font-size: 10px; font-weight: 700; letter-spacing: 1.5px;")
-        share_title.setAlignment(Qt.AlignCenter)
-        sl.addWidget(share_title)
-
-        srow = QHBoxLayout(); srow.setSpacing(10)
-        self.x_btn = self._create_btn("X", "#000000", "#1A1A1A", is_half=True)
-        self.x_btn.clicked.connect(lambda: self._on_share("x"))
-        self.fb_btn = self._create_btn("FACEBOOK", "#1877F2", "#2D88FF", is_half=True)
-        self.fb_btn.clicked.connect(lambda: self._on_share("fb"))
-        self.wa_share_btn = self._create_btn("WHATSAPP", "#25D366", "#2CE071", is_half=True)
-        self.wa_share_btn.clicked.connect(lambda: self._on_share("wa"))
-        self.ig_btn = self._create_btn("INSTAGRAM", "#E4405F", "#F55376", is_half=True)
-        self.ig_btn.clicked.connect(lambda: self._on_share("ig"))
-        srow.addWidget(self.x_btn); srow.addWidget(self.fb_btn); srow.addWidget(self.wa_share_btn); srow.addWidget(self.ig_btn)
-        sl.addLayout(srow)
-        layout.addWidget(social_box)
-
-        # 2. Main Copy CTA (Large & Vibrant)
-        self.rec_btn = self._create_btn("COPY PROMO TEXT & LINKS ❤️", "#0A84FF", "#409CFF")
-        self.rec_btn.setFixedHeight(50)
-        self.rec_btn.setStyleSheet(self.rec_btn.styleSheet() + """
+        
+        self.message_label = QLabel("I built this solo — your support keeps the scrapers running and updates coming.")
+        self.message_label.setStyleSheet("color: #8E8E93; font-family: system-ui, -apple-system, sans-serif; font-size: 13px; font-weight: 400;")
+        self.message_label.setAlignment(Qt.AlignCenter)
+        self.message_label.setWordWrap(True)
+        
+        layout.addWidget(self.icon_lbl)
+        layout.addSpacing(8)
+        layout.addWidget(self.title_label)
+        layout.addSpacing(8)
+        layout.addWidget(self.message_label)
+        
+        layout.addSpacing(20) # Section spacing
+        
+        # Support Section
+        support_title = QLabel(tr("whatsnew.support.direct", parent._language if hasattr(parent, '_language') else 'en'))
+        support_title.setStyleSheet("color: #8E8E93; font-family: system-ui, -apple-system, sans-serif; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;")
+        support_title.setAlignment(Qt.AlignCenter)
+        layout.addWidget(support_title)
+        layout.addSpacing(12)
+        
+        self.donate_btn = QPushButton("Support with money")
+        self.donate_btn.setFixedHeight(44)
+        self.donate_btn.setCursor(Qt.PointingHandCursor)
+        self.donate_btn.setStyleSheet("""
             QPushButton {
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #0A84FF, stop:1 #0070E0);
-                font-size: 14px; font-weight: 800; border-radius: 12px;
+                background-color: #0A84FF;
+                border: 1px solid #0A84FF;
+                border-radius: 10px;
+                color: #FFFFFF;
+                font-family: '-apple-system', 'SF Pro Text', sans-serif;
+                font-size: 15px;
+                font-weight: 500;
+                letter-spacing: normal;
+                text-transform: none;
             }
-        """)
-        self.rec_btn.clicked.connect(self._on_recommend)
-        layout.addWidget(self.rec_btn)
-
-        # 3. Direct Contact Section
-        contact_box = QWidget()
-        cl = QVBoxLayout(contact_box); cl.setContentsMargins(0,5,0,5); cl.setSpacing(10)
-        contact_title = QLabel("DIRECT SUPPORT")
-        contact_title.setStyleSheet("color: #8E8E93; font-family: 'Menlo'; font-size: 10px; font-weight: 700; letter-spacing: 1.5px;")
-        contact_title.setAlignment(Qt.AlignCenter)
-        cl.addWidget(contact_title)
-
-        crow = QHBoxLayout(); crow.setSpacing(10)
-        self.tg_btn = self._create_btn("TELEGRAM", "#2C2C2E", "#3A3A3C", is_half=True)
-        self.tg_btn.clicked.connect(self._on_telegram)
-        self.wa_btn = self._create_btn("WHATSAPP", "#2C2C2E", "#3A3A3C", is_half=True)
-        self.wa_btn.clicked.connect(self._on_whatsapp)
-        crow.addWidget(self.tg_btn); crow.addWidget(self.wa_btn)
-        cl.addLayout(crow)
-        layout.addWidget(contact_box)
-
-        # 4. Support with Money Section
-        donation_box = QWidget()
-        dl = QVBoxLayout(donation_box); dl.setContentsMargins(0,5,0,5); dl.setSpacing(10)
-        self.donate_btn = self._create_btn("SUPPORT WITH MONEY 💸", "#30D158", "#34C759")
-        self.donate_btn.setFixedHeight(50)
-        self.donate_btn.setStyleSheet(self.donate_btn.styleSheet() + """
-            QPushButton {
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #30D158, stop:1 #24B04B);
-                font-size: 14px; font-weight: 800; border-radius: 12px;
-            }
+            QPushButton:hover { background-color: #007AFF; }
+            QPushButton:pressed { background-color: #0062CC; }
         """)
         self.donate_btn.clicked.connect(self._on_donate)
-        dl.addWidget(self.donate_btn)
-        layout.addWidget(donation_box)
+        layout.addWidget(self.donate_btn)
+        
+        layout.addSpacing(8) # Exact 8px caption-to-button gap
+        
+        impact_label = QLabel("Covers hosting and keeps zugzwang free for job seekers.")
+        impact_label.setStyleSheet("color: #8E8E93; font-family: system-ui, -apple-system, sans-serif; font-size: 11px; font-weight: 400;")
+        impact_label.setAlignment(Qt.AlignCenter)
+        layout.addWidget(impact_label)
+        
+        layout.addSpacing(20) # 20px gap before next section starts
+        
+        crow = QHBoxLayout()
+        crow.setSpacing(12)
+        crow.setContentsMargins(0, 0, 0, 0)
+        
+        self.tg_btn = QPushButton("Telegram")
+        self.tg_btn.setFixedHeight(44)
+        self.tg_btn.setCursor(Qt.PointingHandCursor)
+        self.tg_btn.setStyleSheet("""
+            QPushButton {
+                background-color: transparent;
+                border: 1px solid rgba(255, 255, 255, 0.16);
+                border-radius: 10px;
+                color: #FFFFFF;
+                font-family: system-ui, -apple-system, sans-serif;
+                font-size: 15px;
+                font-weight: 500;
+                letter-spacing: normal;
+                text-transform: none;
+            }
+            QPushButton:hover { background-color: rgba(255, 255, 255, 0.05); }
+            QPushButton:pressed { background-color: rgba(255, 255, 255, 0.02); }
+        """)
+        self.tg_btn.clicked.connect(self._on_telegram)
+        
+        self.wa_btn = QPushButton("WhatsApp")
+        self.wa_btn.setFixedHeight(44)
+        self.wa_btn.setCursor(Qt.PointingHandCursor)
+        self.wa_btn.setStyleSheet(self.tg_btn.styleSheet())
+        self.wa_btn.clicked.connect(self._on_whatsapp)
+        
+        crow.addWidget(self.tg_btn)
+        crow.addWidget(self.wa_btn)
+        layout.addLayout(crow)
 
-        layout.addStretch()
-
-        # 4. Close (Bottom)
-        self.close_btn = QPushButton("CLOSE WINDOW")
-        self.close_btn.setCursor(Qt.PointingHandCursor); self.close_btn.setFixedHeight(30)
-        self.close_btn.setStyleSheet("color: #48484A; font-family: 'PT Root UI'; font-size: 11px; font-weight: 600; border: none; background: transparent;")
-        self.close_btn.clicked.connect(self.reject)
-        layout.addWidget(self.close_btn, 0, Qt.AlignCenter)
-
+        layout.addSpacing(20) # Section spacing
+        
+        # Social Section
+        share_title = QLabel(tr("whatsnew.support.promote", parent._language if hasattr(parent, '_language') else 'en'))
+        share_title.setStyleSheet("color: #8E8E93; font-family: system-ui, -apple-system, sans-serif; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;")
+        share_title.setAlignment(Qt.AlignCenter)
+        layout.addWidget(share_title)
+        layout.addSpacing(12)
+        
+        srow = QHBoxLayout()
+        srow.setSpacing(10)
+        srow.setContentsMargins(0, 0, 0, 0)
+        
+        def create_icon_btn(icon, color_hex="#FFFFFF"):
+            btn = QPushButton()
+            btn.setFixedSize(44, 44)
+            btn.setCursor(Qt.PointingHandCursor)
+            btn.setIcon(icon.icon(color=QColor(color_hex)))
+            btn.setIconSize(QSize(17, 17))
+            btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #3A3A3C;
+                    border: none;
+                    border-radius: 22px;
+                }
+                QPushButton:hover { background-color: #4A4A4C; }
+                QPushButton:pressed { background-color: #2C2C2E; }
+            """)
+            return btn
+            
+        self.x_btn = create_icon_btn(FluentIcon.SHARE, "#FFFFFF")
+        self.x_btn.setToolTip("Share on X (Twitter)")
+        self.x_btn.clicked.connect(lambda: self._on_share("x"))
+        
+        self.fb_btn = create_icon_btn(FluentIcon.CHAT, "#FFFFFF")
+        self.fb_btn.setToolTip("Share via Messages")
+        self.fb_btn.clicked.connect(lambda: self._on_share("fb"))
+        
+        self.wa_share_btn = create_icon_btn(FluentIcon.MAIL, "#FFFFFF")
+        self.wa_share_btn.setToolTip("Share via Email")
+        self.wa_share_btn.clicked.connect(lambda: self._on_share("wa"))
+        
+        self.ig_btn = create_icon_btn(FluentIcon.SAVE, "#FFFFFF")
+        self.ig_btn.setToolTip("Save Image")
+        self.ig_btn.clicked.connect(lambda: self._on_share("ig"))
+        
+        self.rec_btn = create_icon_btn(FluentIcon.LINK, "#FFFFFF")
+        self.rec_btn.setToolTip("Copy Link")
+        self.rec_btn.clicked.connect(self._on_recommend)
+        
+        srow.addStretch()
+        srow.addWidget(self.x_btn)
+        srow.addWidget(self.fb_btn)
+        srow.addWidget(self.wa_share_btn)
+        srow.addWidget(self.ig_btn)
+        srow.addWidget(self.rec_btn)
+        srow.addStretch()
+        layout.addLayout(srow)
+        
         if parent:
+            self.adjustSize()
             center = parent.geometry().center()
             self.move(center.x() - self.width() // 2, center.y() - self.height() // 2)
-
-    def _create_btn(self, text: str, bg: str, hover: str, is_half: bool = False) -> QPushButton:
-        btn = QPushButton(text)
-        if not is_half: btn.setFixedHeight(46)
-        else: btn.setFixedHeight(44)
-        btn.setCursor(Qt.PointingHandCursor)
-        btn.setStyleSheet(f"""
-            QPushButton {{
-                background: {bg};
-                border: none;
-                border-radius: 12px;
-                color: #FFFFFF;
-                font-family: 'PT Root UI';
-                font-size: 13px;
-                font-weight: 700;
-                letter-spacing: 0.5px;
-            }}
-            QPushButton:hover {{ background: {hover}; }}
-        """)
-        return btn
 
     def _on_telegram(self):
         import webbrowser
@@ -570,18 +654,14 @@ class FeedbackDialog(QDialog):
         msg = ("supportina bach nkmlo lkhdma ela l app, ana khdam b had l app w kt3awni bach njm3 w nsyft Bewerbungen, "
                "dkhl l goupe telegram w atfhm klchi, merci : https://t.me/+OsHHWTSv_bVkZTM0 w dkhl lien bach "
                "telechargiha direct : https://github.com/whbexc/Zugzwang/releases")
+        app_url = "https://github.com/whbexc/Zugzwang/releases"
         
+        url = ""
         if platform == "x":
-            # Share on X (Twitter)
-            url = f"https://twitter.com/intent/tweet?text={quote(msg)}"
-            webbrowser.open(url)
+            url = f"https://twitter.com/intent/tweet?text={quote(msg)}&url={quote(app_url)}"
         elif platform == "fb":
-            # Share on Facebook
-            # Note: FB sharer primarily uses the 'u' (URL) but 'quote' works for the text body in some contexts
-            url = f"https://www.facebook.com/sharer/sharer.php?u=https://github.com/whbexc/Zugzwang/releases&quote={quote(msg)}"
-            webbrowser.open(url)
+            url = f"https://www.facebook.com/sharer/sharer.php?u={quote(app_url)}&quote={quote(msg)}"
         elif platform == "wa":
-            # Share on WhatsApp
             url = f"https://wa.me/?text={quote(msg)}"
             webbrowser.open(url)
         elif platform == "ig":
@@ -606,14 +686,8 @@ class FeedbackDialog(QDialog):
         QTimer.singleShot(2500, lambda: self.rec_btn.setText("COPY PROMO LINK & TEXT"))
 
     def mousePressEvent(self, event):
-        if event.button() == Qt.LeftButton:
-            self._drag_pos = event.globalPos() - self.frameGeometry().topLeft()
-            event.accept()
-
-    def mouseMoveEvent(self, event):
-        if event.buttons() == Qt.LeftButton and self._drag_pos is not None:
-            self.move(event.globalPos() - self._drag_pos)
-            event.accept()
+        self.reject()
+        super().mousePressEvent(event)
 
 class MacSwitch(QWidget):
     """Premium macOS-style toggle switch with smooth animations."""
@@ -1310,6 +1384,8 @@ class FlowLayout(QLayout):
         if not hasattr(self, '_min_size_cache'):
             self._min_size_cache = {}
         for item in self._item_list:
+            if item.isEmpty():
+                continue
             item_id = id(item)
             if item_id not in self._min_size_cache:
                 self._min_size_cache[item_id] = item.minimumSize()
@@ -1325,6 +1401,8 @@ class FlowLayout(QLayout):
             self._size_cache = {}
             
         for item in self._item_list:
+            if item.isEmpty():
+                continue
             space_x = self._h_space
             space_y = self._v_space
             
@@ -1430,4 +1508,4 @@ class GlassToolTipFilter(QObject):
             self.tooltip.hide()
         return False
 
-# 1.1.0 Beta5.1
+# 1.1.0 Beta6

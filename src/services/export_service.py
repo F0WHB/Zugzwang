@@ -253,7 +253,7 @@ class ExportService:
         try:
             conn.execute("PRAGMA journal_mode=WAL")
             self._init_db(conn)
-            leads_rows = conn.execute(f"SELECT {','.join(EXPORT_COLUMNS)} FROM leads").fetchall()
+            leads_rows = conn.execute(f"SELECT {','.join(EXPORT_COLUMNS)} FROM leads ORDER BY rowid DESC").fetchall()
             records = []
             seen_ids: set[str] = set()
             for row in leads_rows:
@@ -478,4 +478,4 @@ class ExportService:
 
         return records
 
-# 1.1.0 Beta5.1
+# 1.1.0 Beta6

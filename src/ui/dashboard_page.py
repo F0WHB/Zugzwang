@@ -796,7 +796,7 @@ class DashboardPage(QWidget):
                 desc.setWordWrap(True)
                 desc.setAlignment(Qt.AlignCenter)
                 desc.setStyleSheet(f"color: {Theme.TEXT_TERTIARY}; font-size: 12px; border: none;")
-                desc.setFixedWidth(200)
+                desc.setMinimumWidth(160)
                 pv.addWidget(desc, 0, Qt.AlignHCenter)
                 
                 self.activityLayout.addWidget(placeholder_container)
@@ -821,7 +821,7 @@ class DashboardPage(QWidget):
                 row_layout.setContentsMargins(0, 2, 0, 2)
                 row_layout.setSpacing(10)
 
-                dot = QLabel("●")
+                dot = QLabel(tr("●", self._language))
                 dot.setStyleSheet(f"color: #30D158; font-size: 8px; background: transparent; border: none;")
                 dot.setFixedWidth(10)
                 dot.setAlignment(Qt.AlignTop | Qt.AlignHCenter)
@@ -850,4 +850,4 @@ class DashboardPage(QWidget):
             else:
                 label.parentWidget().hide()
 
-# 1.1.0 Beta5.1
+# 1.1.0 Beta6

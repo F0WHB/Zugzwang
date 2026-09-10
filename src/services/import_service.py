@@ -132,12 +132,16 @@ class ImportService:
                         matched_url = url
                         break
             
+            from ..core.config import config_manager
+            settings = config_manager.settings()
             record = LeadRecord(
                 id=str(uuid.uuid4()),
                 source_type=SourceType.MANUAL,
                 email=email,
                 website=matched_url,
-                company_name=domain.capitalize().split('.')[0] if domain else "Imported Lead"
+                company_name=domain.capitalize().split('.')[0] if domain else "Imported Lead",
+                search_query=settings.last_search_city if settings.last_search_city else "Imported",
+                country=settings.last_search_country if settings.last_search_country else "Import"
             )
             records.append(record)
             
@@ -145,11 +149,15 @@ class ImportService:
         matched_urls_set = {r.website for r in records if r.website}
         for url in found_urls:
             if url not in matched_urls_set:
+                from ..core.config import config_manager
+                settings = config_manager.settings()
                 records.append(LeadRecord(
                     id=str(uuid.uuid4()),
                     source_type=SourceType.MANUAL,
                     website=url,
-                    company_name="Imported Lead"
+                    company_name="Imported Lead",
+                    search_query=settings.last_search_city if settings.last_search_city else "Imported",
+                    country=settings.last_search_country if settings.last_search_country else "Import"
                 ))
                 
         return records
@@ -178,7 +186,14 @@ class ImportService:
         return mapping
 
     def _build_record_from_dict(self, data: dict[str, Any]) -> LeadRecord:
-        record = LeadRecord(id=str(uuid.uuid4()), source_type=SourceType.MANUAL)
+        from ..core.config import config_manager
+        settings = config_manager.settings()
+        record = LeadRecord(
+            id=str(uuid.uuid4()), 
+            source_type=SourceType.MANUAL,
+            search_query=settings.last_search_city if settings.last_search_city else "Imported",
+            country=settings.last_search_country if settings.last_search_country else "Import"
+        )
         for k, v in data.items():
             if hasattr(record, k) and v:
                 setattr(record, k, v)
@@ -208,4 +223,4 @@ class ImportService:
                 deduped.append(r)
         return deduped
 
-# 1.1.0 Beta5.1
+# 1.1.0 Beta6

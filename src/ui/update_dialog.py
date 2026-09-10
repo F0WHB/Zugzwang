@@ -6,7 +6,8 @@ macOS-style UI for version alerts and download progress.
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor, QFont
 from PySide6.QtWidgets import QLabel, QProgressBar
-from qfluentwidgets import InfoBar
+from src.ui.toast_system import ToastNotification as InfoBar
+ 
 from ..core.config import APP_BUILD, APP_VERSION
 from .components import ZugzwangDialog
 
@@ -91,4 +92,4 @@ class UpdateDialog(ZugzwangDialog):
         self.cancel_btn.setEnabled(True)
         InfoBar.error("Update Failed", msg, duration=5000, parent=self)
 
-# 1.1.0 Beta5.1
+# 1.1.0 Beta6

@@ -18,8 +18,9 @@ from PySide6.QtWidgets import (
 
 from qfluentwidgets import (
     FluentIcon, SplashScreen, Theme, setTheme, setThemeColor,
-    IconWidget, CaptionLabel, BodyLabel, PushButton, InfoBar, InfoBarPosition
+    IconWidget, CaptionLabel, BodyLabel, PushButton, InfoBarPosition
 )
+from .toast_system import ToastNotification as InfoBar
 from qframelesswindow import FramelessWindow, TitleBar
 
 from .dashboard_page import DashboardPage
@@ -84,9 +85,9 @@ class _HeaderButton(QPushButton):
                 border: none;
                 color: {active_color if self.isChecked() else idle_color};
                 font-family: "PT Root UI", sans-serif;
-                font-size: 13px;
+                font-size: 12px;
                 letter-spacing: 0.3px;
-                padding: 0 16px;
+                padding: 0 8px;
             }}
             QPushButton:hover {{
                 color: #FFFFFF;
@@ -279,6 +280,8 @@ class MainWindow(FramelessWindow):
             self.setSystemTitleBarButtonVisible(True)
         self.resize(1600, 920); self.setMinimumSize(1280, 720)
         self.setStyleSheet(_GLOBAL_CSS + APP_STYLESHEET)
+        from .toast_system import ToastNotificationManager
+        ToastNotificationManager.instance().set_host_window(self)
         QApplication.instance().setLayoutDirection(Qt.RightToLeft if is_rtl(self._language) else Qt.LeftToRight)
 
         self.splashScreen = SplashScreen(self.windowIcon(), self)
@@ -334,15 +337,13 @@ class MainWindow(FramelessWindow):
         from ..changelog import APP_VERSION as changelog_version
         last_seen = config_manager.settings.last_seen_version
         if last_seen != changelog_version:
-            self._startup_upgrade_prompt_pending = not LicenseManager.is_active()
+            self._startup_upgrade_prompt_pending = True
             QTimer.singleShot(1000, self._show_whats_new)
             config_manager.settings.last_seen_version = changelog_version
             config_manager.save()
 
-        # ── Improvement 3: ToastManager ───────────────────────────────────
-
-        from .toast_manager import ToastManager
-        self._toast_manager = ToastManager(self)
+        # ── Improvement 3: Unified Toast Notification ───────────────────────────────────
+        # Uses ToastNotification (aliased as InfoBar) globally
         self._setup_toasts(event_bridge)
 
         # ── Improvement 4: Keyboard Shortcuts ─────────────────────────────
@@ -355,7 +356,7 @@ class MainWindow(FramelessWindow):
             self.update_service.update_available.connect(self._show_update_dialog)
             QTimer.singleShot(5000, self.update_service.check)
 
-        if not LicenseManager.is_active() and not self._startup_upgrade_prompt_pending:
+        if not self._startup_upgrade_prompt_pending:
             QTimer.singleShot(1600, self._show_startup_upgrade_prompt)
             self._upgrade_prompt_timer.start()
         
@@ -412,11 +413,17 @@ class MainWindow(FramelessWindow):
         self._nav_layout.addWidget(self._whats_new_btn)
 
         # ── Option 2: The Sponsor Navigation Card (Button) ────────────────
-        self._support_btn = _HeaderButton("💖")
-        self._support_btn.setToolTip("Support the Developer")
-        self._support_btn.setStyleSheet(btn.styleSheet() + "font-size: 14px; color: #FF453A;")
+        self._support_btn = _HeaderButton("💚")
+        self._support_btn.setToolTip("Contact Developer on WhatsApp")
+        self._support_btn.setStyleSheet(btn.styleSheet() + "font-size: 14px; color: #25D366;")
         self._support_btn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://wa.me/212663007212?text=slm%20khoya%20khdmt%20b%20app%20dylk%20w%20bghit%20n%20supportik,")))
         self._nav_layout.addWidget(self._support_btn)
+
+        self._tg_btn = _HeaderButton("💬")
+        self._tg_btn.setToolTip("Join our Telegram Community")
+        self._tg_btn.setStyleSheet(btn.styleSheet() + "font-size: 14px; color: #2AABEE;")
+        self._tg_btn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://t.me/+OsHHWTSv_bVkZTM0")))
+        self._nav_layout.addWidget(self._tg_btn)
 
         self._switch(0)
         # Statistics page sync logic will happen via _on_db_updated
@@ -478,13 +485,12 @@ class MainWindow(FramelessWindow):
         label = getattr(config, "job_title", "?") or "?"
         city = getattr(config, "city", "") or ""
         self._start_job(config)
-        if hasattr(self, "_toast_manager"):
-            self._toast_manager.show(
-                f"Re-running: {label}",
-                city,
-                toast_type="info",
-                duration=3000,
-            )
+        InfoBar.info(
+            f"Re-running: {label}",
+            city,
+            duration=3000,
+            parent=self.window()
+        )
 
     def _setup_toasts(self, event_bridge) -> None:
         """Connect event_bridge signals to ToastManager for live notifications."""
@@ -496,17 +502,17 @@ class MainWindow(FramelessWindow):
                 source = ""
                 if record and hasattr(record, "source_type"):
                     source = str(getattr(record.source_type, "value", "")).replace("_", " ").title()
-                self._toast_manager.show(
+                InfoBar.info(
                     f"↓ {self._result_count} leads found",
-                    source, toast_type="info", duration=2500
+                    source, duration=2500, parent=self.window()
                 )
 
             milestones = [20, 50, 100, 200, 300, 500, 1000, 2000, 5000, 10000]
             if self._result_count in milestones:
-                self._toast_manager.show(
+                InfoBar.success(
                     f"🎉 {self._result_count} LEADS EXTRACTED! 🎉",
                     "If ZUGZWANG is supercharging your business, grab the developer a coffee from the Dashboard!",
-                    toast_type="success", duration=6000
+                    duration=6000, parent=self.window()
                 )
 
         def _on_completed(job_id=None, total_found=0, total_emails=0, **kw):
@@ -515,23 +521,26 @@ class MainWindow(FramelessWindow):
             if orchestrator.current_job and hasattr(orchestrator.current_job, "config"):
                 st = getattr(orchestrator.current_job.config, "source_type", None)
                 source = str(getattr(st, "value", "")).replace("_", " ").title()
-            self._toast_manager.show(
-                f"✓ {total_found:,} leads found",
-                source, toast_type="success", duration=5000
+            InfoBar.success(
+                f"{total_found:,} leads found",
+                source, duration=5000, parent=self.window()
             )
 
         def _on_failed(job_id=None, error="", **kw):
             self._result_count = 0
-            self._toast_manager.show(
-                "✗ Scrape error",
-                str(error)[:80], toast_type="error", duration=5000
+            clean_err = str(error or "Scraping failed")
+            if "BrowserError:" in clean_err:
+                clean_err = clean_err.split("BrowserError:", 1)[1].strip()
+            InfoBar.error(
+                "Scrape error",
+                clean_err[:120], duration=6000, parent=self.window()
             )
 
         def _on_trial_limit(job_id=None, **kw):
-            self._toast_manager.show(
-                "⚠ Free trial limit reached (20/day)",
+            InfoBar.warning(
+                "Free trial limit reached (20/day)",
                 "Activate the full version for unlimited scraping.",
-                toast_type="warning", duration=5000
+                duration=5000, parent=self.window()
             )
 
         event_bridge.job_result.connect(lambda rec: _on_result(record=rec))
@@ -543,16 +552,18 @@ class MainWindow(FramelessWindow):
         from ..core.events import event_bus
         
         def _on_custom_toast(title="", subtitle="", type="info", duration=4000, **kw):
-            if hasattr(self, "_toast_manager"):
-                self._toast_manager.show(title, subtitle, type, duration)
+            if type == "success": InfoBar.success(title, subtitle, duration=duration, parent=self.window())
+            elif type == "error": InfoBar.error(title, subtitle, duration=duration, parent=self.window())
+            elif type == "warning": InfoBar.warning(title, subtitle, duration=duration, parent=self.window())
+            else: InfoBar.info(title, subtitle, duration=duration, parent=self.window())
         
         event_bus.subscribe("toast.show", _on_custom_toast)
 
         # Rate limit event from core event_bus
         def _on_rate_limit(**kw):
-            self._toast_manager.show(
-                "⚠ Rate limit detected — slowing down",
-                "", toast_type="warning", duration=3500
+            InfoBar.warning(
+                "Rate limit detected — slowing down",
+                "", duration=3500, parent=self.window()
             )
         event_bus.subscribe("rate_limit.detected", _on_rate_limit)
 
@@ -660,10 +671,10 @@ class MainWindow(FramelessWindow):
         dialog = WhatsNewDialog(current_version=APP_VERSION, parent=self)
         dialog.exec()
         logger.info("[startup] What's New dialog closed")
-        if self._startup_upgrade_prompt_pending and not LicenseManager.is_active():
+        if self._startup_upgrade_prompt_pending:
             logger.info("[startup] Scheduling startup upgrade prompt after What's New")
             QTimer.singleShot(150, self._show_startup_upgrade_prompt)
-        elif not LicenseManager.is_active():
+        else:
             logger.info("[startup] Starting 10-minute upgrade reminder timer after What's New")
             self._upgrade_prompt_timer.start()
 
@@ -713,14 +724,21 @@ class MainWindow(FramelessWindow):
         return result
 
     def _show_startup_upgrade_prompt(self):
-        if LicenseManager.is_active():
-            self._startup_upgrade_prompt_pending = False
-            self._upgrade_prompt_timer.stop()
-            logger.info("[startup] Startup upgrade prompt skipped because license is active")
-            return
         if self._activation_prompt_open:
             logger.info("[startup] Startup upgrade prompt skipped because another activation dialog is already open")
             return
+            
+        def _show_support():
+            from .components import FeedbackDialog
+            FeedbackDialog(self).exec()
+
+        if LicenseManager.is_active():
+            self._startup_upgrade_prompt_pending = False
+            self._upgrade_prompt_timer.stop()
+            logger.info("[startup] Startup upgrade prompt skipped because license is active, showing support instead")
+            _show_support()
+            return
+            
         from .activation_dialog import ActivationDialog
         self._activation_prompt_open = True
         logger.info("[startup] Opening startup upgrade prompt")
@@ -739,6 +757,8 @@ class MainWindow(FramelessWindow):
             else:
                 logger.info("[startup] License activated; upgrade reminder timer remains stopped")
                 self._refresh_post_activation_state()
+            
+            _show_support()
 
     def _show_periodic_upgrade_prompt(self):
         if LicenseManager.is_active():
@@ -801,11 +821,21 @@ class MainWindow(FramelessWindow):
         from ..services.orchestrator import orchestrator
         run_in_thread(
             orchestrator.load_app_memory,
-            on_result=lambda records: self._on_db_updated(records=records or []),
+            on_result=lambda records: self._on_db_updated(records=records or [], _from_restore=True),
             on_error=lambda err: logger.warning(f"[startup] DB load error: {err}"),
         )
 
     def _on_db_updated(self, records=None, **kw):
+        if not records and not kw.get("_from_restore"):
+            from ..utils.db_worker import run_in_thread
+            from ..services.orchestrator import orchestrator
+            run_in_thread(
+                orchestrator.load_app_memory,
+                on_result=lambda recs: self._on_db_updated(records=recs or [], _from_restore=True),
+                on_error=lambda err: logger.warning(f"DB load error: {err}"),
+            )
+            return
+
         records = records or []
         total_records = len(records)
         total_emails = sum(1 for r in records if r.email)
@@ -852,6 +882,9 @@ class MainWindow(FramelessWindow):
             self.titleBar.updateMaximizeButton(self.isMaximized())
 
     def closeEvent(self, event):
+        from .components import FeedbackDialog
+        FeedbackDialog(self).exec()
+
         logger.info(
             "[window] Main window closing (is_running=%s, activation_dialog_open=%s)",
             orchestrator.is_running,
@@ -859,7 +892,7 @@ class MainWindow(FramelessWindow):
         )
         config_manager.flush()
         orchestrator.persist_current_job()
-        if orchestrator.is_running:
+        if orchestrator.current_job and orchestrator.current_job.status.name in ("RUNNING", "PAUSED"):
             orchestrator.cancel_job()
         thread = getattr(orchestrator, "_thread", None)
         if thread and thread.isRunning():
@@ -921,7 +954,7 @@ class MainWindow(FramelessWindow):
         # We need to run this in a way that doesn't block the UI thread but allows the user to interact
         # A simple approach is to use a QThread or just launch a subprocess.
         # But since we want to share cookies back, we'll use a dedicated worker.
-        from qfluentwidgets import InfoBar, InfoBarPosition
+        from qfluentwidgets import InfoBarPosition
         InfoBar.info(
             title="Sicherheitsabfrage",
             content="A browser window has opened. Please solve the captcha and close the window to continues.",
@@ -1041,4 +1074,4 @@ class MainWindow(FramelessWindow):
         painter.fillRect(self.rect(), QColor(_BG))
         painter.end()
 
-# 1.1.0 Beta5.1
+# 1.1.0 Beta6

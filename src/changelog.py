@@ -1,14 +1,50 @@
 # ZUGZWANG Changelog Definitions
 # Contains version history and changes for the "What's New" dialog.
 
-APP_VERSION = "1.1.0 Beta5.1"
+APP_VERSION = "1.1.0 Beta6"
 
 CHANGELOG = [
     {
-        "version": "1.1.0 Beta5.1",
-        "date": "August 15, 2026",
+        "version": "1.1.0 Beta6",
+        "date": "September 10, 2026",
         "label": "LATEST",
         "label_color": "#30D158",
+        "changes": [
+            {
+                "type": "new",
+                "text": "Redesigned macOS Toast Notification System — Introduced a floating native macOS card (#2C2C2E, 14px radius, 0.5px border, 400px fixed width, zero shadow) with role-colored badges, clean typography, smooth physics animations, and persistent top-right window anchoring."
+            },
+            {
+                "type": "improved",
+                "text": "Google Maps Real-Time Scraper Streaming — Re-architected lead extraction from blocking batches to concurrent streaming via asyncio.as_completed, displaying discovered leads in the UI instantly without freezing."
+            },
+            {
+                "type": "improved",
+                "text": "Intelligent City & Address Tagging — Maps scraper now assigns the user's targeted search city directly to extracted leads, preventing district sub-names (e.g. sub-neighborhoods) from fragmenting your lead lists."
+            },
+            {
+                "type": "improved",
+                "text": "Standardized Column Visibility Preset & Persistent Memory — Table column settings now default to the clean standard preset (Company, Job / Category, Email, Phone, City, Source visible; Start Date, LinkedIn, Status, Scraped At hidden) and reliably remember your custom toggles across app launches and version upgrades."
+            },
+            {
+                "type": "fixed",
+                "text": "Table Search Filter Responsiveness — Overrode setFilterFixedString in the results proxy model so typing in the search box immediately filters table rows in real-time."
+            },
+            {
+                "type": "fixed",
+                "text": "'From Latest City' Import Accuracy — Clicking 'From Latest City' on the Edit Page now identifies the exact city from your recent search rather than restricting imports to a single lead's district."
+            },
+            {
+                "type": "new",
+                "text": "Standalone License Key Generator — Refactored genk.py into a zero-dependency, pure Python CLI tool supporting both interactive prompts and command-line arguments for instant PRO and Admin key creation."
+            },
+        ],
+    },
+    {
+        "version": "1.1.0 Beta5.1",
+        "date": "August 15, 2026",
+        "label": "RELEASED",
+        "label_color": "#007AFF",
         "changes": [
             {
                 "type": "new",
@@ -596,10 +632,52 @@ CHANGELOG = [
 
 CHANGELOG_AR = [
     {
-        "version": "1.1.0 Beta5.1",
-        "date": "15 أغسطس 2026",
+        "version": "1.1.0 Beta6",
+        "date": "10 سبتمبر 2026",
         "label": "الأحدث",
         "label_color": "#30D158",
+        "type_labels": {
+            "new": "جديد",
+            "improved": "مُحسَّن",
+            "fixed": "مُصلَّح",
+            "removed": "مُزال"
+        },
+        "changes": [
+            {
+                "type": "new",
+                "text": "نظام إشعارات Toast بتصميم macOS الأصلي — تصميم بطاقة macOS عائمة أنيقة (#2C2C2E، نصف قطر 14px، حدود 0.5px، عرض 400px، بدون ظلال غير مرغوبة) مع شارات ملونة للأيقونات (#0A84FF للمعلومات والتقدم، #3A3A3C مع أيقونات ملونة للنجاح والأخطاء)، وخطوط محسّنة وموقع ثابت في الزاوية العلوية اليمنى مع حركات انسيابية."
+            },
+            {
+                "type": "improved",
+                "text": "بث مباشر لنتائج استخراج خرائط Google — الانتقال من التجميع المعلق إلى البث الفوري عبر asyncio.as_completed، مما يتيح ظهور العملاء المحتملين في الوقت الفعلي فور اكتشافهم دون تجميد واجهة المستخدم."
+            },
+            {
+                "type": "improved",
+                "text": "استخراج دقيق للمدينة والعناوين — يتم الآن ربط العملاء المحتملين المستخرجين من خرائط Google تلقائياً بالمدينة التي تم البحث عنها بدلاً من أسماء الأحياء الفرعية، مما يضمن تصنيفاً واضحاً ودقيقاً للعملاء."
+            },
+            {
+                "type": "improved",
+                "text": "حفظ مخصص ومظهر افتراضي لأعمدة النتائج — تم ضبط الأعمدة الافتراضية على النمط القياسي الأنيق (إظهار الشركة، المسمى الوظيفي، البريد، الهاتف، المدينة، المصدر؛ وإخفاء تاريخ البدء، ولينكد إن، والحالة، وتاريخ الاستخراج)، مع حفظ دائم لتفضيلات الأعمدة عبر جلسات التطبيق والتحديثات."
+            },
+            {
+                "type": "fixed",
+                "text": "إصلاح شريط البحث في جدول النتائج — حل مشكلة عدم استجابة شريط البحث في صفحة النتائج وتحديث نموذج التصفية لعرض النتائج المطابقة فورياً."
+            },
+            {
+                "type": "fixed",
+                "text": "تصحيح استيراد العملاء حسب آخر مدينة — زر 'من آخر مدينة' في صفحة التعديل يستورد الآن بشكل صحيح كافة العملاء التابعين للمدينة التي تم البحث فيها بدلاً من التقيد بحي أو منطقة فرعية واحدة."
+            },
+            {
+                "type": "new",
+                "text": "أداة ترخيص مستقلة وسريعة — ترقية أداة genk.py لتصبح مستقلة تماماً بدون أي مكتبات خارجية لتوليد مفاتيح PRO و Admin للعملاء بسهولة عبر سطر الأوامر أو الواجهة التفاعلية."
+            },
+        ],
+    },
+    {
+        "version": "1.1.0 Beta5.1",
+        "date": "15 أغسطس 2026",
+        "label": "تم الإطلاق",
+        "label_color": "#007AFF",
         "type_labels": {
             "new": "جديد",
             "improved": "مُحسَّن",
@@ -1229,4 +1307,4 @@ CHANGELOG_AR = [
     }
 ]
 
-# 1.1.0 Beta5.1
+# 1.1.0 Beta6

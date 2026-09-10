@@ -5,6 +5,7 @@ Aesthetic 3.0: Senior Grade macOS Design.
 """
 
 from __future__ import annotations
+from src.ui.toast_system import ToastNotification
 
 import html
 import hashlib
@@ -303,14 +304,14 @@ class ManualRecipientDialog(QDialog):
         layout.setContentsMargins(24, 22, 24, 22)
         layout.setSpacing(14)
 
-        title = QLabel("Add Recipient")
+        title = QLabel(tr("Add Recipient", self._language))
         title.setStyleSheet(
             "color: #FFFFFF; font-family: 'PT Root UI', sans-serif; "
             "font-size: 18px; font-weight: 700; background: transparent; border: none;"
         )
         layout.addWidget(title)
 
-        subtitle = QLabel("Type one email address and add it directly to the queue.")
+        subtitle = QLabel(tr("Type one email address and add it directly to the queue.", self._language))
         subtitle.setWordWrap(True)
         subtitle.setStyleSheet(
             "color: #8E8E93; font-family: 'PT Root UI', sans-serif; "
@@ -318,7 +319,7 @@ class ManualRecipientDialog(QDialog):
         )
         layout.addWidget(subtitle)
 
-        field_label = QLabel("RECIPIENT EMAIL")
+        field_label = QLabel(tr("RECIPIENT EMAIL", self._language))
         field_label.setStyleSheet(
             "color: #636366; font-family: 'PT Root UI', sans-serif; "
             "font-size: 10px; font-weight: 600; letter-spacing: 1px; "
@@ -358,7 +359,7 @@ class ManualRecipientDialog(QDialog):
         buttons = QHBoxLayout()
         buttons.setSpacing(10)
 
-        cancel_btn = QPushButton("CANCEL")
+        cancel_btn = QPushButton(tr("CANCEL", self._language))
         cancel_btn.setFixedHeight(38)
         cancel_btn.setCursor(Qt.PointingHandCursor)
         cancel_btn.setStyleSheet("""
@@ -376,7 +377,7 @@ class ManualRecipientDialog(QDialog):
         """)
         cancel_btn.clicked.connect(self.reject)
 
-        add_btn = QPushButton("ADD")
+        add_btn = QPushButton(tr("ADD", self._language))
         add_btn.setFixedHeight(38)
         add_btn.setCursor(Qt.PointingHandCursor)
         add_btn.setStyleSheet("""
@@ -591,7 +592,7 @@ class EmailSenderPage(QWidget):
             signature = self._message_signature()
         return signature in self._successful_history.get(email_key, set())
 
-    def _record_successful_send(self, email: str, signature: str):
+    def _record_successful_send(self, email: str, signature: str, tracking_id: str = None):
         email_key = email.strip().lower()
         signatures = self._successful_history.setdefault(email_key, set())
         
@@ -607,9 +608,9 @@ class EmailSenderPage(QWidget):
             if row:
                 lead_id = row[0]
                 conn.execute(
-                    "INSERT INTO letter_state (lead_id, sent_at) VALUES (?, ?) "
-                    "ON CONFLICT(lead_id) DO UPDATE SET sent_at=excluded.sent_at",
-                    (lead_id, now)
+                    "INSERT INTO letter_state (lead_id, sent_at, tracking_id) VALUES (?, ?, ?) "
+                    "ON CONFLICT(lead_id) DO UPDATE SET sent_at=excluded.sent_at, tracking_id=excluded.tracking_id",
+                    (lead_id, now, tracking_id)
                 )
                 conn.commit()
                 event_bus.emit(EventBus.DB_UPDATED, records=[])
@@ -868,7 +869,7 @@ class EmailSenderPage(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(6)
 
-        settings_btn = QPushButton("⚙ SETTINGS")
+        settings_btn = QPushButton(tr("⚙ SETTINGS", self._language))
         settings_btn.setCursor(Qt.PointingHandCursor)
         settings_btn.setFixedHeight(20)
         settings_btn.setStyleSheet("""
@@ -905,15 +906,15 @@ class EmailSenderPage(QWidget):
         is_configured = bool(s.email_smtp_user)
         status_color = "#28B84E" if is_configured else "#636366"
 
-        status_dot = QLabel("●")
+        status_dot = QLabel(tr("●", self._language))
         status_dot.setStyleSheet(f"color: {status_color}; font-size: 12px; margin-bottom: 1px; background: transparent; border: none;")
         status_row.addWidget(status_dot)
 
-        txt_status = QLabel("Connected" if is_configured else "Not configured")
+        txt_status = QLabel(tr("email.identity.connected", self._language) if is_configured else "Not configured")
         txt_status.setStyleSheet(f"color: {status_color}; font-family: '.SF Pro Text', 'PT Root UI', sans-serif; font-size: 12px; font-weight: 500; background: transparent; border: none;")
         status_row.addWidget(txt_status)
 
-        test_btn = QPushButton("TEST CONNECTION")
+        test_btn = QPushButton(tr("email.identity.test", self._language))
         test_btn.setCursor(Qt.PointingHandCursor)
         test_btn.setStyleSheet("""
             QPushButton { 
@@ -949,13 +950,13 @@ class EmailSenderPage(QWidget):
 
         lbl_style = "color: #8E8E93; font-family: '.SF Pro Text', 'PT Root UI', sans-serif; font-size: 11px; font-weight: 600; letter-spacing: 1.0px; text-transform: uppercase; background: transparent; border: none;"
 
-        lbl_usr = QLabel("SENDER IDENTITY")
+        lbl_usr = QLabel(tr("email.identity.sender", self._language))
         lbl_usr.setStyleSheet(lbl_style)
         self._style_input(self._smtp_user)
         grid.addWidget(lbl_usr, 0, 0)
         grid.addWidget(self._smtp_user, 1, 0)
 
-        lbl_pass = QLabel("APP PASSWORD")
+        lbl_pass = QLabel(tr("email.identity.password", self._language))
         lbl_pass.setStyleSheet(lbl_style)
         self._style_input(self._smtp_pass)
         self._smtp_pass.setEchoMode(QLineEdit.Password)
@@ -1011,7 +1012,7 @@ class EmailSenderPage(QWidget):
 
         layout.addWidget(det_widget)
 
-        return self._step_card("1", "ZUGZWANG IDENTITY", content, header_widget=settings_btn)
+        return self._step_card("1", tr("email.identity", self._language), content, header_widget=settings_btn)
 
     def _build_payload_section(self) -> QWidget:
         container = QWidget()
@@ -1053,7 +1054,7 @@ class EmailSenderPage(QWidget):
         lbl_row.setContentsMargins(0, 0, 0, 0)
         lbl_row.setSpacing(12)
         
-        lbl_msg = self._field_label("MESSAGE CONTENT")
+        lbl_msg = self._field_label(tr("email.content", self._language))
         lbl_msg.setFixedHeight(32)
         lbl_row.addWidget(lbl_msg)
         
@@ -1082,7 +1083,7 @@ class EmailSenderPage(QWidget):
         self._attach_badge.setStyleSheet("color: #8E8E93; font-family: 'PT Root UI', monospace; font-size: 11px; font-weight: 600; background: transparent;")
         status_h.addWidget(self._attach_badge, 0, Qt.AlignVCenter)
         
-        html_lbl = QLabel("HTML")
+        html_lbl = QLabel(tr("email.content.html", self._language))
         html_lbl.setStyleSheet("color: #8E8E93; font-family: 'PT Root UI', sans-serif; font-size: 12px; font-weight: 600; background: transparent; border: none;")
         status_h.addWidget(html_lbl, 0, Qt.AlignVCenter)
         
@@ -1125,7 +1126,7 @@ class EmailSenderPage(QWidget):
         # Interval pair
         iv_wrap = QHBoxLayout()
         iv_wrap.setSpacing(8)
-        iv_lbl = QLabel("INTERVAL (S)")
+        iv_lbl = QLabel(tr("email.monitor.interval", self._language))
         iv_lbl.setStyleSheet(lbl_style)
         self._interval_input.setFixedWidth(52)
         self._style_input(self._interval_input)
@@ -1191,7 +1192,7 @@ class EmailSenderPage(QWidget):
         
         lbl_rec_row = QHBoxLayout()
         lbl_rec_row.setSpacing(12)
-        lbl_rec = self._field_label("QUEUE")
+        lbl_rec = self._field_label(tr("email.queue", self._language))
         lbl_rec.setFixedHeight(32)
         lbl_rec_row.addWidget(lbl_rec)
         
@@ -1248,9 +1249,9 @@ class EmailSenderPage(QWidget):
         from .components import EmptyStateWidget
         self._rec_empty = EmptyStateWidget(
             FluentIcon.SEARCH,
-            title="Queue is Empty",
-            description="Import emails, paste from clipboard, or load directly from your lead database.",
-            button_text="LOAD LEADS",
+            title=tr("email.queue.empty", self._language),
+            description=tr("email.queue.empty.desc", self._language),
+            button_text=tr("email.queue.load_leads", self._language),
             button_callback=self._load_from_leads
         )
         
@@ -1268,7 +1269,7 @@ class EmailSenderPage(QWidget):
         
         log_header = QHBoxLayout()
         log_header.setSpacing(12)
-        lbl_log = self._field_label("LOG")
+        lbl_log = self._field_label(tr("email.queue.log", self._language))
         lbl_log.setFixedHeight(32) # Perfectly vertically aligned with left side
         log_header.addWidget(lbl_log)
 
@@ -1640,7 +1641,7 @@ class EmailSenderPage(QWidget):
         text = text.replace("{{SENDER_ADDRESS}}", sender_address or "")
         text = text.replace("{{SENDER_CITY}}", sender_city or "")
         text = text.replace("{{DATUM}}", datetime.now().strftime("%d.%m.%Y"))
-        text = text.replace("{{ORT}}", ort or "")
+        text = text.replace("{{ORT}}", __import__("re").sub(r"^\d+\s*", "", str(sender_city or "")).strip())
         text = text.replace("{{PLZ}}", plz or "")
         
         return text
@@ -2283,8 +2284,8 @@ class EmailSenderPage(QWidget):
             else:
                 self._signals.log.emit(f"Broadcast of {count} emails clamped to remaining limit of {status['remaining']}.", "WARNING")
                 recs = recs[:status['remaining']]
-                from qfluentwidgets import InfoBar, InfoBarPosition
-                InfoBar.warning(
+                from src.ui.toast_system import ToastNotification as InfoBar
+                ToastNotification.warning(
                     title="Trial Limit Active",
                     content=f"Your batch has been automatically clamped to your remaining limit of {status['remaining']} emails. Upgrade to Pro for unlimited broadcasts.",
                     orient=Qt.Horizontal,
@@ -2440,7 +2441,7 @@ class EmailSenderPage(QWidget):
             
             # ── Robust Sending Logic ──
             try:
-                msg = self._build_message(rec)
+                msg, tracking_id = self._build_message(rec)
                 if self._stop_requested: break
 
                 if fresh_per_message:
@@ -2504,7 +2505,7 @@ class EmailSenderPage(QWidget):
                 sent += 1
                 from ..core.security import LicenseManager
                 LicenseManager.record_email_send(1)
-                self._record_successful_send(rec, message_signature)
+                self._record_successful_send(rec, message_signature, tracking_id)
                 self._refresh_recipient_history_state()
                 self._cleanup_sent_dynamic_pdf(rec)
                     
@@ -2578,7 +2579,7 @@ class EmailSenderPage(QWidget):
             return f"Sehr geehrter Herr {clean},"
         return f"Guten Tag {name},"
 
-    def _build_message(self, recipient: str) -> MIMEMultipart:
+    def _build_message(self, recipient: str) -> tuple[MIMEMultipart, str]:
         from email.header import Header
         from email.utils import formataddr
 
@@ -2653,6 +2654,9 @@ class EmailSenderPage(QWidget):
         sig_img_path = self._get_signature_image_path()
         has_sig_img = bool(sig_img_path and os.path.exists(sig_img_path))
 
+        # Tracking Pixel
+        tracking_id = None
+
         # Always format body as HTML and embed signature inline using MIMEMultipart("related")
         sig_cid = "signature_image_cid_001" if has_sig_img else None
         html_body = self._format_body_html(body_text, signature_img_cid=sig_cid)
@@ -2689,7 +2693,7 @@ class EmailSenderPage(QWidget):
                 _add_safe_filename_header(part, "attachment", filename)
                 msg.attach(part)
             except Exception as e:
-                self._log(f"Failed to attach {file_path}: {e}", "ERROR")
+                self._log(f"Failed to encode attachment {file_path}: {e}", "WARNING")
 
         # 2. Attach dynamically generated lead PDF / Edit page Bewerbung ONLY if no manual attachments were added
         # or if an exact company-specific generated cover letter exists for this specific recipient.
@@ -2702,6 +2706,8 @@ class EmailSenderPage(QWidget):
         sender_san = sanitize(sender_name)
 
         pdf_filename = f"Bewerbung als {beruf_san} - {sender_san} @ {firma_san}.pdf"
+        if len(pdf_filename) > 150:
+            pdf_filename = pdf_filename[:-4][:146].strip() + ".pdf"
         generic_pdf_filename = f"Bewerbung als {beruf_san} - {sender_san}.pdf"
 
         dynamic_pdf_path = get_exports_dir() / pdf_filename
@@ -2735,8 +2741,7 @@ class EmailSenderPage(QWidget):
                 raise RuntimeError(f"Failed to attach PDF {chosen_pdf_path}: {e}")
         elif not has_manual_attachments:
             raise FileNotFoundError(f"No attachment found. Please manually attach files in the Send tab or generate a Bewerbungsmappe in the Edit page first.")
-
-        return msg
+        return msg, tracking_id
 
     def _create_smtp_connection(self, silent: bool = False):
         from ..core.config import config_manager
@@ -2795,12 +2800,14 @@ class EmailSenderPage(QWidget):
             raise Exception("Connection refused. Ensure the SMTP server is reachable and the port is open.")
         except socket.gaierror as e:
             raise Exception(f"DNS resolution failed for '{host}': {e}. Check your internet connection and server hostname.")
-        except OSError as e:
-            raise Exception(f"Network error: {e}. Check your internet connection.")
-        except smtplib.SMTPConnectError as e:
-            raise Exception(f"Failed to connect to SMTP server: {e}")
         except smtplib.SMTPAuthenticationError as e:
             raise Exception(f"Authentication failed: {e}")
+        except smtplib.SMTPConnectError as e:
+            raise Exception(f"Failed to connect to SMTP server: {e}")
+        except smtplib.SMTPException as e:
+            raise Exception(f"SMTP error: {e}")
+        except OSError as e:
+            raise Exception(f"Network error: {e}. Check your internet connection.")
         except Exception as e:
             err_msg = str(e) or type(e).__name__
             raise Exception(err_msg)
@@ -2944,7 +2951,7 @@ class EmailSenderPage(QWidget):
                 "gerne möchte ich mich um den von Ihnen ausgeschriebenen Ausbildungsplatz bewerben. "
                 "Im Anhang finden Sie meine Bewerbungsunterlagen als PDF-Datei.\n\n"
                 "Bei Rückfragen stehe ich Ihnen gerne zur Verfügung. Ich freue mich, von Ihnen zu hören!\n\n"
-                "Mit freundlichen Grüßen"
+                "Mit freundlichen Grüßen\n\n{{SENDER_NAME}}"
             )
         self._interval_input.setText(s.email_interval)
         self._attachments = [
@@ -2970,4 +2977,4 @@ class EmailSenderPage(QWidget):
 
     # End of class
 
-# 1.1.0 Beta5.1
+# 1.1.0 Beta6

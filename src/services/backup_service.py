@@ -64,9 +64,9 @@ class BackupService(QObject):
     def _prune_old_backups(self, backup_dir: Path):
         """Keep only the 7 most recent backup pairs."""
         try:
-            # Gather all backups, sorting by modification time (oldest first)
-            db_backups = sorted(backup_dir.glob("zugzwang_backup_*.db"), key=os.path.getmtime)
-            settings_backups = sorted(backup_dir.glob("settings_backup_*.json"), key=os.path.getmtime)
+            # Gather all backups, sorting by filename (oldest first) since the filename contains a sortable timestamp
+            db_backups = sorted(backup_dir.glob("zugzwang_backup_*.db"), key=lambda p: p.name)
+            settings_backups = sorted(backup_dir.glob("settings_backup_*.json"), key=lambda p: p.name)
             
             # Prune DBs
             if len(db_backups) > 7:
@@ -83,4 +83,4 @@ class BackupService(QObject):
         except Exception as e:
             logger.error(f"Failed to prune old backups: {e}")
 
-# 1.1.0 Beta5.1
+# 1.1.0 Beta6

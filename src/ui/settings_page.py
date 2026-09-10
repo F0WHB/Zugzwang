@@ -10,15 +10,16 @@ from PySide6.QtCore import Qt, Signal, QPropertyAnimation, QEasingCurve, Propert
 from PySide6.QtGui import QDoubleValidator, QColor, QPainter, QBrush
 from PySide6.QtWidgets import (
     QVBoxLayout, QHBoxLayout, QWidget, QGridLayout, QFrame,
-    QLabel, QPushButton as _QPBtn, QScrollArea, QSizePolicy
+    QLabel, QPushButton as _QPBtn, QScrollArea, QSizePolicy, QLineEdit
 )
 
 from qfluentwidgets import (
     ElevatedCardWidget, StrongBodyLabel, BodyLabel, CaptionLabel,
     SpinBox, DoubleSpinBox, TextEdit,
     PrimaryPushButton, PushButton, FluentIcon, SearchLineEdit,
-    LineEdit, InfoBar, IconWidget
+    LineEdit, IconWidget
 )
+from .toast_system import ToastNotification as InfoBar
 from .components import MacSwitch, MacComboBox, StatCard, SectionCard, FlowLayout
 from .theme import Theme
 
@@ -206,14 +207,14 @@ class SettingsPage(QWidget):
         # Top Row (3 columns)
         top_row = QHBoxLayout()
         top_row.setSpacing(12)
-        top_row.addWidget(self._card("1", tr("settings.scraping.title", self._language),    self._build_scraping()))
-        top_row.addWidget(self._card("2", tr("settings.email.title", self._language),   self._build_email()))
-        top_row.addWidget(self._card("3", tr("settings.protection.title", self._language), self._build_protection()))
+        top_row.addWidget(self._card("1", tr("settings.scraping.title", self._language),    self._build_scraping()), 35)
+        top_row.addWidget(self._card("2", tr("settings.email.title", self._language),   self._build_email()), 25)
+        top_row.addWidget(self._card("3", tr("settings.protection.title", self._language), self._build_protection()), 40)
 
         # Bottom Row (2 columns, 50/50 split)
         bottom_row = QHBoxLayout()
         bottom_row.setSpacing(12)
-        bottom_row.addWidget(self._card("4", "SYSTEM PREFERENCES", self._build_network()))
+        bottom_row.addWidget(self._card("4", tr("settings.syspref.title", self._language), self._build_network()))
         bottom_row.addWidget(self._card("5", tr("settings.system", self._language), self._build_system()))
 
         # Grid Container (100vh behavior via flex: 1)
@@ -235,17 +236,7 @@ class SettingsPage(QWidget):
         container = QWidget(); container.setStyleSheet("background: transparent;")
         vl = QVBoxLayout(container); vl.setContentsMargins(0, 0, 0, 0); vl.setSpacing(4)
 
-        # 1. Browser Engine Selection
-        self._engine_combo = MacComboBox()
-        self._engine_combo.addItem("Chromium (Bundled)", "chromium")
-        self._engine_combo.addItem("Google Chrome", "chrome")
-        self._engine_combo.addItem("Microsoft Edge", "msedge")
-        self._engine_combo.addItem("Apple Safari", "safari")
-        self._engine_combo.addItem("Mozilla Firefox", "firefox")
-        self._engine_combo.addItem("Brave Browser", "brave")
-        self._engine_combo.addItem("Arc Browser", "arc")
-        self._style_combo(self._engine_combo)
-        self._engine_combo.currentIndexChanged.connect(self._on_engine_changed)
+
 
         # 2. Toggles (Headless + Robots) side-by-side
         self._chk_headless = self._sw()
@@ -281,11 +272,11 @@ class SettingsPage(QWidget):
         spin_frame.setStyleSheet(f"QFrame {{ background: {Theme.BG_HOVER_LIGHT}; border-radius: 8px; border: none; }}")
         spin_hl = QHBoxLayout(spin_frame); spin_hl.setContentsMargins(12, 11, 12, 11); spin_hl.setSpacing(12)
         for label_key, widget in [
-            ("MIN", self._delay_min), 
-            ("MAX", self._delay_max), 
-            ("LIMIT", self._max_results),
-            ("RETRY", self._max_retries),
-            ("JOBS", self._max_concurrent)
+            (tr("settings.scraping.min", self._language), self._delay_min), 
+            (tr("settings.scraping.max", self._language), self._delay_max), 
+            (tr("settings.scraping.limit", self._language), self._max_results),
+            (tr("settings.scraping.retry", self._language), self._max_retries),
+            (tr("settings.scraping.jobs", self._language), self._max_concurrent)
         ]:
             col = QVBoxLayout(); col.setSpacing(4)
             l = QLabel(label_key); l.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-size: 10px; font-weight: 700; background: transparent;")
@@ -301,8 +292,8 @@ class SettingsPage(QWidget):
 
         net_toggles_row = QHBoxLayout()
         net_toggles_row.setContentsMargins(0, 0, 0, 0); net_toggles_row.setSpacing(6)
-        proxy_toggle_frame = self._row("Custom Proxy", self._chk_proxy, icon=FluentIcon.GLOBE)
-        rotate_toggle_frame = self._row("Rotate UA", self._chk_rotate_ua, icon=FluentIcon.SYNC)
+        proxy_toggle_frame = self._row(tr("settings.scraping.proxy", self._language), self._chk_proxy, icon=FluentIcon.GLOBE)
+        rotate_toggle_frame = self._row(tr("settings.scraping.rotate_ua", self._language), self._chk_rotate_ua, icon=FluentIcon.SYNC)
         net_toggles_row.addWidget(proxy_toggle_frame)
         net_toggles_row.addWidget(rotate_toggle_frame)
         vl.addLayout(net_toggles_row)
@@ -321,7 +312,7 @@ class SettingsPage(QWidget):
         ua_header = QHBoxLayout()
         ua_header.setSpacing(8)
         ua_header.addWidget(self._section_label("USER AGENTS POOL"))
-        self._ua_count_lbl = QLabel("0 AGENTS")
+        self._ua_count_lbl = QLabel(tr("0 AGENTS", self._language))
         self._ua_count_lbl.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-size: 10px; font-weight: 600; background: transparent; border: none;")
         ua_header.addWidget(self._ua_count_lbl)
         ua_header.addStretch()
@@ -332,7 +323,6 @@ class SettingsPage(QWidget):
         self._style_input(self._user_agents)
         vl.addWidget(self._user_agents)
 
-        vl.addWidget(self._row("Browser Engine", self._engine_combo, icon=FluentIcon.APPLICATION))
 
         vl.addStretch()
         return container
@@ -345,25 +335,10 @@ class SettingsPage(QWidget):
         self._chk_scrape_emails = self._sw()
         self._chk_debug_screenshots = self._sw()
 
-        vl.addWidget(self._row("Deep Scan", self._chk_scrape_emails, icon=FluentIcon.SEARCH))
-        self._debug_out_frame = self._row("Debug Output", self._chk_debug_screenshots, icon=FluentIcon.DEVELOPER_TOOLS)
+        vl.addWidget(self._row(tr("settings.discovery.deep_scan", self._language), self._chk_scrape_emails, icon=FluentIcon.SEARCH))
+        self._debug_out_frame = self._row(tr("settings.discovery.debug_output", self._language), self._chk_debug_screenshots, icon=FluentIcon.DEVELOPER_TOOLS)
         vl.addWidget(self._debug_out_frame)
 
-        # ── ROW 2: Discovery Paths ───────────────────────────────────────────
-        paths_title = QLabel("DISCOVERY PATHS (COMMA SEPARATED)")
-        paths_title.setStyleSheet(
-            "color: #8E8E93; font-family: 'PT Root UI', sans-serif; "
-            "font-size: 10px; font-weight: 600; letter-spacing: 1.3px; "
-            "background: transparent; border: none; padding-left: 4px;"
-        )
-        vl.addSpacing(2)
-        vl.addWidget(paths_title)
-
-        self._discovery_paths_edit = TextEdit()
-        self._discovery_paths_edit.setMinimumHeight(95)
-        self._discovery_paths_edit.setPlaceholderText("impressum, kontakt, karriere...")
-        self._style_input(self._discovery_paths_edit)
-        vl.addWidget(self._discovery_paths_edit)
 
         # ── ROW 3: Depth + Timeout ───────────────────────────────────────────
         vl.addSpacing(6)
@@ -381,7 +356,7 @@ class SettingsPage(QWidget):
         self._disc_timeout.setValidator(dtv)
         self._style_input(self._disc_timeout)
 
-        for lbl_text, widget in [("DEPTH", self._max_depth), ("TIMEOUT (S)", self._disc_timeout)]:
+        for lbl_text, widget in [(tr("settings.discovery.depth", self._language), self._max_depth), (tr("settings.discovery.timeout_s", self._language), self._disc_timeout)]:
             col = QVBoxLayout(); col.setSpacing(4)
             l = QLabel(lbl_text); l.setStyleSheet(f"color: {Theme.TEXT_SECONDARY}; font-size: 10px; font-weight: 700; background: transparent;")
             col.addWidget(l); col.addWidget(widget)
@@ -389,7 +364,7 @@ class SettingsPage(QWidget):
         depth_hl.addStretch()
         vl.addWidget(depth_frame)
 
-        smtp_title = QLabel("SMTP CONFIGURATION")
+        smtp_title = QLabel(tr("settings.email.smtp", self._language))
         smtp_title.setStyleSheet(
             "color: #8E8E93; font-family: 'PT Root UI', sans-serif; "
             "font-size: 10px; font-weight: 600; letter-spacing: 1.3px; "
@@ -409,17 +384,32 @@ class SettingsPage(QWidget):
 
         self._smtp_port_cfg = LineEdit()
         self._smtp_port_cfg.setFixedHeight(30)
-        self._smtp_port_cfg.setFixedWidth(60)
+        self._smtp_port_cfg.setMaximumWidth(60)
         self._smtp_port_cfg.setPlaceholderText("587")
         self._style_input(self._smtp_port_cfg)
 
-        smtp_hl.addWidget(self._smtp_host_cfg, 1)
-        smtp_hl.addWidget(self._smtp_port_cfg, 0)
+        smtp_hl.addWidget(self._smtp_host_cfg, 3)
+        smtp_hl.addWidget(self._smtp_port_cfg, 1)
         vl.addWidget(smtp_frame)
 
         self._chk_validate = self._sw()
-        self._email_val_frame = self._row("Email Validation", self._chk_validate, icon=FluentIcon.MAIL)
+        self._email_val_frame = self._row(tr("settings.email.validation", self._language), self._chk_validate, icon=FluentIcon.MAIL)
         vl.addWidget(self._email_val_frame)
+        
+        vl.addSpacing(16)
+        
+        # Browser Engine Selection moved from Card 1
+        self._engine_combo = MacComboBox()
+        self._engine_combo.addItem("Chromium (Bundled)", "chromium")
+        self._engine_combo.addItem("Google Chrome", "chrome")
+        self._engine_combo.addItem("Microsoft Edge", "msedge")
+        self._engine_combo.addItem("Apple Safari", "safari")
+        self._engine_combo.addItem("Mozilla Firefox", "firefox")
+        self._engine_combo.addItem("Brave Browser", "brave")
+        self._engine_combo.addItem("Arc Browser", "arc")
+        self._style_combo(self._engine_combo)
+        self._engine_combo.currentIndexChanged.connect(self._on_engine_changed)
+        vl.addWidget(self._row(tr("settings.scraping.browser_engine", self._language), self._engine_combo, icon=FluentIcon.APPLICATION))
 
         vl.addStretch()
         return container
@@ -461,12 +451,12 @@ class SettingsPage(QWidget):
 
         # 1. Auto Save
         self._chk_auto_save = self._sw()
-        conf_vl.addWidget(_setting_row(FluentIcon.SAVE, "Auto Save", "Save settings automatically.", self._chk_auto_save))
+        conf_vl.addWidget(_setting_row(FluentIcon.SAVE, tr("settings.syspref.autosave", self._language), tr("settings.syspref.autosave.desc", self._language), self._chk_auto_save))
         div3 = QFrame(); div3.setFixedHeight(1); div3.setStyleSheet("background: rgba(255, 255, 255, 0.04); margin: 0 10px;"); conf_vl.addWidget(div3)
 
         # 2. Job Notifications
         self._chk_notify = self._sw()
-        conf_vl.addWidget(_setting_row(FluentIcon.RINGER, "Job Notifications", "Notify when scraping finishes.", self._chk_notify))
+        conf_vl.addWidget(_setting_row(FluentIcon.RINGER, tr("settings.syspref.notifications", self._language), tr("settings.syspref.notifications.desc", self._language), self._chk_notify))
         div4 = QFrame(); div4.setFixedHeight(1); div4.setStyleSheet("background: rgba(255, 255, 255, 0.04); margin: 0 10px;"); conf_vl.addWidget(div4)
 
         # 3. Log Retention
@@ -474,7 +464,7 @@ class SettingsPage(QWidget):
         self._log_retention.setFixedWidth(120); self._log_retention.setFixedHeight(30)
         self._log_retention.addItems(["7 DAYS", "30 DAYS", "90 DAYS", "FOREVER"])
         self._style_combo(self._log_retention)
-        conf_vl.addWidget(_setting_row(FluentIcon.HISTORY, "Log Retention", "How long to keep log files.", self._log_retention))
+        conf_vl.addWidget(_setting_row(FluentIcon.HISTORY, tr("settings.syspref.log_retention", self._language), tr("settings.syspref.log_retention.desc", self._language), self._log_retention))
         div5 = QFrame(); div5.setFixedHeight(1); div5.setStyleSheet("background: rgba(255, 255, 255, 0.04); margin: 0 10px;"); conf_vl.addWidget(div5)
 
         self._default_export_dir = LineEdit(); self._default_export_dir.setFixedSize(280, 30)
@@ -493,7 +483,7 @@ class SettingsPage(QWidget):
                 self._default_export_dir.setText(path)
                 
         self._default_export_dir.mousePressEvent = _browse_export_dir
-        conf_vl.addWidget(_setting_row(FluentIcon.FOLDER, "Export Directory", "Default path for exports.", self._default_export_dir))
+        conf_vl.addWidget(_setting_row(FluentIcon.FOLDER, tr("settings.syspref.export_dir", self._language), tr("settings.syspref.export_dir.desc", self._language), self._default_export_dir))
 
         vl.addWidget(conf_group)
 
@@ -512,14 +502,14 @@ class SettingsPage(QWidget):
         lic_hl.addWidget(l_ic)
         
         lic_lt = QVBoxLayout(); lic_lt.setSpacing(2); lic_lt.setContentsMargins(0, 0, 0, 0)
-        lic_lbl = QLabel("PRODUCT LICENSE")
+        lic_lbl = QLabel(tr("settings.license.title", self._language))
         lic_lbl.setStyleSheet("color: rgba(48, 209, 88, 0.95); font-size: 10px; font-weight: 800; letter-spacing: 1px;")
-        self._lic_desc_card4 = QLabel("Loading..."); self._lic_desc_card4.setStyleSheet("color: #8E8E93; font-size: 11px; background: transparent;")
+        self._lic_desc_card4 = QLabel(tr("Loading...", self._language)); self._lic_desc_card4.setStyleSheet("color: #8E8E93; font-size: 11px; background: transparent;")
         lic_lt.addWidget(lic_lbl); lic_lt.addWidget(self._lic_desc_card4)
         lic_hl.addLayout(lic_lt, 1)
 
         self._btn_deactivate_card4 = _QPBtn(tr("settings.button.reset_trial", self._language).upper())
-        self._btn_deactivate_card4.setFixedSize(160, 40)
+        self._btn_deactivate_card4.setMinimumSize(160, 40)
         self._btn_deactivate_card4.setCursor(Qt.PointingHandCursor)
         self._btn_deactivate_card4.setStyleSheet("""
             QPushButton {
@@ -539,7 +529,7 @@ class SettingsPage(QWidget):
         lic_hl.addWidget(self._btn_deactivate_card4)
 
         self._btn_activate_card4 = _QPBtn(tr("settings.button.activate", self._language).upper())
-        self._btn_activate_card4.setFixedSize(160, 40)
+        self._btn_activate_card4.setMinimumSize(160, 40)
         self._btn_activate_card4.setCursor(Qt.PointingHandCursor)
         self._btn_activate_card4.setStyleSheet("""
             QPushButton {
@@ -611,7 +601,7 @@ class SettingsPage(QWidget):
         div = QFrame(); div.setFixedHeight(1); div.setStyleSheet("background: rgba(255, 255, 255, 0.04); margin: 0 10px;")
         conf_vl.addWidget(div)
 
-        self._language_combo = MacComboBox(); self._language_combo.setFixedHeight(30); self._language_combo.setFixedWidth(140)
+        self._language_combo = MacComboBox(); self._language_combo.setFixedHeight(30); self._language_combo.setMinimumWidth(120)
         self._style_combo(self._language_combo)
         for code, label in SUPPORTED_LANGUAGES.items():
             self._language_combo.addItem(label, userData=code)
@@ -623,7 +613,12 @@ class SettingsPage(QWidget):
         action_vl = QVBoxLayout(); action_vl.setSpacing(8); action_vl.setContentsMargins(0, 0, 0, 0)
         
         from PySide6.QtWidgets import QPushButton
-        class _Btn(QPushButton): pass
+        class _Btn(QPushButton):
+            def __init__(self, t):
+                super().__init__(t)
+                self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
+                self.setMinimumWidth(160)
+                self.setFixedHeight(36)
 
         self._save_btn = _Btn(tr("settings.button.save", self._language))
         self._save_btn.setFixedHeight(36)
@@ -674,12 +669,12 @@ class SettingsPage(QWidget):
         cache_hl.addWidget(c_ic)
 
         ctxt = QVBoxLayout(); ctxt.setSpacing(2); ctxt.setContentsMargins(0, 0, 0, 0)
-        ch = QLabel("CACHED APPDATA"); ch.setStyleSheet("color: rgba(255, 159, 10, 0.95); font-size: 10px; font-weight: 800; letter-spacing: 1px;")
-        cb = QLabel("Reset stale AppData settings and local cache while keeping SMTP and scraped leads."); cb.setStyleSheet("color: #8E8E93; font-size: 11px;")
+        ch = QLabel(tr("settings.appdata.title", self._language)); ch.setStyleSheet("color: rgba(255, 159, 10, 0.95); font-size: 10px; font-weight: 800; letter-spacing: 1px;")
+        cb = QLabel(tr("settings.appdata.desc", self._language)); cb.setStyleSheet("color: #8E8E93; font-size: 11px;")
         ctxt.addWidget(ch); ctxt.addWidget(cb)
         cache_hl.addLayout(ctxt, 1)
 
-        self._clean_cache_btn = _Btn("CLEAN CACHE")
+        self._clean_cache_btn = _Btn(tr("settings.button.clean_cache", self._language))
         self._clean_cache_btn.setFixedSize(140, 40)
         self._clean_cache_btn.setCursor(Qt.PointingHandCursor)
         self._clean_cache_btn.setStyleSheet("""
@@ -714,8 +709,8 @@ class SettingsPage(QWidget):
         danger_hl.addWidget(d_ic)
 
         dtxt = QVBoxLayout(); dtxt.setSpacing(2); dtxt.setContentsMargins(0, 0, 0, 0)
-        dh = QLabel("DATABASE PERSISTENCE"); dh.setStyleSheet("color: rgba(255, 69, 58, 0.9); font-size: 10px; font-weight: 800; letter-spacing: 1px;")
-        db = QLabel("Permanently purge all locally cached records and results."); db.setStyleSheet("color: #8E8E93; font-size: 11px;")
+        dh = QLabel(tr("settings.db.title", self._language)); dh.setStyleSheet("color: rgba(255, 69, 58, 0.9); font-size: 10px; font-weight: 800; letter-spacing: 1px;")
+        db = QLabel(tr("settings.db.desc", self._language)); db.setStyleSheet("color: #8E8E93; font-size: 11px;")
         dtxt.addWidget(dh); dtxt.addWidget(db)
         danger_hl.addLayout(dtxt, 1)
 
@@ -760,19 +755,17 @@ class SettingsPage(QWidget):
         self._chk_security_enabled = self._sw()
         self._chk_security_enabled.hide()
 
-        # Auto Update
+        # Auto Update (Hidden from top, merged into button)
         self._chk_auto_update = self._sw()
-        vl.addWidget(self._row(tr("settings.auto_update.title", self._language), self._chk_auto_update, tr("settings.auto_update.desc", self._language), icon=FluentIcon.UPDATE))
+        self._chk_auto_update.hide()
 
-        # Core Repo URL
-        url_frame = QFrame()
-        url_frame.setStyleSheet("QFrame { background: transparent; border: none; }")
-        uh = QHBoxLayout(url_frame); uh.setContentsMargins(12, 0, 12, 0); uh.setSpacing(10)
+        # Core Repo URL (Hidden from top)
         self._git_repo_url = LineEdit(); self._git_repo_url.setFixedHeight(34)
         self._git_repo_url.setPlaceholderText(tr("settings.repo.placeholder", self._language))
         self._style_input(self._git_repo_url)
-        uh.addWidget(self._git_repo_url)
-        vl.addWidget(url_frame)
+        self._git_repo_url.hide()
+
+
 
         # Product License moved to Card 4 — keep widgets for state compatibility
         lic_frame_hidden = QFrame(); lic_frame_hidden.hide()
@@ -784,15 +777,32 @@ class SettingsPage(QWidget):
         self._btn_deactivate.clicked.connect(self._reset_to_trial)
 
 
+        # ── ROW 2: Discovery Paths ───────────────────────────────────────────
+        paths_title = QLabel(tr("settings.discovery.paths", self._language))
+        paths_title.setStyleSheet(
+            "color: #8E8E93; font-family: 'PT Root UI', sans-serif; "
+            "font-size: 10px; font-weight: 600; letter-spacing: 1.3px; "
+            "background: transparent; border: none; padding-left: 4px;"
+        )
+        vl.addSpacing(2)
+        vl.addWidget(paths_title)
+
+        self._discovery_paths_edit = TextEdit()
+        self._discovery_paths_edit.setMinimumHeight(95)
+        self._discovery_paths_edit.setPlaceholderText("impressum, kontakt, karriere...")
+        self._style_input(self._discovery_paths_edit)
+        vl.addWidget(self._discovery_paths_edit)
+        vl.addSpacing(16)
+
         # ── New: Update Channel + Automatic Backup ───────────────────────────
         self._update_channel = MacComboBox()
-        self._update_channel.setFixedWidth(140); self._update_channel.setFixedHeight(36)
+        self._update_channel.setMinimumWidth(120); self._update_channel.setFixedHeight(36)
         self._update_channel.addItems(["STABLE", "BETA", "DEV"])
         self._style_combo(self._update_channel)
-        vl.addWidget(self._row("Update Channel", self._update_channel, "Release stream preference.", icon=FluentIcon.TAG))
+        vl.addWidget(self._row(tr("settings.protection.update_channel", self._language), self._update_channel, tr("settings.protection.update_channel.desc", self._language), icon=FluentIcon.TAG))
 
         self._chk_backup = self._sw()
-        vl.addWidget(self._row("Automatic Backup", self._chk_backup, "Back up settings periodically.", icon=FluentIcon.SAVE))
+        vl.addWidget(self._row(tr("settings.protection.auto_backup", self._language), self._chk_backup, tr("settings.protection.auto_backup.desc", self._language), icon=FluentIcon.SAVE))
         
         self._backup_dir = LineEdit(); self._backup_dir.setFixedSize(280, 30)
         self._backup_dir.setPlaceholderText("Browse...")
@@ -810,7 +820,7 @@ class SettingsPage(QWidget):
                 self._backup_dir.setText(path)
                 
         self._backup_dir.mousePressEvent = _browse_backup_dir
-        vl.addWidget(self._row("Backup Location", self._backup_dir, "Destination for automatic backups.", icon=FluentIcon.FOLDER))
+        vl.addWidget(self._row(tr("settings.protection.backup_location", self._language), self._backup_dir, tr("settings.protection.backup_location.desc", self._language), icon=FluentIcon.FOLDER))
 
         vl.addSpacing(8)
 
@@ -830,17 +840,18 @@ class SettingsPage(QWidget):
         update_hl.addWidget(u_ic)
 
         utxt = QVBoxLayout(); utxt.setSpacing(2); utxt.setContentsMargins(0, 0, 0, 0)
-        uh = QLabel("SOFTWARE UPDATE"); uh.setStyleSheet("color: rgba(10, 132, 255, 0.95); font-size: 10px; font-weight: 800; letter-spacing: 1px;")
-        ub = QLabel("Check GitHub for a newer version and download it automatically.")
+        uh = QLabel(tr("settings.update.title", self._language)); uh.setStyleSheet("color: rgba(10, 132, 255, 0.95); font-size: 10px; font-weight: 800; letter-spacing: 1px;")
+        ub = QLabel(tr("settings.update.desc", self._language))
         ub.setStyleSheet("color: #8E8E93; font-size: 11px;")
         utxt.addWidget(uh); utxt.addWidget(ub)
         update_hl.addLayout(utxt, 1)
 
-        self._check_update_btn = _QPBtn("CHECK FOR UPDATES")
-        self._check_update_btn.setFixedSize(160, 40)
+        class _Btn(_QPBtn): pass
+        self._check_update_btn = _Btn(tr("settings.update.button", self._language))
+        self._check_update_btn.setMinimumSize(160, 40)
         self._check_update_btn.setCursor(Qt.PointingHandCursor)
         self._check_update_btn.setStyleSheet("""
-            QPushButton {
+            _Btn {
                 background-color: #0A2540;
                 border: none;
                 border-radius: 10px;
@@ -850,8 +861,8 @@ class SettingsPage(QWidget):
                 letter-spacing: 1.4px;
                 padding: 0 12px;
             }
-            QPushButton:hover { background-color: #0D3060; color: #4DA6FF; }
-            QPushButton:pressed { background-color: #0A2540; }
+            _Btn:hover { background-color: #0D3060; color: #4DA6FF; }
+            _Btn:pressed { background-color: #0A2540; }
         """)
         self._check_update_btn.clicked.connect(self._trigger_update_check)
         update_hl.addWidget(self._check_update_btn)
@@ -903,12 +914,12 @@ class SettingsPage(QWidget):
                 layout.setContentsMargins(35, 35, 35, 30)
                 layout.setSpacing(12)
                 
-                title_lbl = QLabel("SET SECURITY PIN")
+                title_lbl = QLabel(tr("SET SECURITY PIN", self._language))
                 title_lbl.setAlignment(Qt.AlignCenter)
                 title_lbl.setStyleSheet("color: #FFFFFF; font-family: 'PT Root UI'; font-size: 22px; font-weight: 800;")
                 layout.addWidget(title_lbl)
                 
-                desc_lbl = QLabel("Required for application launch.")
+                desc_lbl = QLabel(tr("Required for application launch.", self._language))
                 desc_lbl.setAlignment(Qt.AlignCenter)
                 desc_lbl.setStyleSheet("color: #8E8E93; font-size: 13px;")
                 layout.addWidget(desc_lbl)
@@ -937,7 +948,7 @@ class SettingsPage(QWidget):
                 btn_row = QHBoxLayout()
                 btn_row.setSpacing(12)
                 
-                self.ok_btn = QPushButton("Save PIN")
+                self.ok_btn = QPushButton(tr("Save PIN", self._language))
                 self.ok_btn.setFixedSize(150, 44)
                 self.ok_btn.setCursor(Qt.PointingHandCursor)
                 self.ok_btn.setStyleSheet("""
@@ -955,7 +966,7 @@ class SettingsPage(QWidget):
                 """)
                 self.ok_btn.clicked.connect(self.accept)
                 
-                self.cancel_btn = QPushButton("Cancel")
+                self.cancel_btn = QPushButton(tr("Cancel", self._language))
                 self.cancel_btn.setFixedSize(150, 44)
                 self.cancel_btn.setCursor(Qt.PointingHandCursor)
                 self.cancel_btn.setStyleSheet("""
@@ -1005,8 +1016,8 @@ class SettingsPage(QWidget):
     def _reset_to_trial(self):
         from .components import ZugzwangDialog
         msg = ZugzwangDialog(
-            "Revert to Trial",
-            "Are you sure you want to deactivate the license and return to Trial mode? (Limits will apply)",
+            tr("settings.dialog.revert.title", self._language),
+            tr("settings.dialog.revert.body", self._language),
             self.window()
         )
         if msg.exec():
@@ -1201,6 +1212,8 @@ class SettingsPage(QWidget):
         self._smtp_host_cfg.setText(getattr(s, "email_smtp_host", "smtp.gmail.com"))
         self._smtp_port_cfg.setText(getattr(s, "email_smtp_port", "587"))
 
+
+
         self._mark_clean()
         self._update_ua_count()
         self._snapshot_state()
@@ -1266,6 +1279,7 @@ class SettingsPage(QWidget):
             # SMTP
             email_smtp_host=self._smtp_host_cfg.text().strip() or "smtp.gmail.com",
             email_smtp_port=self._smtp_port_cfg.text().strip() or "587",
+            # Tracking Integration Removed
             # New fields
             max_concurrent_jobs=int(float(self._max_concurrent.text() or "5")),
             notify_job_completion=self._chk_notify.isChecked(),
@@ -1325,8 +1339,8 @@ class SettingsPage(QWidget):
 
         from .components import ZugzwangDialog
         msg = ZugzwangDialog(
-            "Clean Cached AppData",
-            "This will reset old AppData settings and local cache to a fresh-install state while keeping SMTP setup and scraped leads. Continue?",
+            tr("settings.dialog.clean_cache.title", self._language),
+            tr("settings.dialog.clean_cache.body", self._language),
             self.window(),
             destructive=True
         )
@@ -1359,11 +1373,11 @@ class SettingsPage(QWidget):
         except Exception as e:
             InfoBar.warning("Check Failed", str(e), duration=3000, parent=self.window())
             self._check_update_btn.setEnabled(True)
-            self._check_update_btn.setText("CHECK FOR UPDATES")
+            self._check_update_btn.setText(tr("settings.update.button", self._language))
 
     def _on_update_available(self, version: str, url: str):
         self._check_update_btn.setEnabled(True)
-        self._check_update_btn.setText("CHECK FOR UPDATES")
+        self._check_update_btn.setText(tr("settings.update.button", self._language))
         InfoBar.success(
             "Update Available",
             f"Version {version} is ready — download from GitHub.",
@@ -1372,7 +1386,7 @@ class SettingsPage(QWidget):
 
     def _on_no_update(self):
         self._check_update_btn.setEnabled(True)
-        self._check_update_btn.setText("CHECK FOR UPDATES")
+        self._check_update_btn.setText(tr("settings.update.button", self._language))
         InfoBar.info(
             "Up to Date",
             "You are running the latest version.",
@@ -1380,4 +1394,4 @@ class SettingsPage(QWidget):
         )
 
 
-# 1.1.0 Beta5.1
+# 1.1.0 Beta6

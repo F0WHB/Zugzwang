@@ -4,6 +4,7 @@ Modern 2030 Edition live results data grid with high-fidelity side panel.
 """
 
 from __future__ import annotations
+from src.ui.toast_system import ToastNotification
 
 import queue
 import re
@@ -508,6 +509,10 @@ class LeadFilterProxy(QSortFilterProxyModel):
         else:
             self._cached_search_text = pattern.pattern()
         super().setFilterRegularExpression(pattern)
+
+    def setFilterFixedString(self, pattern: str) -> None:
+        self._cached_search_text = pattern
+        super().setFilterFixedString(pattern)
 
     def set_source_filter(self, index: int):
         self._source_filter = index
@@ -1200,6 +1205,7 @@ class ResultsPage(QWidget):
         import_ico = IconWidget(FluentIcon.ADD, self._btn_import)
         import_ico.setFixedSize(18, 18)
         import_ico.move(10, 10)
+        import_ico.setAttribute(Qt.WA_TransparentForMouseEvents)
         self._btn_import.setStyleSheet("""
             QPushButton {
                 background: #6E3FBF;
@@ -1218,6 +1224,7 @@ class ResultsPage(QWidget):
         export_ico = IconWidget(FluentIcon.SAVE, self._btn_export)
         export_ico.setFixedSize(18, 18)
         export_ico.move(10, 10)
+        export_ico.setAttribute(Qt.WA_TransparentForMouseEvents)
         self._btn_export.setStyleSheet("""
             QPushButton {
                 background: #0A84FF;
@@ -1236,6 +1243,7 @@ class ResultsPage(QWidget):
         send_ico = IconWidget(FluentIcon.SEND, self._btn_send_emails)
         send_ico.setFixedSize(18, 18)
         send_ico.move(10, 10)
+        send_ico.setAttribute(Qt.WA_TransparentForMouseEvents)
         self._btn_send_emails.setStyleSheet("""
             QPushButton {
                 background: #1A3A23;
@@ -1376,35 +1384,57 @@ class ResultsPage(QWidget):
         self.mainLayout.addWidget(self._splitter, 1)
 
         # ── Improvement 5: Columns Menu Setup ────────────────────────────────
-        import json
+        import json, binascii
+        # Default column visibility matching standard style:
+        # Company (0), Job/Category (1), Email (2), Phone (4), City (5), Source (6) -> VISIBLE
+        # Start Date (3), LinkedIn (7), Status (8), SCRAPED AT (9) -> HIDDEN
+        default_visibility = {
+            "0": True,
+            "1": True,
+            "2": True,
+            "3": False,
+            "4": True,
+            "5": True,
+            "6": True,
+            "7": False,
+            "8": False,
+            "9": False,
+        }
+        self._column_visibility = dict(default_visibility)
         saved_cols_str = config_manager.settings.column_visibility
-        self._column_visibility = {}
         if saved_cols_str:
             try:
-                self._column_visibility = json.loads(saved_cols_str)
-            except: pass
-            
-        if self._column_visibility:
-            for col_idx_str, is_visible in self._column_visibility.items():
-                try:
-                    self._table.setColumnHidden(int(col_idx_str), not is_visible)
-                except: pass
+                saved_dict = json.loads(saved_cols_str)
+                if isinstance(saved_dict, dict):
+                    self._column_visibility.update(saved_dict)
+            except Exception:
+                pass
+
+        # ── Restore Table Header State ───────────────────────────────────────
+        saved_state = config_manager.settings.results_table_state
+        if saved_state:
+            try:
+                self._table.horizontalHeader().restoreState(binascii.unhexlify(saved_state))
+            except Exception:
+                pass
+
+        # Always enforce Newest First on load, overriding saved sort state
+        self._table.sortByColumn(len(TABLE_COLUMNS) - 1, Qt.DescendingOrder)
+
+        # Apply column visibility to table AFTER restoreState so it's not overridden
+        for col_idx_str, is_visible in self._column_visibility.items():
+            try:
+                self._table.setColumnHidden(int(col_idx_str), not is_visible)
+            except Exception:
+                pass
 
         self._columns_menu = ColumnVisibilityPanel(self)
         self._columns_menu.closed.connect(lambda: self._columns_chip.set_open(False))
         self._columns_menu.visibilityChanged.connect(self._on_column_visibility_changed)
         
         for idx, (field, title, width) in enumerate(TABLE_COLUMNS):
-            is_visible = not self._table.isColumnHidden(idx)
+            is_visible = self._column_visibility.get(str(idx), not self._table.isColumnHidden(idx))
             self._columns_menu.add_column(title, idx, is_visible)
-
-        # ── Restore Table Header State ───────────────────────────────────────
-        import binascii
-        saved_state = config_manager.settings.results_table_state
-        if saved_state:
-            try:
-                self._table.horizontalHeader().restoreState(binascii.unhexlify(saved_state))
-            except Exception: pass
 
         self._table.horizontalHeader().sectionResized.connect(self._save_table_state)
         self._table.horizontalHeader().sectionMoved.connect(self._save_table_state)
@@ -1458,6 +1488,7 @@ class ResultsPage(QWidget):
         import json
         config_manager.settings.column_visibility = json.dumps(self._column_visibility)
         config_manager.save()
+        self._save_table_state()
 
     def _show_columns_menu(self):
         self._columns_chip.set_open(True)
@@ -1527,14 +1558,34 @@ class ResultsPage(QWidget):
     def _show_export_menu(self):
         from src.ui.components import GlassMenu
         menu = GlassMenu(parent=self._btn_export)
-        menu.addAction(Action(FluentIcon.DOCUMENT, tr("results.export.excel", self._language), triggered=lambda: self._export_results("xlsx")))
-        menu.addAction(Action(FluentIcon.DOCUMENT, tr("results.export.word", self._language), triggered=lambda: self._export_results("docx")))
-        menu.addAction(Action(FluentIcon.DOCUMENT, tr("results.export.txt", self._language), triggered=lambda: self._export_results("txt")))
-        menu.addAction(Action(FluentIcon.SAVE, tr("results.export.db", self._language), triggered=lambda: self._export_results("sqlite")))
+        
+        a1 = Action(FluentIcon.DOCUMENT, tr("results.export.excel", self._language))
+        a1.triggered.connect(lambda: self._export_results("xlsx"))
+        menu.addAction(a1)
+        
+        a2 = Action(FluentIcon.DOCUMENT, tr("results.export.word", self._language))
+        a2.triggered.connect(lambda: self._export_results("docx"))
+        menu.addAction(a2)
+        
+        a3 = Action(FluentIcon.DOCUMENT, tr("results.export.txt", self._language))
+        a3.triggered.connect(lambda: self._export_results("txt"))
+        menu.addAction(a3)
+        
+        a4 = Action(FluentIcon.SAVE, tr("results.export.db", self._language))
+        a4.triggered.connect(lambda: self._export_results("sqlite"))
+        menu.addAction(a4)
+        
         menu.addSeparator()
-        menu.addAction(Action(FluentIcon.COPY, tr("results.menu.copy_emails", self._language), triggered=self._copy_all_emails_in_view))
+        
+        a5 = Action(FluentIcon.COPY, tr("results.menu.copy_emails", self._language))
+        a5.triggered.connect(self._copy_all_emails_in_view)
+        menu.addAction(a5)
+        
         menu.addSeparator()
-        menu.addAction(Action(FluentIcon.SEARCH, tr("results.export.no_email", self._language), triggered=self._export_no_email_sites))
+        
+        a6 = Action(FluentIcon.SEARCH, tr("results.export.no_email", self._language))
+        a6.triggered.connect(self._export_no_email_sites)
+        menu.addAction(a6)
         
         # Calculate position
         pos = self._btn_export.mapToGlobal(self._btn_export.rect().bottomLeft())
@@ -1543,8 +1594,15 @@ class ResultsPage(QWidget):
     def _handle_import(self):
         from src.ui.components import GlassMenu
         menu = GlassMenu(parent=self._btn_import)
-        menu.addAction(Action(FluentIcon.COPY, "From Clipboard", triggered=self._import_from_clipboard))
-        menu.addAction(Action(FluentIcon.DOCUMENT, "From File...", triggered=self._import_from_file))
+        
+        a1 = Action(FluentIcon.COPY, "From Clipboard")
+        a1.triggered.connect(self._import_from_clipboard)
+        menu.addAction(a1)
+        
+        a2 = Action(FluentIcon.DOCUMENT, "From File...")
+        a2.triggered.connect(self._import_from_file)
+        menu.addAction(a2)
+        
         pos = self._btn_import.mapToGlobal(self._btn_import.rect().bottomLeft())
         menu.exec(pos)
 
@@ -1578,8 +1636,8 @@ class ResultsPage(QWidget):
                             text += "\n"
             self._parse_and_import_text(text)
         except Exception as e:
-            from qfluentwidgets import InfoBar
-            InfoBar.error("Import Failed", str(e), duration=4000, parent=self)
+            from src.ui.toast_system import ToastNotification as InfoBar
+            ToastNotification.error("Import Failed", str(e), duration=4000, parent=self)
 
     def _parse_and_import_excel(self, path: str):
         import openpyxl
@@ -1600,6 +1658,7 @@ class ResultsPage(QWidget):
         is_structured = any(col in headers for col in ["company_name", "email", "job_title"])
         
         added = 0
+        new_records = []
         if is_structured:
             # Parse structured data
             for row in sheet.iter_rows(min_row=2, values_only=True):
@@ -1612,14 +1671,18 @@ class ResultsPage(QWidget):
                 phone = row_data.get("phone", "")
                 if email or phone:
                     record_dict = {k: row_data.get(k) for k in EXPORT_COLUMNS if k in row_data}
+                    from ..core.config import config_manager
+                    settings = config_manager.settings()
                     record_dict["source_type"] = SourceType.MANUAL.value
-                    record_dict["search_query"] = "Excel Import"
+                    record_dict["search_query"] = settings.last_search_city if settings.last_search_city else "Excel Import"
+                    record_dict["country"] = settings.last_search_country if settings.last_search_country else "Import"
                     record_dict["scraped_at"] = time.time()
                     
                     if "company_name" not in record_dict or not record_dict["company_name"]:
                         record_dict["company_name"] = "Imported Lead"
                         
                     record = LeadRecord.from_dict(record_dict)
+                    new_records.append(record)
                     self._record_queue.put(record)
                     added += 1
         else:
@@ -1632,19 +1695,27 @@ class ResultsPage(QWidget):
             self._parse_and_import_text(text)
             return
 
+        if new_records:
+            from ..core.config import get_memory_db_path
+            from src.services.export_service import ExportService
+            from ..core.events import EventBus, event_bus
+            ExportService().save_records_to_db(new_records, str(get_memory_db_path()))
+            event_bus.emit(EventBus.DB_UPDATED, records=[])
+
         if added > 0:
-            from qfluentwidgets import InfoBar
-            InfoBar.success("Excel Import Successful", f"Imported {added} structured leads.", duration=3000, parent=self)
+            from src.ui.toast_system import ToastNotification as InfoBar
+            ToastNotification.success("Excel Import Successful", f"Imported {added} structured leads.", duration=3000, parent=self)
             self._drain_queue()
         else:
-            from qfluentwidgets import InfoBar
-            InfoBar.warning("No Data", "Could not find valid records in the Excel file.", duration=3000, parent=self)
+            from src.ui.toast_system import ToastNotification as InfoBar
+            ToastNotification.warning("No Data", "Could not find valid records in the Excel file.", duration=3000, parent=self)
 
     def _parse_and_import_text(self, text: str):
         import re, time
         from ..core.models import LeadRecord, SourceType
         lines = text.splitlines()
         added = 0
+        new_records = []
         for line in lines:
             line = line.strip()
             if not line: continue
@@ -1673,25 +1744,35 @@ class ResultsPage(QWidget):
                 if ph_m: phone = ph_m.group(1).strip()
                 
             if email or phone:
+                from ..core.config import config_manager
+                settings = config_manager.settings()
                 record = LeadRecord(
                     source_type=SourceType.MANUAL,
-                    search_query="Imported",
-                    country="Import",
+                    search_query=settings.last_search_city if settings.last_search_city else "Imported",
+                    country=settings.last_search_country if settings.last_search_country else "Import",
                     company_name=company[:200] if company else "Imported Lead",
                     email=email if email else None,
                     phone=phone if phone else None,
                     scraped_at=time.time()
                 )
+                new_records.append(record)
                 self._record_queue.put(record)
                 added += 1
 
+        if new_records:
+            from ..core.config import get_memory_db_path
+            from src.services.export_service import ExportService
+            from ..core.events import EventBus, event_bus
+            ExportService().save_records_to_db(new_records, str(get_memory_db_path()))
+            event_bus.emit(EventBus.DB_UPDATED, records=[])
+
         if added > 0:
-            from qfluentwidgets import InfoBar
-            InfoBar.success("Import Successful", f"Imported {added} leads.", duration=3000, parent=self)
+            from src.ui.toast_system import ToastNotification as InfoBar
+            ToastNotification.success("Import Successful", f"Imported {added} leads.", duration=3000, parent=self)
             self._drain_queue()
         else:
-            from qfluentwidgets import InfoBar
-            InfoBar.warning("No Data", "Could not find any emails or phone numbers.", duration=3000, parent=self)
+            from src.ui.toast_system import ToastNotification as InfoBar
+            ToastNotification.warning("No Data", "Could not find any emails or phone numbers.", duration=3000, parent=self)
 
     def _clear_selection(self) -> None:
         self._table.clearSelection()
@@ -1796,12 +1877,12 @@ class ResultsPage(QWidget):
             self._ui_job_cancelled()
         elif event_name == "export_done":
             fmt, path, count = payload
-            from qfluentwidgets import InfoBar
-            InfoBar.success(tr("results.export.complete", self._language), tr("results.export.complete.body", self._language).format(count=count), duration=4000, parent=self)
+            from src.ui.toast_system import ToastNotification as InfoBar
+            ToastNotification.success(tr("results.export.complete", self._language), tr("results.export.complete.body", self._language).format(count=count), duration=4000, parent=self)
         elif event_name == "export_failed":
             fmt, error = payload
-            from qfluentwidgets import InfoBar
-            InfoBar.error(tr("dashboard.activity.export_failed", self._language).format(fmt=fmt.upper()), error, duration=6000, parent=self)
+            from src.ui.toast_system import ToastNotification as InfoBar
+            ToastNotification.error(tr("dashboard.activity.export_failed", self._language).format(fmt=fmt.upper()), error, duration=6000, parent=self)
 
     def _apply_text_filter(self, text: str):
         self._proxy.setFilterFixedString(text.strip())
@@ -1915,8 +1996,8 @@ class ResultsPage(QWidget):
                 lines.append(" | ".join(filter(bool, fields)))
         if lines:
             QGuiApplication.clipboard().setText("\n".join(lines))
-            from qfluentwidgets import InfoBar
-            InfoBar.success(tr("results.copied", self._language), tr("results.copied.body", self._language).format(count=len(lines)), duration=3000, parent=self)
+            from src.ui.toast_system import ToastNotification as InfoBar
+            ToastNotification.success(tr("results.copied", self._language), tr("results.copied.body", self._language).format(count=len(lines)), duration=3000, parent=self)
 
     def _remove_selection(self):
         selected = self._table.selectionModel().selectedRows()
@@ -1977,8 +2058,8 @@ class ResultsPage(QWidget):
         emails = [r.email for r in records if r.email]
         if emails:
             QGuiApplication.clipboard().setText("\n".join(emails))
-            from qfluentwidgets import InfoBar
-            InfoBar.success(tr("results.copied", self._language), tr("results.copied.body", self._language).format(count=len(emails)), duration=3000, parent=self)
+            from src.ui.toast_system import ToastNotification as InfoBar
+            ToastNotification.success(tr("results.copied", self._language), tr("results.copied.body", self._language).format(count=len(emails)), duration=3000, parent=self)
 
     def _on_job_started(self, *args, **kw):
         self._ui_event_queue.put(("job_started", ()))
@@ -2064,15 +2145,15 @@ class ResultsPage(QWidget):
         # Filter for leads with a website but NO email
         records = [r for r in self._get_visible_records() if not r.email and r.website]
         if not records:
-            from qfluentwidgets import InfoBar
-            InfoBar.warning(tr("results.export.no_targets", self._language), tr("results.export.no_targets.body", self._language), duration=3000, parent=self)
+            from src.ui.toast_system import ToastNotification as InfoBar
+            ToastNotification.warning(tr("results.export.no_targets", self._language), tr("results.export.no_targets.body", self._language), duration=3000, parent=self)
             return
         self._perform_export(records, "xlsx", prefix="Manual_Check")
 
     def _perform_export(self, records: list[LeadRecord], fmt: str, prefix: str = ""):
         if not records:
-            from qfluentwidgets import InfoBar
-            InfoBar.warning(tr("results.export.no_data", self._language), tr("results.export.no_data.body", self._language), duration=2000, parent=self)
+            from src.ui.toast_system import ToastNotification as InfoBar
+            ToastNotification.warning(tr("results.export.no_data", self._language), tr("results.export.no_data.body", self._language), duration=2000, parent=self)
             return
 
         ext_map = {"xlsx": "Excel Files (*.xlsx)", "docx": "Word Files (*.docx)", "txt": "Text Files (*.txt)", "sqlite": "SQLite Database (*.db)"}
@@ -2182,4 +2263,4 @@ class ResultsPage(QWidget):
         if msg.exec():
             self._remove_all_records()
 
-# 1.1.0 Beta5.1
+# 1.1.0 Beta6

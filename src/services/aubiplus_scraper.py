@@ -730,6 +730,8 @@ class AubiPlusScraper:
             self._website_email_cache[cache_key] = None
             return ""
 
+        logger.info(f"[{self.job_id}] Trying website fallback: {website_url}")
+
         base = urlparse(website_url)
         base_url = f"{base.scheme}://{base.netloc}"
 
@@ -831,7 +833,6 @@ class AubiPlusScraper:
 
             # Step 5: No email + no reveal btn + has website → scrape website
             if not fields["email"] and fields["website"]:
-                logger.info(f"[{self.job_id}] Trying website fallback: {fields['website']}")
                 fields["email"] = await self._scrape_company_website(fields["website"])
 
             # Skip only if scrape_emails is ON and we have absolutely nothing
@@ -859,4 +860,4 @@ class AubiPlusScraper:
             self._total_errors += 1
             return None
 
-# 1.1.0 Beta5.1
+# 1.1.0 Beta6

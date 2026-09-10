@@ -44,7 +44,7 @@ class WebsiteEmailCrawler:
         self._contact_cache: dict[str, tuple[Optional[str], Optional[str], Optional[str]]] = {}
         self._all_contact_cache: dict[str, tuple[list[str], Optional[str], Optional[str], dict[str, str]]] = {}
         self._robots_cache: dict[str, bool] = {}
-        self._fast_timeout_ms = 6000  # Aggressive timeout for fast email discovery
+        self._fast_timeout_ms = 3500  # Aggressive timeout for fast email discovery
 
     async def find_email(
         self,
@@ -244,7 +244,7 @@ class WebsiteEmailCrawler:
             if idx == 0 and data.get("discovered"):
                 merged = [candidate_urls[0]] + data["discovered"] + candidate_urls[1:]
                 seen_urls = set()
-                candidate_urls = [u for u in merged if not (u in seen_urls or seen_urls.add(u))][:self.max_pages + 10]
+                candidate_urls = [u for u in merged if not (u in seen_urls or seen_urls.add(u))][:self.max_pages + 1]
 
             emails = data["emails"]
             emails = self._filter_usable_emails(emails)
@@ -264,6 +264,11 @@ class WebsiteEmailCrawler:
 
             best_phone = best_phone or phone
             best_contact = best_contact or contact_person
+
+            # Early break: if we already have emails and phone, no need to crawl remaining URLs
+            if all_collected_emails and best_phone and idx >= 1:
+                break
+
             idx += 1
 
         # Deduplicate and sort emails so career-page emails and HR/info emails come FIRST
@@ -276,16 +281,38 @@ class WebsiteEmailCrawler:
             source_score = 0 if any(token in source_url for token in career_tokens) else 1
             local = e.split("@")[0].lower()
             kw_score = 50
+            
+            # 1. Dedicated HR / Recruiting emails (Highest priority)
             for priority_idx, prefix in enumerate((
                 "karriere", "bewerbung", "bewerbungen", "jobs", "job", "stellen",
                 "personal", "hr", "recruiting", "recruitment", "talent",
-                "info", "kontakt", "office", "zentrale", "empfang",
             )):
                 if prefix in local:
                     kw_score = priority_idx
                     break
+                    
+            if kw_score == 50:
+                # 2. Direct personal emails (e.g. eva.pilz@) are better than general generic buckets
+                if "." in local and len(local) >= 4:
+                    kw_score = 20
+                else:
+                    # 3. General catch-all generics (Fallback)
+                    for priority_idx, prefix in enumerate((
+                        "info", "kontakt", "office", "zentrale", "empfang",
+                    )):
+                        if prefix in local:
+                            kw_score = 30 + priority_idx
+                            break
+
             domain = e.split("@")[-1].lower() if "@" in e else ""
+            
+            # Base domain match gets score 0, others get 100
             domain_score = 0 if base_host and (domain == base_host or domain.endswith("." + base_host)) else 100
+            
+            # Prioritize .de domains
+            if domain.endswith(".de"):
+                domain_score -= 10
+                
             return (source_score, kw_score, domain_score)
 
         unique_emails.sort(key=email_hr_priority)
@@ -615,7 +642,7 @@ class WebsiteEmailCrawler:
             return self._fast_timeout_ms
         if any(token in path for token in ("impressum", "kontakt", "contact")):
             return self._fast_timeout_ms
-        return min(self._fast_timeout_ms, 4_000)
+        return min(self._fast_timeout_ms, 2_500)
 
     def _cache_key(self, website: str, company_name: Optional[str] = None) -> str:
         parsed = urlparse(website)
@@ -640,7 +667,7 @@ class WebsiteEmailCrawler:
         try:
             rp = RobotFileParser()
             # Fetch with a short timeout. If robots.txt fails, assume allowed.
-            content = await self.session.fetch_url_content_fast(robots_url, timeout=1500, ignore_rate_limit=True)
+            content = await self.session.fetch_url_content_fast(robots_url, timeout=800, ignore_rate_limit=True)
             if not content:
                 self._robots_cache[cache_key] = True
                 return True
@@ -655,6 +682,9 @@ class WebsiteEmailCrawler:
 
     async def _fetch_html(self, url: str, ignore_rate_limit: bool = False) -> str:
         """Fetch a page, falling back to http:// when https:// hits SSL issues."""
+        from .email_extractor import _cap_html
+        
+        html = ""
         probes = self._scheme_fallback_urls(url)
         for probe in probes:
             html = await self.session.fetch_url_content_fast(
@@ -663,20 +693,21 @@ class WebsiteEmailCrawler:
                 ignore_rate_limit=ignore_rate_limit,
             )
             if html:
-                return html
+                break
         
-        # Final fallback: use a more permissive client (like httpx) if available
-        # to handle legacy SSL versions that Playwright might reject
-        try:
-            import httpx
-            async with httpx.AsyncClient(verify=False, follow_redirects=True, timeout=4.0) as client:
-                resp = await client.get(url)
-                if resp.status_code == 200:
-                    return resp.text
-        except:
-            pass
-            
-        return ""
+        if not html:
+            # Final fallback: use a more permissive client (like httpx) if available
+            # to handle legacy SSL versions that Playwright might reject
+            try:
+                import httpx
+                async with httpx.AsyncClient(verify=False, follow_redirects=True, timeout=2.0) as client:
+                    resp = await client.get(url)
+                    if resp.status_code == 200:
+                        html = resp.text
+            except:
+                pass
+                
+        return _cap_html(html) if html else ""
 
     async def _navigate_with_fallback(self, page, url: str, ignore_rate_limit: bool = False) -> bool:
         """Navigate with a single http:// fallback for SSL failures."""
@@ -706,4 +737,4 @@ class WebsiteEmailCrawler:
         return [url, http_url]
 
 
-# 1.1.0 Beta5.1
+# 1.1.0 Beta6

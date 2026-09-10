@@ -4,6 +4,7 @@ Target Generation workflow using Obsidian Core design language.
 """
 
 from __future__ import annotations
+from src.ui.toast_system import ToastNotification
 
 from PySide6.QtCore import Qt, Signal, QPropertyAnimation, Property, QEasingCurve, QEvent, QTimer
 from PySide6.QtGui import QDoubleValidator, QIntValidator, QColor
@@ -16,7 +17,6 @@ from qfluentwidgets import (
     LineEdit,
     PrimaryPushButton,
     PushButton,
-    InfoBar,
     TextEdit,
     Action,
     ToolTipFilter,
@@ -166,9 +166,13 @@ class SearchHistoryDropdown(QFrame):
     # Internal key strings for source cards
     _SOURCE_KEYS = ("maps", "jobsuche", "ausbildung", "aubiplus", "dasoertliche") #, "azubiyo" - Staged for v1.1.0
 
-    def __init__(self, parent=None):
+    def __init__(self, language: str, parent=None):
         super().__init__(parent, Qt.Tool | Qt.FramelessWindowHint | Qt.WindowDoesNotAcceptFocus)
         self.setObjectName("HistoryDropdown")
+        self._language = language
+        
+        from ..core.i18n import tr
+        
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setStyleSheet("QFrame#HistoryDropdown { background: transparent; border: none; }")
         self._entries: list = []  # (id, job_title, city, source, offer_type, is_saved)
@@ -209,7 +213,7 @@ class SearchHistoryDropdown(QFrame):
         div.setStyleSheet("background: #3A3A3C; border: none;")
         self.content_layout.addWidget(div)
 
-        self._clear_btn = QPushButton("CLEAR HISTORY")
+        self._clear_btn = QPushButton(tr("search.history.clear", self._language).upper())
         self._clear_btn.setFixedHeight(36)
         self._clear_btn.setCursor(Qt.PointingHandCursor)
         self._clear_btn.setStyleSheet("""
@@ -404,7 +408,9 @@ class SearchPage(QWidget):
         self._load_covered_cities()
 
         from .event_bridge import event_bridge
-        event_bridge.job_completed.connect(lambda j, f, e: self._load_covered_cities())
+        event_bridge.job_completed.connect(lambda j, f, e: self._on_job_done())
+        event_bridge.job_failed.connect(lambda j, err: self._on_job_done())
+        event_bridge.job_started.connect(self._on_job_started_coverage)
 
     def header_action_widgets(self) -> list[QWidget]:
         return []
@@ -452,7 +458,7 @@ class SearchPage(QWidget):
         coverage_layout = QStackedLayout(self._coverage_container)
         coverage_layout.setStackingMode(QStackedLayout.StackAll)
 
-        self._coverage_panel = CoverageTrackerPanel()
+        self._coverage_panel = CoverageTrackerPanel(language=self._language)
         self._coverage_panel.city_clicked.connect(self._on_coverage_city_clicked)
         coverage_layout.addWidget(self._coverage_panel)
         
@@ -471,11 +477,11 @@ class SearchPage(QWidget):
         # Using a distinct color for the icon, or leaving default
         overlay_vbox.addWidget(lock_icon, 0, Qt.AlignHCenter)
         
-        pro_label = QLabel("Pro Feature")
+        pro_label = QLabel(tr("tracking.pro.title", self._language))
         pro_label.setStyleSheet("color: #FFFFFF; font-family: 'PT Root UI', sans-serif; font-size: 16px; font-weight: 700; background: transparent; border: none;")
         overlay_vbox.addWidget(pro_label, 0, Qt.AlignHCenter)
         
-        pro_desc = QLabel("Unlock the Coverage Tracker to see comprehensive scraping zones.")
+        pro_desc = QLabel(tr("tracking.pro.body", self._language))
         pro_desc.setStyleSheet("color: #8E8E93; font-family: 'PT Root UI', sans-serif; font-size: 13px; font-weight: 500; background: transparent; border: none;")
         overlay_vbox.addWidget(pro_desc, 0, Qt.AlignHCenter)
         
@@ -651,7 +657,7 @@ class SearchPage(QWidget):
         layout.addLayout(self._make_field(tr("search.field.job_title", self._language), self._job_title, self._title_error))
 
         # ── Search History Dropdown ───────────────────────────────────────────
-        self._history_dropdown = SearchHistoryDropdown(self)
+        self._history_dropdown = SearchHistoryDropdown(language=self._language, parent=self)
         self._history_dropdown.item_selected.connect(self._apply_history)
 
         self._job_title.installEventFilter(self)
@@ -947,8 +953,8 @@ class SearchPage(QWidget):
             if max_results > 20:
                 max_results = 20
                 self._max_results_input.setText("20")
-                from qfluentwidgets import InfoBar
-                InfoBar.warning(
+                from src.ui.toast_system import ToastNotification as InfoBar
+                ToastNotification.warning(
                     tr("search.dialog.trial.title", self._language),
                     "Trial limit enforced. Max limits capped at 20.",
                     duration=3000,
@@ -1042,8 +1048,8 @@ class SearchPage(QWidget):
                 conn.execute("DELETE FROM jobs")
             self._load_covered_cities()
             
-            from qfluentwidgets import InfoBar, InfoBarPosition
-            InfoBar.success(
+            from src.ui.toast_system import ToastNotification as InfoBar
+            ToastNotification.success(
                 title="Cleared",
                 content="Search fields and city coverage history have been reset.",
                 orient=Qt.Horizontal,
@@ -1199,6 +1205,20 @@ class SearchPage(QWidget):
         """Fills the city field when a coverage chip is clicked."""
         self._city.setText(city)
 
+    def _on_job_started_coverage(self, job_id: str, config) -> None:
+        """Highlight the city chip for the currently running scrape job."""
+        if not (hasattr(self, '_coverage_panel') and self._coverage_panel):
+            return
+        city = getattr(config, 'city', None) or getattr(config, 'region', None) or ''
+        if city:
+            self._coverage_panel.set_active_city(city.strip())
+
+    def _on_job_done(self) -> None:
+        """Clear active highlight and refresh completed coverage from DB."""
+        if hasattr(self, '_coverage_panel') and self._coverage_panel:
+            self._coverage_panel.set_active_city(None)
+        self._load_covered_cities()
+
     def _load_covered_cities(self) -> None:
         """Fetch completed jobs from app_memory.db asynchronously to determine coverage."""
         from ..core.config import get_memory_db_path
@@ -1209,13 +1229,12 @@ class SearchPage(QWidget):
         
         current_source = self._source
 
-        def _normalize(s: str) -> str:
+        def _normalize(s: str) -> tuple[str, str]:
             """Umlaut-safe lower-case — matches the normalization in CoverageTrackerPanel."""
-            return (
-                s.lower()
-                .replace("ä", "a").replace("ö", "o").replace("ü", "u").replace("ß", "ss")
-                .strip()
-            )
+            s = s.lower().strip()
+            stripped = s.replace("ä", "a").replace("ö", "o").replace("ü", "u").replace("ß", "ss")
+            expanded = s.replace("ä", "ae").replace("ö", "oe").replace("ü", "ue").replace("ß", "ss")
+            return (stripped, expanded)
 
         def _fetch_cities():
             db_path = str(get_memory_db_path())
@@ -1240,10 +1259,11 @@ class SearchPage(QWidget):
                         if job_source != current_source:
                             continue
                             
-                        # 'city' is the canonical field written by SearchConfig.__dict__
                         city = (config_data.get("city") or "").strip()
                         if city:
-                            covered.add(_normalize(city))
+                            norm_stripped, norm_expanded = _normalize(city)
+                            covered.add(norm_stripped)
+                            covered.add(norm_expanded)
                     except Exception:
                         pass
                 return covered
@@ -1259,4 +1279,4 @@ class SearchPage(QWidget):
         run_in_thread(_fetch_cities, on_result=_on_cities_fetched)
 
 
-# 1.1.0 Beta5.1
+# 1.1.0 Beta6

@@ -336,8 +336,6 @@ class Theme:
                 font-family: "PT Root UI", "-apple-system", sans-serif;
                 font-weight: 600;
                 font-size: 12px;
-                letter-spacing: 1.6px;
-                text-transform: uppercase;
                 padding: 0 18px;
             }}
             QPushButton:hover {{
@@ -359,8 +357,6 @@ class Theme:
                 color: #FFFFFF;
                 font-weight: 600;
                 font-size: 12px;
-                letter-spacing: 1.6px;
-                text-transform: uppercase;
             }}
             PrimaryPushButton:hover {{ background: #409CFF; }}
             PrimaryPushButton:pressed {{ background: #005CC8; }}
@@ -476,4 +472,4 @@ class Theme:
             }}
         """
 
-# 1.1.0 Beta5.1
+# 1.1.0 Beta6

@@ -7,6 +7,7 @@ from qfluentwidgets import LineEdit
 
 from .components import FlowLayout
 from ..core.locations import GERMAN_CITIES_BY_STATE, ALL_CITIES
+from ..core.i18n import tr
 
 # Single shared QSS driven by a dynamic "covered" property.
 _CHIP_QSS = """
@@ -23,6 +24,17 @@ _CHIP_QSS = """
     }
     QPushButton[covered="true"]:focus {
         border: 1px solid #0A84FF;
+        outline: none;
+    }
+    QPushButton[covered="active"] {
+        background: rgba(10, 132, 255, 0.25);
+        border: 1.5px solid #0A84FF;
+        border-radius: 12px;
+        color: #0A84FF;
+        font-family: 'PT Root UI', sans-serif;
+        font-size: 12px;
+        font-weight: 600;
+        padding: 4px 12px;
         outline: none;
     }
     QPushButton[covered="false"] {
@@ -59,9 +71,13 @@ class CoverageTrackerPanel(QFrame):
     """
     city_clicked = Signal(str)
 
-    def __init__(self, parent=None):
+    def __init__(self, language: str, parent=None):
         super().__init__(parent)
         self.setObjectName("CoverageTrackerPanel")
+        self._language = language
+        
+        from ..core.i18n import tr
+        
         self.setStyleSheet(
             """
             QFrame#CoverageTrackerPanel {
@@ -82,10 +98,10 @@ class CoverageTrackerPanel(QFrame):
         header.setContentsMargins(0, 0, 0, 0)
         header.setSpacing(0)
 
-        self._title_label = QLabel("COVERAGE")
+        self._title_label = QLabel(tr("coverage.title", self._language).upper())
         self._title_label.setStyleSheet(
             "color: #8E8E93; font-family: 'PT Root UI', sans-serif; "
-            "font-size: 11px; font-weight: 700; letter-spacing: 1px;"
+            "font-size: 11px; font-weight: 700; letter-spacing: 0.5px;"
         )
 
         # Muted secondary state indicator — hidden until build completes
@@ -97,14 +113,14 @@ class CoverageTrackerPanel(QFrame):
         self._state_indicator.setVisible(False)
 
         total = len(ALL_CITIES)
-        self._summary_label = QLabel(f"0 / {total} settlements covered")
+        self._summary_label = QLabel(tr("coverage.summary", self._language).format(covered=0, total=total))
         self._summary_label.setStyleSheet(
             "color: #EBEBF5; font-family: 'PT Root UI', sans-serif; "
             "font-size: 13px; font-weight: 500;"
         )
 
         self._search_box = LineEdit()
-        self._search_box.setPlaceholderText("Filter cities...")
+        self._search_box.setPlaceholderText(tr("coverage.search.placeholder", self._language))
         self._search_box.setFixedWidth(160)
         self._search_box.setFixedHeight(28)
         if hasattr(self._search_box, "setCustomFocusedBorderColor"):
@@ -175,6 +191,7 @@ class CoverageTrackerPanel(QFrame):
         self._state_containers: list[tuple[str, QWidget, list[QPushButton]]] = []
         self._chip_normalized: dict[str, str] = {}
         self._pending_covered: set[str] | None = None
+        self._active_city: str | None = None
 
         # Deferred build — one Bundesland per timer tick keeps UI responsive.
         self._build_queue = sorted(GERMAN_CITIES_BY_STATE.items())
@@ -264,14 +281,11 @@ class CoverageTrackerPanel(QFrame):
     # ── Helpers ──────────────────────────────────────────────────────────────
 
     @staticmethod
-    def _normalize(s: str) -> str:
-        return (
-            s.lower()
-            .replace("ä", "a")
-            .replace("ö", "o")
-            .replace("ü", "u")
-            .replace("ß", "ss")
-        )
+    def _normalize(s: str) -> tuple[str, str]:
+        s = s.lower()
+        stripped = s.replace("ä", "a").replace("ö", "o").replace("ü", "u").replace("ß", "ss")
+        expanded = s.replace("ä", "ae").replace("ö", "oe").replace("ü", "ue").replace("ß", "ss")
+        return (stripped, expanded)
 
     # ── Slots ────────────────────────────────────────────────────────────────
 
@@ -300,33 +314,98 @@ class CoverageTrackerPanel(QFrame):
             self._state_indicator.setVisible(False)
 
     def _on_search_changed(self, text: str):
-        query = self._normalize(text)
+        was_empty = not getattr(self, '_last_search_text', "")
+        is_empty = not text
+        
+        query_stripped, query_expanded = self._normalize(text)
+        
         for state, state_container, chips in self._state_containers:
-            state_match = not query or query in self._normalize(state)
+            state_stripped, state_expanded = self._normalize(state)
+            state_match = (
+                not text or 
+                query_stripped in state_stripped or 
+                query_expanded in state_expanded
+            )
             visible = 0
             
-            # Prevent O(N^2) layout calculations while batch-updating visibility
-            layout = state_container.layout()
-            if layout:
-                layout.setEnabled(False)
+            # Get the FlowLayout managing the chips
+            flow_layout = chips[0].parentWidget().layout() if chips else None
+            if flow_layout:
+                flow_layout.setEnabled(False)
                 
             for btn in chips:
-                show = state_match or query in self._chip_normalized.get(
-                    btn.text(), btn.text().lower()
+                # Default to current text if not yet normalized (though it always should be)
+                c_norm = self._chip_normalized.get(btn.text(), (btn.text().lower(), btn.text().lower()))
+                
+                show = state_match or (
+                    query_stripped in c_norm[0] or 
+                    query_expanded in c_norm[1]
                 )
                 if btn.isVisible() != show:
                     btn.setVisible(show)
                 if show:
                     visible += 1
                     
-            if layout:
-                layout.setEnabled(True)
+            if flow_layout:
+                flow_layout.setEnabled(True)
+                flow_layout.invalidate()
+                if chips:
+                    chips[0].parentWidget().updateGeometry()
                 
             if state_container.isVisible() != (visible > 0):
                 state_container.setVisible(visible > 0)
+                
+        if not is_empty:
+            self._last_visible_chip = None
+            for _, _, chips in self._state_containers:
+                for btn in chips:
+                    if btn.isVisible():
+                        self._last_visible_chip = btn
+                        break
+                if self._last_visible_chip:
+                    break
+        elif is_empty and not was_empty:
+            target_chip = getattr(self, '_last_visible_chip', None)
+            if target_chip:
+                from PySide6.QtCore import QTimer
+                QTimer.singleShot(10, lambda: self._scroll.ensureWidgetVisible(target_chip, 50, 50))
+
+        self._last_search_text = text
 
         # Reset indicator to top-most visible state after filter changes
         self._on_scroll(self._scroll.verticalScrollBar().value())
+
+    def set_active_city(self, city: str | None) -> None:
+        """
+        Highlight the city currently being scraped with a pulsing-blue outline state.
+        Pass None to clear the active highlight (e.g. when a job completes).
+        """
+        # Clear previous active city chip
+        if self._active_city and self._active_city in self._chip_buttons:
+            prev_btn = self._chip_buttons[self._active_city]
+            # Revert to covered/false based on stored covered state
+            prev_val = "true" if self._active_city in (self._pending_covered or set()) else "false"
+            if prev_btn.property("covered") == "active":
+                prev_btn.setProperty("covered", prev_val)
+                self.style().unpolish(prev_btn)
+                self.style().polish(prev_btn)
+
+        self._active_city = city
+
+        if city is None:
+            return
+
+        # Normalize and find matching chip
+        c_norm = self._normalize(city)
+        for chip_city, btn in self._chip_buttons.items():
+            cn = self._chip_normalized.get(chip_city)
+            if cn and (cn[0] == c_norm[0] or cn[1] == c_norm[1]):
+                btn.setProperty("covered", "active")
+                self.style().unpolish(btn)
+                self.style().polish(btn)
+                self._scroll.ensureWidgetVisible(btn, 50, 50)
+                self._active_city = chip_city  # store canonical name
+                break
 
     def set_covered_cities(self, covered_cities: set[str]):
         """
@@ -342,7 +421,8 @@ class CoverageTrackerPanel(QFrame):
         style = self.style()
 
         for city, btn in self._chip_buttons.items():
-            is_covered = self._normalize(city) in covered_cities
+            c_norm = self._normalize(city)
+            is_covered = c_norm[0] in covered_cities or c_norm[1] in covered_cities
             if is_covered:
                 covered_count += 1
             new_val = "true" if is_covered else "false"
@@ -352,7 +432,7 @@ class CoverageTrackerPanel(QFrame):
                 style.polish(btn)
 
         self._summary_label.setText(
-            f"{covered_count} / {total} settlements covered"
+            tr("coverage.summary", self._language).format(covered=covered_count, total=total)
         )
 
-# 1.1.0 Beta5.1
+# 1.1.0 Beta6

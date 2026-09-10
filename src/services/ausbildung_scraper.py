@@ -328,12 +328,14 @@ class AusbildungScraper:
         
         if not email:
             # Fallback: regex search through whole HTML
-            email_match = re.search(r'[\w\.-]+@[\w\.-]+\.\w+', html)
-            if email_match:
-                candidate = email_match.group(0).lower()
+            import re
+            emails = re.findall(r'[\w\.-]+@[\w\.-]+\.\w+', html)
+            for candidate in emails:
+                candidate = candidate.lower()
                 # Blacklist common false positives
-                if not any(x in candidate for x in ["info@ausbildung.de", "support@", "cookie"]):
+                if not any(x in candidate for x in ["info@ausbildung.de", "support@", "cookie", "sentry"]):
                     email = candidate
+                    break
 
         # ── Phone ──
         phone: str | None = None
@@ -354,33 +356,61 @@ class AusbildungScraper:
 
         # ── Company name ──
         company: str | None = None
-        el = doc.select_one(".jp-c-header__corporation-link")
-        if el:
-            company = el.get_text(strip=True) or None
+        import json
+        for script in doc.find_all('script', type='application/ld+json'):
+            try:
+                data = json.loads(script.string)
+                if isinstance(data, dict):
+                    if data.get('@type') == 'Corporation' and data.get('name'):
+                        company = data.get('name')
+                        break
+                    elif data.get('@type') == 'JobPosting' and 'hiringOrganization' in data:
+                        company = data['hiringOrganization'].get('name')
+                        break
+            except:
+                pass
+
+        if not company:
+            el = doc.select_one(".jp-c-header__corporation-link, a[class*='companyName'], a[class*='CompanyBreadcrumb']")
+            if el:
+                company = el.get_text(strip=True) or None
 
         # ── Address / location ──
         address: str | None = None
         city: str | None = None
-        el = doc.select_one(".jp-title__address")
-        if el:
-            # Strip emoji and whitespace
-            raw = el.get_text(separator=" ", strip=True)
-            # Remove the emoji character if present
-            raw = "".join(c for c in raw if c.isprintable() and not c in "\U0001F000-\U0001FFFF").strip()
-            # Remove any leading pin emoji
-            raw = raw.lstrip("\U0001F4CD").strip()
-            address = raw or None
-            # City is the last word (after the zip code)
-            if raw:
-                city = raw.split()[-1] or None
-        
-        # Fallback: old selector
-        if not address:
-            el = doc.select_one(
-                ".job-posting-vacancy-select__vacancy .selectize-input .item"
-            )
+        for script in doc.find_all('script', type='application/ld+json'):
+            try:
+                data = json.loads(script.string)
+                if isinstance(data, dict) and data.get('@type') == 'JobPosting':
+                    loc = data.get('jobLocation', {}).get('address', {})
+                    if loc:
+                        address = loc.get('streetAddress')
+                        city = loc.get('addressLocality')
+                        break
+            except:
+                pass
+
+        if not address and not city:
+            el = doc.select_one(".jp-title__address")
             if el:
-                address = el.get_text(strip=True) or None
+                # Strip emoji and whitespace
+                raw = el.get_text(separator=" ", strip=True)
+                # Remove the emoji character if present
+                raw = "".join(c for c in raw if c.isprintable() and not c in "\U0001F000-\U0001FFFF").strip()
+                # Remove any leading pin emoji
+                raw = raw.lstrip("\U0001F4CD").strip()
+                address = raw or None
+                # City is the last word (after the zip code)
+                if raw:
+                    city = raw.split()[-1] or None
+            
+            # Fallback: old selector
+            if not address:
+                el = doc.select_one(
+                    ".job-posting-vacancy-select__vacancy .selectize-input .item"
+                )
+                if el:
+                    address = el.get_text(strip=True) or None
 
         # ── Start date (Frühester Beginn) ──
         start_date: str | None = None
@@ -414,4 +444,4 @@ class AusbildungScraper:
             publication_date=start_date,
         )
 
-# 1.1.0 Beta5.1
+# 1.1.0 Beta6

@@ -4,6 +4,7 @@ Terminal × macOS Console aesthetic — monospace precision, surgical clarity.
 """
 
 from __future__ import annotations
+from src.ui.toast_system import ToastNotification
 
 import queue
 from datetime import datetime
@@ -472,7 +473,7 @@ class LogViewerPage(QWidget):
 
     def _export_logs(self):
         if not self._all_logs:
-            InfoBar.warning("No Logs", "No logs available to export.", parent=self)
+            ToastNotification.warning("No Logs", "No logs available to export.", parent=self)
             return
         default_name = f"logs_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
         path, _ = QFileDialog.getSaveFileName(
@@ -486,4 +487,4 @@ class LogViewerPage(QWidget):
         scrollbar = self._log_view.verticalScrollBar()
         scrollbar.setValue(scrollbar.maximum())
 
-# 1.1.0 Beta5.1
+# 1.1.0 Beta6

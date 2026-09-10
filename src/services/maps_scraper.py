@@ -88,7 +88,7 @@ logger = get_logger(__name__)
 
 MAPS_HOME = "https://www.google.com/maps"
 
-LISTING_XPATH = '//a[contains(@href, "https://www.google.com/maps/place")]'
+LISTING_XPATH = '//a[contains(@href, "/maps/place")]'
 
 
 
@@ -298,6 +298,7 @@ class GoogleMapsScraper:
             results_count = 0
             emitted_keys: set[str] = set()
             emitted_emails: set[str] = set()
+            emitted_companies: set[str] = set()
 
             feed_records = self._build_records_from_feed(query)
             if feed_records:
@@ -305,9 +306,41 @@ class GoogleMapsScraper:
                     f"[{self.job_id}] Fast feed parser produced {len(feed_records)} Maps candidates"
                 )
 
-            for record in feed_records:
+            # Enrich feed records concurrently (5 at a time) — these use context.request,
+            # not the live browser page, so concurrent fetches are safe.
+            _ENRICH_CONCURRENCY = 5
+            semaphore = asyncio.Semaphore(_ENRICH_CONCURRENCY)
+
+            async def _enrich_one(record):
+                if self._cancelled or not LicenseManager.can_extract():
+                    return []
+                async with semaphore:
+                    if self.crawler and record.website and (not record.email or not record.phone):
+                        try:
+                            return await asyncio.wait_for(
+                                self._enrich_record_contacts(record),
+                                timeout=12.0
+                            )
+                        except (asyncio.TimeoutError, Exception) as e:
+                            logger.debug(f"Enrichment timeout or error for {record.website}: {e}")
+                            return [record]
+                    return [record]
+
+            # Stream feed enrichments as they complete rather than blocking on gather
+            feed_tasks = [
+                asyncio.create_task(_enrich_one(r))
+                for r in feed_records[:self.config.max_results]
+            ]
+
+            for fut in asyncio.as_completed(feed_tasks):
                 if self._cancelled or results_count >= self.config.max_results:
                     break
+                try:
+                    enriched_list = await fut
+                except Exception:
+                    continue
+                if not enriched_list or isinstance(enriched_list, Exception):
+                    continue
 
                 if not LicenseManager.can_extract():
                     logger.warning(f"[{self.job_id}] Free trial limit reached (20/day). Stopping.")
@@ -320,35 +353,25 @@ class GoogleMapsScraper:
                     event_bus.emit(event_bus.TRIAL_LIMIT_REACHED, job_id=self.job_id)
                     return
 
-                # Inline website enrichment
-                if self.crawler and record.website and (not record.email or not record.phone):
-                    enriched_records = await self._enrich_record_contacts(record)
-                else:
-                    enriched_records = [record]
-
-                for enriched in enriched_records:
+                for enriched in enriched_list:
                     if self._cancelled or results_count >= self.config.max_results:
                         break
-                        
-                    if not LicenseManager.can_extract():
-                        logger.warning(f"[{self.job_id}] Free trial limit reached (20/day). Stopping.")
-                        event_bus.emit(
-                            event_bus.JOB_LOG,
-                            job_id=self.job_id,
-                            message="Free trial limit reached (20 scraps/day). Please upgrade to Professional.",
-                            level="WARNING",
-                        )
-                        event_bus.emit(event_bus.TRIAL_LIMIT_REACHED, job_id=self.job_id)
-                        return
 
                     dedupe_key = enriched.stable_id()
+                    company_name_clean = (enriched.company_name or "").strip().lower()
                     email_key = str(enriched.email or "").strip().lower()
 
-                    if dedupe_key in emitted_keys or (email_key and email_key in emitted_emails):
+                    if (
+                        dedupe_key in emitted_keys
+                        or (company_name_clean and company_name_clean in emitted_companies)
+                        or (email_key and email_key in emitted_emails)
+                    ):
                         continue
-                        
+
                     results_count += 1
                     emitted_keys.add(dedupe_key)
+                    if company_name_clean:
+                        emitted_companies.add(company_name_clean)
                     if email_key:
                         emitted_emails.add(email_key)
                     logger.info(
@@ -358,8 +381,6 @@ class GoogleMapsScraper:
                     LicenseManager.record_extraction()
                     yield enriched
 
-                await self.session.rate_limiter.wait()
-
             for i, listing in enumerate(listings):
                 if self._cancelled or results_count >= self.config.max_results:
                     break
@@ -368,6 +389,17 @@ class GoogleMapsScraper:
                     await asyncio.sleep(0.1)
 
                 try:
+                    # Quick pre-check: avoid clicking cards already collected via feed
+                    try:
+                        card_label = (await listing.get_attribute("aria-label", timeout=200)) or ""
+                        if not card_label:
+                            card_text = (await listing.inner_text(timeout=200)).strip()
+                            card_label = card_text.split("\n")[0]
+                        if card_label and card_label.strip().lower() in emitted_companies:
+                            continue
+                    except Exception:
+                        pass
+
                     record = await self._extract_listing(page, listing, query)
                     if not record:
                         continue
@@ -385,7 +417,13 @@ class GoogleMapsScraper:
 
                     # Inline website enrichment
                     if self.crawler and record.website and (not record.email or not record.phone):
-                        enriched_records = await self._enrich_record_contacts(record)
+                        try:
+                            enriched_records = await asyncio.wait_for(
+                                self._enrich_record_contacts(record),
+                                timeout=12.0
+                            )
+                        except (asyncio.TimeoutError, Exception):
+                            enriched_records = [record]
                     else:
                         enriched_records = [record]
 
@@ -405,12 +443,19 @@ class GoogleMapsScraper:
                             return
 
                         dedupe_key = enriched.stable_id()
+                        company_name_clean = (enriched.company_name or "").strip().lower()
                         email_key = str(enriched.email or "").strip().lower()
-                        if dedupe_key in emitted_keys or (email_key and email_key in emitted_emails):
+                        if (
+                            dedupe_key in emitted_keys
+                            or (company_name_clean and company_name_clean in emitted_companies)
+                            or (email_key and email_key in emitted_emails)
+                        ):
                             continue
 
                         results_count += 1
                         emitted_keys.add(dedupe_key)
+                        if company_name_clean:
+                            emitted_companies.add(company_name_clean)
                         if email_key:
                             emitted_emails.add(email_key)
                         logger.info(
@@ -432,21 +477,18 @@ class GoogleMapsScraper:
 
                 await self.session.rate_limiter.wait()
 
-        except BrowserError:
+        except BrowserError as e:
+            logger.error(f"[{self.job_id}] Scraper encountered BrowserError: {e}")
+            await self.session.screenshot_on_failure(page, "browser_error")
             raise
 
         except Exception as e:
-
             if "Target page, context or browser has been closed" in str(e):
-
                 logger.info(f"[{self.job_id}] Browser or page was closed manually. Stopping job gracefully.")
-
                 return
 
             logger.error(f"[{self.job_id}] Scraper crashed: {e}", exc_info=True)
-
             await self.session.screenshot_on_failure(page, "crash")
-
             raise
 
         finally:
@@ -505,6 +547,8 @@ class GoogleMapsScraper:
             search_query=query,
 
             country=self.config.country,
+
+            city=self.config.city if self.config.city else None,
 
         )
 
@@ -807,82 +851,64 @@ class GoogleMapsScraper:
 
 
     async def _scroll_and_collect_listings(self, page: Page) -> list:
-
         """Scroll the results sidebar and collect listing card handles."""
-
         previously_counted = 0
-
         stall_count = 0
+        max_stalls = 5
 
-        max_stalls = 1
-
-
+        # Ensure we hover over the feed container first so wheel scrolls the sidebar
+        try:
+            feed_loc = page.locator('div[role="feed"]').first
+            if await feed_loc.count() > 0:
+                await feed_loc.hover(timeout=1000)
+            else:
+                await page.hover(LISTING_XPATH, timeout=1000, force=True)
+        except Exception:
+            pass
 
         while not self._cancelled:
-
             while self._paused and not self._cancelled:
-
                 await asyncio.sleep(0.1)
 
+            # Scroll using mouse wheel over feed and DOM scrollBy
+            await page.mouse.wheel(0, 8000)
+            try:
+                await page.evaluate(
+                    '() => { const f = document.querySelector("div[role=\\"feed\\"]"); if (f) f.scrollBy(0, 4000); }'
+                )
+            except Exception:
+                pass
 
-
-            await page.mouse.wheel(0, 10000)
-
-            await asyncio.sleep(0.5)
-
-
-
+            # Wait with polling for new listings to arrive over the network (up to 1.8s)
             count = await page.locator(LISTING_XPATH).count()
-
-
+            deadline = asyncio.get_running_loop().time() + 1.8
+            while count == previously_counted and asyncio.get_running_loop().time() < deadline:
+                await asyncio.sleep(0.3)
+                count = await page.locator(LISTING_XPATH).count()
 
             # Check if we've reached the target
-
             if count >= self.config.max_results:
-
-                logger.info(f"[{self.job_id}] Reached target: {self.config.max_results}")
-
+                logger.info(f"[{self.job_id}] Reached target: {self.config.max_results} (collected {count})")
                 break
-
-
 
             # Detect "end of list" signal
-
             if await self._is_end_of_list(page):
-
                 logger.info(f"[{self.job_id}] End of results list detected. Total: {count}")
-
                 break
 
-
-
             # Stall detection
-
             if count == previously_counted:
-
                 stall_count += 1
-
                 if stall_count >= max_stalls:
-
                     logger.info(
-
                         f"[{self.job_id}] No new listings after {max_stalls} scrolls. "
-
                         f"Total: {count}"
-
                     )
-
                     break
-
             else:
-
                 stall_count = 0
 
-
-
             previously_counted = count
-
-
 
         return await self._get_listing_handles(page)
 
@@ -1141,15 +1167,12 @@ class GoogleMapsScraper:
         if query:
             logger.info(f"[{self.job_id}] UI submit did not complete. Navigating directly to Maps search URL.")
             search_url = f"https://www.google.com/maps/search/?api=1&query={quote_plus(query)}"
-            success = await self.session.navigate(
-                page,
-                search_url,
-                timeout=25_000,
-                retries=1,
-                wait_until="domcontentloaded",
-                ignore_rate_limit=True,
-            )
-            if success and await self._wait_for_search_submission(page, timeout_ms=8_000):
+            try:
+                await page.goto(search_url, wait_until="domcontentloaded", timeout=15000)
+            except Exception as e:
+                logger.warning(f"[{self.job_id}] Direct navigation to Maps search URL failed: {e}")
+                pass
+            if await self._wait_for_search_submission(page, timeout_ms=8_000):
                 return
 
         raise BrowserError("Maps search submission did not trigger.")
@@ -1160,13 +1183,18 @@ class GoogleMapsScraper:
         while asyncio.get_running_loop().time() < deadline:
             try:
                 url = (page.url or "").lower()
-                if "google.com/sorry" in url or "consent.google.com" in url:
+                if "google.com/sorry" in url or "consent.google." in url:
                     return True
                 if "/maps/search/" in url or "/maps/place/" in url or "?q=" in url or "&q=" in url:
                     return True
                 if self._feed_candidates:
                     return True
-                if await page.locator(LISTING_XPATH).count() > 0:
+                
+                # Check if the search box is collapsed or results panel is visible.
+                # We avoid checking LISTING_XPATH here because the Maps homepage 
+                # often contains dummy listings (e.g., "Explore nearby") which 
+                # falsely trigger this condition before the search even executes.
+                if await page.locator('div[role="feed"]').count() > 0:
                     return True
             except Exception:
                 pass
@@ -1228,21 +1256,16 @@ class GoogleMapsScraper:
         consent_selectors = [
 
             # Google consent dialog buttons
-
             '//button[contains(., "Accept all")]',
-
             '//button[contains(., "Alle akzeptieren")]',
-
+            '//button[contains(., "Zustimmen")]',
             '//button[contains(., "Reject all")]',
-
             '//button[contains(., "Alle ablehnen")]',
-
             'button[aria-label="Accept all"]',
-
             'button[aria-label="Alle akzeptieren"]',
-
+            'button[jsname="j6xaVd"]',
+            'button[jsname="b3VIl"]',
             # Generic consent form
-
             'form[action*="consent"] button',
 
         ]
@@ -1656,6 +1679,8 @@ class GoogleMapsScraper:
 
             country=self.config.country,
 
+            city=self.config.city if self.config.city else None,
+
         )
 
 
@@ -1748,10 +1773,12 @@ class GoogleMapsScraper:
             self.config.country,
         ]
 
-        # Use textual radius constraint (e.g. "Umkreis 50 km") if possible
-        if getattr(self.config, "radius", None) and self.config.radius != "0 km":
-            parts.append(f"Umkreis {self.config.radius}")
-
+        # Google Maps does not support textual radius (e.g., "Umkreis 50 km") natively
+        # via the search box. Including it heavily degrades the search quality and limits 
+        # results artificially. If true radius search is needed, we would need to drive 
+        # the map viewport coordinates directly. For now, we drop it to restore normal 
+        # maximum yield for the base query.
+        
         return " ".join(filter(None, parts))
 
 
@@ -1819,4 +1846,4 @@ class GoogleMapsScraper:
                 record.city = city_m
 
 
-# 1.1.0 Beta5.1
+# 1.1.0 Beta6
