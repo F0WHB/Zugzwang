@@ -708,18 +708,19 @@ class MonitorPage(QWidget):
 
     def _ui_cancelled(self):
         self._status_line.setText(tr("monitor.status_line.cancelled", self._language))
-        self._status_line.setStyleSheet("color: #FF9F0A; font-family: '-apple-system', sans-serif; font-size: 12px;")
-        self._session_state.setText("IDLE")
-        self._session_state.setStyleSheet("color: #FF9F0A; font-family: 'PT Root UI', monospace; font-size: 10px; font-weight: 600;")
-        self._status_badge.setText(tr("monitor.status.idle", self._language))
-        self._status_badge.setStyleSheet("color: #FF9F0A; background: #2C2C2E; border-radius: 6px; padding: 4px 10px; font-family: 'PT Root UI', monospace; font-size: 10px; font-weight: 600;")
+        self._status_line.setStyleSheet("color: #FF453A; font-family: '-apple-system', sans-serif; font-size: 12px; font-weight: 500;")
+        self._session_state.setText("STOPPED")
+        self._session_state.setStyleSheet("color: #FF453A; font-family: 'PT Root UI', monospace; font-size: 10px; font-weight: 600;")
+        self._status_badge.setText("STOPPED")
+        self._status_badge.setStyleSheet("color: #FF453A; background: rgba(255,69,58,0.15); border-radius: 6px; padding: 4px 10px; font-family: 'PT Root UI', monospace; font-size: 10px; font-weight: 600;")
 
-        self._snapshot_source_value.setText("-")
-        self._snapshot_city_value.setText("-")
-        self._snapshot_limit_value.setText("-")
-        self._snapshot_updated_value.setText("-")
-        self._snapshot_event_value.setText("No activity yet.")
+        self._snapshot_updated_value.setText(time.strftime("%H:%M:%S"))
+        self._snapshot_event_value.setText("Scraping stopped. Data collected so far was saved.")
         self._progress_label.setText(tr("monitor.progress.cancelled", self._language))
+        if self._job_start_time > 0:
+            elapsed = time.monotonic() - self._job_start_time
+            self._elapsed_value.setText(f"{tr('monitor.label.elapsed', self._language)} {self._format_time(elapsed, fixed=True)}")
+        self._remaining_value.setText(f"{tr('monitor.label.remaining', self._language)} —")
         self._btn_more.setEnabled(bool(self._current_config))
         self._btn_pause.setEnabled(False)
         self._btn_resume.setEnabled(False)
@@ -885,6 +886,10 @@ class MonitorPage(QWidget):
         self._btn_resume.setEnabled(False)
 
     def _cancel(self):
+        was_running = orchestrator.is_running and not self._is_paused
+        if was_running:
+            orchestrator.pause_job()
+
         from .components import ZugzwangDialog
         msg = ZugzwangDialog(
             tr("monitor.dialog.stop.title", self._language),
@@ -892,10 +897,11 @@ class MonitorPage(QWidget):
             self.window(),
             destructive=True
         )
-        # Non-blocking: connect accepted signal *before* open() so the
-        # dialog returns immediately and never stalls the main event loop.
-        msg.accepted.connect(orchestrator.cancel_job)
-        msg.open()
+        if msg.exec():
+            orchestrator.cancel_job()
+        else:
+            if was_running and orchestrator.is_running:
+                orchestrator.resume_job()
 
     def _on_log_scrolled(self, value):
         scrollbar = self._log_tail.verticalScrollBar()

@@ -205,7 +205,6 @@ class ScrapingOrchestrator:
         if self._current_job:
             self._current_job.status = ScrapingStatus.CANCELLED
             event_bus.emit(event_bus.JOB_CANCELLED, job_id=self._current_job.id)
-            self.persist_current_job()
             logger.info(f"Job cancelled: {self._current_job.id}")
 
     def export_results(
