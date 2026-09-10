@@ -320,6 +320,7 @@ class FilterMenu(QFrame):
         # Add Scroll Area
         self.scroll_area = QScrollArea(self.container)
         self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.scroll_area.setFrameShape(QFrame.NoFrame)
         self.scroll_area.setStyleSheet("""
             QScrollArea { background: transparent; border: none; }
