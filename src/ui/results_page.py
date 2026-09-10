@@ -317,9 +317,32 @@ class FilterMenu(QFrame):
         self.main_layout.setContentsMargins(0, 0, 0, 0)
         self.main_layout.addWidget(self.container)
         
-        self.content_layout = QVBoxLayout(self.container)
+        # Add Scroll Area
+        self.scroll_area = QScrollArea(self.container)
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setFrameShape(QFrame.NoFrame)
+        self.scroll_area.setStyleSheet("""
+            QScrollArea { background: transparent; border: none; }
+            QScrollBar:vertical { background: transparent; width: 6px; margin: 0; }
+            QScrollBar::handle:vertical { background: rgba(255,255,255,0.15); border-radius: 3px; min-height: 40px; }
+            QScrollBar::handle:vertical:hover { background: rgba(255,255,255,0.25); }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
+        """)
+        
+        self.scroll_widget = QWidget()
+        self.scroll_widget.setStyleSheet("background: transparent;")
+        
+        self.content_layout = QVBoxLayout(self.scroll_widget)
         self.content_layout.setContentsMargins(0, 6, 0, 6)
         self.content_layout.setSpacing(0)
+        
+        self.scroll_area.setWidget(self.scroll_widget)
+        
+        self.container_layout = QVBoxLayout(self.container)
+        self.container_layout.setContentsMargins(0, 0, 0, 0)
+        self.container_layout.addWidget(self.scroll_area)
+        
+        self.setMaximumHeight(500)
         
         # Shadow
         shadow = QGraphicsDropShadowEffect(self)
