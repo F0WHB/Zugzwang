@@ -492,8 +492,8 @@ class SettingsPage(QWidget):
         lic_card = QFrame()
         lic_card.setObjectName("LicCard")
         lic_card.setStyleSheet(
-            "QFrame#LicCard { background: rgba(48, 209, 88, 0.07); "
-            "border: 1px solid rgba(48, 209, 88, 0.18); border-radius: 12px; }"
+            "QFrame#LicCard { background: rgba(48, 209, 88, 0.05); "
+            "border: 1px solid rgba(48, 209, 88, 0.12); border-radius: 12px; }"
         )
         lic_hl = QHBoxLayout(lic_card); lic_hl.setContentsMargins(16, 12, 16, 12); lic_hl.setSpacing(12)
         
@@ -502,7 +502,7 @@ class SettingsPage(QWidget):
         lic_hl.addWidget(l_ic)
         
         lic_lt = QVBoxLayout(); lic_lt.setSpacing(2); lic_lt.setContentsMargins(0, 0, 0, 0)
-        lic_lbl = QLabel(tr("settings.license.title", self._language))
+        lic_lbl = QLabel(tr("settings.license.title", self._language).upper())
         lic_lbl.setStyleSheet("color: rgba(48, 209, 88, 0.95); font-size: 10px; font-weight: 800; letter-spacing: 1px;")
         self._lic_desc_card4 = QLabel(tr("Loading...", self._language)); self._lic_desc_card4.setStyleSheet("color: #8E8E93; font-size: 11px; background: transparent;")
         lic_lt.addWidget(lic_lbl); lic_lt.addWidget(self._lic_desc_card4)
@@ -526,6 +526,7 @@ class SettingsPage(QWidget):
             QPushButton:pressed { background-color: #2C2C2E; }
         """)
         self._btn_deactivate_card4.clicked.connect(self._reset_to_trial)
+        self._btn_deactivate_card4.setStyle(QStyleFactory.create("Fusion"))
         lic_hl.addWidget(self._btn_deactivate_card4)
 
         self._btn_activate_card4 = _QPBtn(tr("settings.button.activate", self._language).upper())
@@ -545,6 +546,7 @@ class SettingsPage(QWidget):
             QPushButton:hover { background-color: #144C2A; color: #4CD964; }
             QPushButton:pressed { background-color: #0F3A20; }
         """)
+        self._btn_activate_card4.setStyle(QStyleFactory.create("Fusion"))
         lic_hl.addWidget(self._btn_activate_card4)
         vl.addWidget(lic_card)
 
@@ -828,8 +830,8 @@ class SettingsPage(QWidget):
         update_card = QFrame()
         update_card.setObjectName("UpdateCard")
         update_card.setStyleSheet(
-            "QFrame#UpdateCard { background: rgba(10, 132, 255, 0.07); "
-            "border: 1px solid rgba(10, 132, 255, 0.18); border-radius: 12px; }"
+            "QFrame#UpdateCard { background: rgba(10, 132, 255, 0.05); "
+            "border: 1px solid rgba(10, 132, 255, 0.12); border-radius: 12px; }"
         )
         update_hl = QHBoxLayout(update_card)
         update_hl.setContentsMargins(16, 12, 16, 12)
@@ -840,14 +842,14 @@ class SettingsPage(QWidget):
         update_hl.addWidget(u_ic)
 
         utxt = QVBoxLayout(); utxt.setSpacing(2); utxt.setContentsMargins(0, 0, 0, 0)
-        uh = QLabel(tr("settings.update.title", self._language)); uh.setStyleSheet("color: rgba(10, 132, 255, 0.95); font-size: 10px; font-weight: 800; letter-spacing: 1px;")
+        uh = QLabel(tr("settings.update.title", self._language).upper()); uh.setStyleSheet("color: rgba(10, 132, 255, 0.95); font-size: 10px; font-weight: 800; letter-spacing: 1px;")
         ub = QLabel(tr("settings.update.desc", self._language))
         ub.setStyleSheet("color: #8E8E93; font-size: 11px;")
         utxt.addWidget(uh); utxt.addWidget(ub)
         update_hl.addLayout(utxt, 1)
 
         class _Btn(_QPBtn): pass
-        self._check_update_btn = _Btn(tr("settings.update.button", self._language))
+        self._check_update_btn = _Btn(tr("settings.update.button", self._language).upper())
         self._check_update_btn.setMinimumSize(160, 40)
         self._check_update_btn.setCursor(Qt.PointingHandCursor)
         self._check_update_btn.setStyleSheet("""
@@ -865,6 +867,8 @@ class SettingsPage(QWidget):
             _Btn:pressed { background-color: #0A2540; }
         """)
         self._check_update_btn.clicked.connect(self._trigger_update_check)
+        from PySide6.QtWidgets import QStyleFactory
+        self._check_update_btn.setStyle(QStyleFactory.create("Fusion"))
         update_hl.addWidget(self._check_update_btn)
 
         vl.addWidget(update_card)
