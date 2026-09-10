@@ -504,8 +504,8 @@ class SettingsPage(QWidget):
         
         lic_lt = QVBoxLayout(); lic_lt.setSpacing(2); lic_lt.setContentsMargins(0, 0, 0, 0)
         lic_lbl = QLabel(tr("settings.license.title", self._language).upper())
-        lic_lbl.setStyleSheet("color: rgba(48, 209, 88, 0.95); font-size: 10px; font-weight: 800; letter-spacing: 1px;")
-        self._lic_desc_card4 = QLabel(tr("Loading...", self._language)); self._lic_desc_card4.setStyleSheet("color: #8E8E93; font-size: 11px; background: transparent;")
+        lic_lbl.setStyleSheet("color: rgba(48, 209, 88, 0.95); font-family: 'PT Root UI', sans-serif; font-size: 10px; font-weight: 800; letter-spacing: 1px;")
+        self._lic_desc_card4 = QLabel(tr("Loading...", self._language)); self._lic_desc_card4.setStyleSheet("color: #8E8E93; font-family: 'PT Root UI', sans-serif; font-size: 11px; background: transparent;")
         lic_lt.addWidget(lic_lbl); lic_lt.addWidget(self._lic_desc_card4)
         lic_hl.addLayout(lic_lt, 1)
 
@@ -518,9 +518,11 @@ class SettingsPage(QWidget):
                 border: none;
                 border-radius: 10px;
                 color: #8E8E93;
+                font-family: 'PT Root UI', sans-serif;
                 font-size: 11px;
                 font-weight: 700;
                 letter-spacing: 1.4px;
+                text-transform: uppercase;
                 padding: 0 12px;
             }
             QPushButton:hover { background-color: #3A3A3C; color: #E5E5EA; }
@@ -539,9 +541,11 @@ class SettingsPage(QWidget):
                 border: none;
                 border-radius: 10px;
                 color: #30D158;
+                font-family: 'PT Root UI', sans-serif;
                 font-size: 11px;
                 font-weight: 700;
                 letter-spacing: 1.4px;
+                text-transform: uppercase;
                 padding: 0 12px;
             }
             QPushButton:hover { background-color: #144C2A; color: #4CD964; }
@@ -631,6 +635,7 @@ class SettingsPage(QWidget):
             _Btn {
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #0A84FF, stop:1 #0070E0);
                 border: none; border-radius: 8px; color: white;
+                font-family: 'PT Root UI', sans-serif;
                 font-size: 11px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase;
                 padding: 0 16px;
                 text-align: center;
@@ -648,6 +653,7 @@ class SettingsPage(QWidget):
             _Btn {
                 background-color: transparent; border: 1.5px solid #3A3A3C;
                 border-radius: 8px; color: #8E8E93;
+                font-family: 'PT Root UI', sans-serif;
                 font-size: 11px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase;
             }
             _Btn:hover { color: white; border-color: #48484A; background: rgba(255,255,255,0.03); }
@@ -672,8 +678,8 @@ class SettingsPage(QWidget):
         cache_hl.addWidget(c_ic)
 
         ctxt = QVBoxLayout(); ctxt.setSpacing(2); ctxt.setContentsMargins(0, 0, 0, 0)
-        ch = QLabel(tr("settings.appdata.title", self._language)); ch.setStyleSheet("color: rgba(255, 159, 10, 0.95); font-size: 10px; font-weight: 800; letter-spacing: 1px;")
-        cb = QLabel(tr("settings.appdata.desc", self._language)); cb.setStyleSheet("color: #8E8E93; font-size: 11px;")
+        ch = QLabel(tr("settings.appdata.title", self._language)); ch.setStyleSheet("color: rgba(255, 159, 10, 0.95); font-family: 'PT Root UI', sans-serif; font-size: 10px; font-weight: 800; letter-spacing: 1px;")
+        cb = QLabel(tr("settings.appdata.desc", self._language)); cb.setStyleSheet("color: #8E8E93; font-family: 'PT Root UI', sans-serif; font-size: 11px;")
         ctxt.addWidget(ch); ctxt.addWidget(cb)
         cache_hl.addLayout(ctxt, 1)
 
@@ -686,6 +692,7 @@ class SettingsPage(QWidget):
                 border: none;
                 border-radius: 10px;
                 color: #FFB340;
+                font-family: 'PT Root UI', sans-serif;
                 font-size: 11px;
                 font-weight: 700;
                 letter-spacing: 1.4px;
@@ -712,8 +719,8 @@ class SettingsPage(QWidget):
         danger_hl.addWidget(d_ic)
 
         dtxt = QVBoxLayout(); dtxt.setSpacing(2); dtxt.setContentsMargins(0, 0, 0, 0)
-        dh = QLabel(tr("settings.db.title", self._language)); dh.setStyleSheet("color: rgba(255, 69, 58, 0.9); font-size: 10px; font-weight: 800; letter-spacing: 1px;")
-        db = QLabel(tr("settings.db.desc", self._language)); db.setStyleSheet("color: #8E8E93; font-size: 11px;")
+        dh = QLabel(tr("settings.db.title", self._language)); dh.setStyleSheet("color: rgba(255, 69, 58, 0.9); font-family: 'PT Root UI', sans-serif; font-size: 10px; font-weight: 800; letter-spacing: 1px;")
+        db = QLabel(tr("settings.db.desc", self._language)); db.setStyleSheet("color: #8E8E93; font-family: 'PT Root UI', sans-serif; font-size: 11px;")
         dtxt.addWidget(dh); dtxt.addWidget(db)
         danger_hl.addLayout(dtxt, 1)
 
@@ -726,6 +733,7 @@ class SettingsPage(QWidget):
                 border: none;
                 border-radius: 10px;
                 color: #FF453A;
+                font-family: 'PT Root UI', sans-serif;
                 font-size: 12px;
                 font-weight: 700;
                 letter-spacing: 1.8px;
@@ -843,9 +851,9 @@ class SettingsPage(QWidget):
         update_hl.addWidget(u_ic)
 
         utxt = QVBoxLayout(); utxt.setSpacing(2); utxt.setContentsMargins(0, 0, 0, 0)
-        uh = QLabel(tr("settings.update.title", self._language).upper()); uh.setStyleSheet("color: rgba(10, 132, 255, 0.95); font-size: 10px; font-weight: 800; letter-spacing: 1px;")
+        uh = QLabel(tr("settings.update.title", self._language).upper()); uh.setStyleSheet("color: rgba(10, 132, 255, 0.95); font-family: 'PT Root UI', sans-serif; font-size: 10px; font-weight: 800; letter-spacing: 1px;")
         ub = QLabel(tr("settings.update.desc", self._language))
-        ub.setStyleSheet("color: #8E8E93; font-size: 11px;")
+        ub.setStyleSheet("color: #8E8E93; font-family: 'PT Root UI', sans-serif; font-size: 11px;")
         utxt.addWidget(uh); utxt.addWidget(ub)
         update_hl.addLayout(utxt, 1)
 
@@ -859,9 +867,11 @@ class SettingsPage(QWidget):
                 border: none;
                 border-radius: 10px;
                 color: #0A84FF;
+                font-family: 'PT Root UI', sans-serif;
                 font-size: 11px;
                 font-weight: 700;
                 letter-spacing: 1.4px;
+                text-transform: uppercase;
                 padding: 0 12px;
             }
             _Btn:hover { background-color: #0D3060; color: #4DA6FF; }
