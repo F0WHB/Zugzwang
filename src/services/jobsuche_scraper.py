@@ -2396,11 +2396,17 @@ class JobsucheScraper:
 
         try:
             cookies = await page.context.cookies()
+            ua = ""
+            try:
+                ua = await page.evaluate("() => navigator.userAgent")
+            except Exception:
+                pass
             event_bus.emit(
                 event_bus.SOLVER_REQUESTED,
                 job_id=self.job_id,
                 url=page.url,
                 cookies=cookies,
+                user_agent=ua,
             )
 
             try:

@@ -965,10 +965,20 @@ class MainWindow(FramelessWindow):
 
         async def solver_task():
             from playwright.async_api import async_playwright
+            from ..services.browser_installer import configure_browsers_path
+            configure_browsers_path()
             final_cookies = list(cookies or [])
             try:
                 async with async_playwright() as p:
-                    browser = await p.chromium.launch(headless=False)
+                    launch_args = [
+                        "--disable-blink-features=AutomationControlled",
+                        "--no-sandbox",
+                        "--disable-infobars",
+                    ]
+                    browser = await p.chromium.launch(
+                        headless=False,
+                        args=launch_args
+                    )
 
                     context_kwargs = {}
                     if user_agent:
@@ -982,6 +992,7 @@ class MainWindow(FramelessWindow):
                     page.set_default_timeout(0) # No timeout for manual solving
                     try:
                         await page.goto(url, wait_until="domcontentloaded")
+                        await page.bring_to_front()
                     except Exception as e:
                         logger.warning(f"[{job_id}] Headed solver navigation aborted: {e}")
                         return
@@ -1018,11 +1029,13 @@ class MainWindow(FramelessWindow):
                                 captcha_seen_once = True
                                 clear_checks = 0
                             else:
-                                if captcha_seen_once and (asyncio.get_running_loop().time() - solver_started_at) >= 4.0:
+                                elapsed = asyncio.get_running_loop().time() - solver_started_at
+                                if (captcha_seen_once and elapsed >= 2.0) or (not captcha_seen_once and elapsed >= 5.0):
                                     clear_checks += 1
                                 else:
                                     clear_checks = 0
-                            if captcha_seen_once and clear_checks >= 2:
+                            if clear_checks >= 2:
+                                logger.info(f"[{job_id}] Headed solver detected challenge resolved.")
                                 break
                         except Exception:
                             pass

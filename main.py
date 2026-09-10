@@ -357,12 +357,13 @@ def main():
     window = MainWindow()
     window.show() # Initialization-level maximization handled inside MainWindow.showEvent
 
-    # 3. Dynamic Diagnostics (Freeze Watchdog & Contention Monitoring)
-    try:
-        from src.diagnostics import install_diagnostics
-        install_diagnostics(app)
-    except Exception as e:
-        print(f"Warning: Could not install diagnostics: {e}")
+    # 3. Dynamic Diagnostics (Freeze Watchdog & Contention Monitoring - Debug only)
+    if os.environ.get("ZUGZWANG_DEBUG", "").lower() in ("1", "true"):
+        try:
+            from src.diagnostics import install_diagnostics
+            install_diagnostics(app)
+        except Exception as e:
+            print(f"Warning: Could not install diagnostics: {e}")
 
     # 4. Start Background Services
     try:

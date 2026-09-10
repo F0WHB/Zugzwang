@@ -46,20 +46,15 @@ def _heartbeat_slot():
 
 def _watchdog_loop(main_thread_id):
     while True:
-        time.sleep(0.5)
+        time.sleep(1.0)
         now = time.time()
         elapsed = now - _last_heartbeat
         
-        if elapsed > 1.5:
-            # Main thread is stale
-            frame = sys._current_frames().get(main_thread_id)
-            stack = ""
-            if frame:
-                stack = "".join(traceback.format_stack(frame))
+        if elapsed > 3.0:
             _log(
                 "HEARTBEAT", 
                 "WATCHDOG", 
-                f"Main thread frozen for {elapsed:.2f}s.\nTraceback:\n{stack}",
+                f"Main thread delay detected: {elapsed:.2f}s",
                 "freeze_watchdog.log"
             )
 
@@ -144,9 +139,6 @@ def _monitored_connect(*args, **kwargs):
     conn = _original_connect(*args, **kwargs)
     return MonitoredConnection(conn)
 
-# Monkey-patch sqlite3
-sqlite3.connect = _monitored_connect
-
 
 # ── 4. PLAYWRIGHT / ASYNCIO BRIDGE CHECK ─────────────────────────────────
 _original_asyncio_run = asyncio.run
@@ -163,8 +155,6 @@ def _monitored_asyncio_run(*args, **kwargs):
         _log("ASYNCIO", "BRIDGE", f"CRITICAL: asyncio.run() on main Qt thread! Caller: {caller_info}")
     return _original_asyncio_run(*args, **kwargs)
 
-asyncio.run = _monitored_asyncio_run
-
 _original_run_until_complete = asyncio.BaseEventLoop.run_until_complete
 
 def _monitored_run_until_complete(self, *args, **kwargs):
@@ -179,7 +169,11 @@ def _monitored_run_until_complete(self, *args, **kwargs):
         _log("ASYNCIO", "BRIDGE", f"CRITICAL: loop.run_until_complete() on main Qt thread! Caller: {caller_info}")
     return _original_run_until_complete(self, *args, **kwargs)
 
-asyncio.BaseEventLoop.run_until_complete = _monitored_run_until_complete
+
+def _apply_patches():
+    sqlite3.connect = _monitored_connect
+    asyncio.run = _monitored_asyncio_run
+    asyncio.BaseEventLoop.run_until_complete = _monitored_run_until_complete
 
 
 # ── 5. MEMORY + CPU SNAPSHOT ──────────────────────────────────────────────
@@ -272,9 +266,13 @@ _timer = None
 
 def install_diagnostics(app: QCoreApplication):
     """
-    Installs all runtime diagnostics. 
-    Call this once in your main entry point before app.exec().
+    Installs runtime diagnostics when ZUGZWANG_DEBUG=1.
     """
+    import os
+    if os.environ.get("ZUGZWANG_DEBUG", "").lower() not in ("1", "true"):
+        return
+
+    _apply_patches()
     global _timer
     
     # Needs to be called from the main thread

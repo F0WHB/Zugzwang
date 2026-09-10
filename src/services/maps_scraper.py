@@ -1415,13 +1415,19 @@ class GoogleMapsScraper:
         try:
             # 1. Capture current session state
             cookies = await page.context.cookies()
+            ua = ""
+            try:
+                ua = await page.evaluate("() => navigator.userAgent")
+            except Exception:
+                pass
             
             # 2. Emit solver request
             event_bus.emit(
                 event_bus.SOLVER_REQUESTED, 
                 job_id=self.job_id, 
                 url=page.url, 
-                cookies=cookies
+                cookies=cookies,
+                user_agent=ua,
             )
             
             # 3. Wait for solver completion (10 minute limit)

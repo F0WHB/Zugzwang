@@ -5,9 +5,12 @@ between scraping services and the UI layer.
 """
 
 from __future__ import annotations
+import logging
 import threading
 from collections import defaultdict
 from typing import Any, Callable
+
+logger = logging.getLogger(__name__)
 
 
 class EventBus:
@@ -61,7 +64,7 @@ class EventBus:
             try:
                 cb(**data)
             except Exception as e:
-                pass  # Individual handler failures must not propagate
+                logger.error(f"Error in event handler {getattr(cb, '__name__', str(cb))} for {event}: {e}")
 
 
 # Global event bus instance

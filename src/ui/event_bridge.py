@@ -124,8 +124,8 @@ class EventBridge(QObject):
     def _on_captcha_challenge(self, job_id: str, image_bytes: bytes, **k):
         self.captcha_challenge.emit(job_id, image_bytes)
 
-    def _on_solver_requested(self, job_id: str, url: str, cookies: list, user_agent: str, **k):
-        self.solver_requested.emit(job_id, url, cookies, user_agent)
+    def _on_solver_requested(self, job_id: str, url: str, cookies: list = None, user_agent: str = "", **k):
+        self.solver_requested.emit(job_id, url, cookies or [], user_agent or "")
 
     def _on_trial_limit_reached(self, job_id: str, **k):
         self.trial_limit_reached.emit(job_id)
