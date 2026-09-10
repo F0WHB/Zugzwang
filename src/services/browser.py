@@ -143,30 +143,26 @@ class BrowserSession:
         if not self._browser:
             logger.info(f"[{self.job_id}] Launching local {engine}...")
             # Handle local browser launch (fallback cases or direct selection)
+            chromium_args = [
+                "--no-sandbox",
+                "--disable-blink-features=AutomationControlled",
+                "--disable-dev-shm-usage",
+                "--disable-gpu",
+                "--disable-background-networking",
+                "--disable-background-timer-throttling",
+                "--disable-renderer-backgrounding",
+                "--disable-features=Translate,BackForwardCache",
+                "--disable-extensions",
+                "--mute-audio",
+                "--start-maximized",
+            ]
+            if sys.platform.startswith("linux"):
+                chromium_args.append("--disable-setuid-sandbox")
+
             launch_kwargs = {
                 "headless": self.settings.default_headless,
-                "args": [
-                    "--no-sandbox",
-                    "--disable-blink-features=AutomationControlled",
-                    "--disable-dev-shm-usage",
-                    "--disable-gpu",
-                    "--disable-background-networking",
-                    "--disable-background-timer-throttling",
-                    "--disable-renderer-backgrounding",
-                    "--disable-features=Translate,BackForwardCache",
-                    "--disable-extensions",
-                    "--mute-audio",
-                    "--start-maximized",
-                    # RAM Optimization - Unified & Safer
-                    "--js-flags='--max-old-space-size=512'", # Limit JS heap
-                    "--disable-dev-shm-usage",
-                    "--disable-setuid-sandbox" if sys.platform != "win32" else "",
-                    "--no-zygote" if sys.platform != "win32" else "",
-                    "--single-process" if sys.platform != "win32" else "", # Experimental/Unstable on Win
-                ],
+                "args": chromium_args,
             }
-            # Clean up empty strings
-            launch_kwargs["args"] = [a for a in launch_kwargs["args"] if a]
 
             if engine in ["chrome", "msedge"]:
                 launch_kwargs["channel"] = engine

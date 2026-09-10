@@ -478,6 +478,9 @@ class GoogleMapsScraper:
                 await self.session.rate_limiter.wait()
 
         except BrowserError as e:
+            if "Target page, context or browser has been closed" in str(e):
+                logger.info(f"[{self.job_id}] Browser or page was closed. Stopping job gracefully.")
+                return
             logger.error(f"[{self.job_id}] Scraper encountered BrowserError: {e}")
             await self.session.screenshot_on_failure(page, "browser_error")
             raise
@@ -1144,7 +1147,21 @@ class GoogleMapsScraper:
         except Exception:
             query = ""
 
-        # 1. Native UI search submission (pressing Enter)
+        # 1. Try clicking the search button if visible (fastest and most reliable on Maps)
+        try:
+            search_btn = page.locator(
+                'button[jsaction*="omnibox.search"], button[jsaction*="search"], '
+                'button[aria-label*="Such"], button[aria-label*="Search"], button#searchbox-searchbutton'
+            ).first
+            if await search_btn.is_visible(timeout=1000):
+                await search_btn.click(timeout=2000, force=True)
+                if await self._wait_for_search_submission(page, timeout_ms=6_000):
+                    logger.info(f"[{self.job_id}] Search submitted via search button click.")
+                    return
+        except Exception:
+            pass
+
+        # 2. Native UI search submission (pressing Enter)
         try:
             await search_input.press("Enter")
             if await self._wait_for_search_submission(page, timeout_ms=5_000):
@@ -1153,12 +1170,11 @@ class GoogleMapsScraper:
         except Exception:
             pass
 
-        # 2. Try clicking the search button
+        # 2b. Global keyboard Enter
         try:
-            search_btn = page.locator('button#searchbox-searchbutton, button[aria-label*="Suche"], button[aria-label*="Search"], button[jsaction*="search"]').first
-            await search_btn.click(timeout=2000, force=True)
-            if await self._wait_for_search_submission(page, timeout_ms=5_000):
-                logger.info(f"[{self.job_id}] Search submitted via search button click.")
+            await page.keyboard.press("Enter")
+            if await self._wait_for_search_submission(page, timeout_ms=4_000):
+                logger.info(f"[{self.job_id}] Search submitted via page keyboard Enter.")
                 return
         except Exception:
             pass
@@ -1170,10 +1186,14 @@ class GoogleMapsScraper:
             try:
                 await page.goto(search_url, wait_until="domcontentloaded", timeout=15000)
             except Exception as e:
+                if "Target page, context or browser has been closed" in str(e) or page.is_closed():
+                    raise
                 logger.warning(f"[{self.job_id}] Direct navigation to Maps search URL failed: {e}")
-                pass
             if await self._wait_for_search_submission(page, timeout_ms=8_000):
                 return
+
+        if page.is_closed():
+            raise BrowserError("Target page, context or browser has been closed")
 
         raise BrowserError("Maps search submission did not trigger.")
 
@@ -1181,6 +1201,8 @@ class GoogleMapsScraper:
         """Detect whether Maps actually accepted the submitted search."""
         deadline = asyncio.get_running_loop().time() + (timeout_ms / 1000)
         while asyncio.get_running_loop().time() < deadline:
+            if page.is_closed():
+                return False
             try:
                 url = (page.url or "").lower()
                 if "google.com/sorry" in url or "consent.google." in url:
@@ -1196,8 +1218,9 @@ class GoogleMapsScraper:
                 # falsely trigger this condition before the search even executes.
                 if await page.locator('div[role="feed"]').count() > 0:
                     return True
-            except Exception:
-                pass
+            except Exception as e:
+                if "Target page, context or browser has been closed" in str(e):
+                    return False
             await asyncio.sleep(0.2)
         return False
 
@@ -1397,15 +1420,16 @@ class GoogleMapsScraper:
         return
 
     async def _capture_search_response(self, response: Any) -> None:
-
         try:
-
+            url = response.url or ""
+            if not any(k in url for k in ("/search?", "/rpc/", "tbm=map", "/place/")):
+                return
+            content_type = (response.headers.get("content-type") or "").lower()
+            if any(t in content_type for t in ("image", "font", "css", "audio", "video")):
+                return
             payload = await response.text()
-
             self._ingest_search_payload(payload)
-
         except Exception:
-
             pass
 
 
