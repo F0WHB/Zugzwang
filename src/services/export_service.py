@@ -478,4 +478,4 @@ class ExportService:
 
         return records
 
-# 1.1.0 Beta6
+# 1.1.0

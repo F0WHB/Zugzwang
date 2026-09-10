@@ -57,9 +57,9 @@ Get the latest installer from the **[Releases Page](https://github.com/whbexc/Zu
 
 | Platform | Download | Instructions |
 | :--- | :--- | :--- |
-| **🪟 Windows** | `ZUGZWANG_Setup_1.1.0 Beta6.exe` | Run the installer and launch from your Start Menu. |
-| **🍎 macOS** | `ZUGZWANG_macOS_1.1.0 Beta6.zip` | Unzip, drag `ZUGZWANG.app` to **Applications**, and run the Gatekeeper command below. |
-| **🐧 Linux** | `ZUGZWANG_Linux_1.1.0 Beta6.tar.gz` | Extract archive and run `./ZUGZWANG`. |
+| **🪟 Windows** | `ZUGZWANG_Setup_1.1.0.exe` | Run the installer and launch from your Start Menu. |
+| **🍎 macOS** | `ZUGZWANG_macOS_1.1.0.zip` | Unzip, drag `ZUGZWANG.app` to **Applications**, and run the Gatekeeper command below. |
+| **🐧 Linux** | `ZUGZWANG_Linux_1.1.0.tar.gz` | Extract archive and run `./ZUGZWANG`. |
 
 > [!NOTE]  
 > **macOS First-Time Setup (Ad-Hoc Signing):**  
@@ -210,4 +210,4 @@ See full version history and release notes in the in-app **What's New** dialog o
 
 Copyright &copy; 2026 ZUGZWANG. All rights reserved.  
 ZUGZWANG is designed for legitimate recruitment, job searching, and business contact outreach. Users are responsible for complying with relevant local regulations (including GDPR and anti-spam laws) regarding unsolicited commercial communications.
-<!-- 1.1.0 Beta6 -->
+<!-- 1.1.0 -->

@@ -20,7 +20,7 @@ _ADMIN_OVERRIDE_SEED_HASH = "b216dd4a3e0a43535b926069a969d261270205d5893e03d8b63
 _SALT_HASH                = "4848e7c8d786a16987ec133df5b7da6e4abe69460060d099bdfd90279cd9ec96"
 
 MAX_FREE_TRIAL_SCRAPS = 20
-MAX_FREE_TRIAL_PDFS = 5
+MAX_FREE_TRIAL_PDFS = 20
 MAX_FREE_TRIAL_EMAILS = 20
 
 class LicenseManager:
@@ -367,4 +367,4 @@ class LicenseManager:
             current_count = config_manager.settings.trial_email_count
             config_manager.update(trial_email_count=current_count + count)
 
-# 1.1.0 Beta6
+# 1.1.0

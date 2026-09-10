@@ -504,7 +504,7 @@ class FeedbackDialog(QDialog):
         layout.addWidget(support_title)
         layout.addSpacing(12)
         
-        self.donate_btn = QPushButton("Support with money")
+        self.donate_btn = QPushButton("Support the Developer ☕")
         self.donate_btn.setFixedHeight(44)
         self.donate_btn.setCursor(Qt.PointingHandCursor)
         self.donate_btn.setStyleSheet("""
@@ -1508,4 +1508,4 @@ class GlassToolTipFilter(QObject):
             self.tooltip.hide()
         return False
 
-# 1.1.0 Beta6
+# 1.1.0

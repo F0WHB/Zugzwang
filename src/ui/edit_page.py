@@ -52,7 +52,7 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Optional
 
-from PySide6.QtCore import Qt, QTimer, QSize, Signal, QCoreApplication, QStandardPaths, QUrl, QThread, QEvent, QPoint
+from PySide6.QtCore import Qt, QTimer, QSize, Signal, QCoreApplication, QStandardPaths, QUrl, QThread, QEvent, QPoint, QMimeData
 from PySide6.QtGui import (
     QDesktopServices,
     QGuiApplication,
@@ -64,6 +64,7 @@ from PySide6.QtGui import (
     QKeySequence,
     QShortcut,
     QPalette,
+    QDrag,
 )
 from PySide6.QtWidgets import (
     QDialog,
@@ -86,8 +87,11 @@ from PySide6.QtWidgets import (
     QSplitter,
     QSpacerItem,
     QGraphicsOpacityEffect,
+    QGraphicsDropShadowEffect,
     QScrollBar,
     QStackedWidget,
+    QStyledItemDelegate,
+    QStyle,
 )
 from .toast_system import ToastNotification as InfoBar
 from qfluentwidgets import LineEdit, PushButton, InfoBarPosition, CaptionLabel, FluentIcon, IconWidget, Action
@@ -745,6 +749,807 @@ class CustomSplitterHandle(QSplitterHandle):
         painter = QPainter(self)
         painter.fillRect(self.rect(), QColor(0, 0, 0, 0))
 
+
+def _human_filesize(num_bytes: int) -> str:
+    for unit in ["B", "KB", "MB", "GB"]:
+        if abs(num_bytes) < 1024.0:
+            return f"{num_bytes:.1f} {unit}" if unit != "B" else f"{num_bytes} B"
+        num_bytes /= 1024.0
+    return f"{num_bytes:.1f} TB"
+
+
+class ZeugnisCard(QFrame):
+    """Pro Apple-style card representing a single certificate PDF."""
+
+    move_up_requested = Signal(int)
+    move_down_requested = Signal(int)
+    remove_requested = Signal(int)
+
+    def __init__(self, path_str: str, index: int, total_count: int, parent=None):
+        super().__init__(parent)
+        self.path_str = path_str
+        self.index = index
+        self.setObjectName("ZeugnisCard")
+        self.setFixedHeight(54)
+
+        self.setStyleSheet("""
+            QFrame#ZeugnisCard {
+                background: rgba(255, 255, 255, 0.04);
+                border: 1px solid rgba(255, 255, 255, 0.07);
+                border-radius: 10px;
+            }
+            QFrame#ZeugnisCard:hover {
+                background: rgba(255, 255, 255, 0.07);
+                border: 1px solid rgba(255, 255, 255, 0.13);
+            }
+        """)
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(12, 6, 10, 6)
+        layout.setSpacing(10)
+
+        # 1. Order Index Badge
+        self.idx_badge = QLabel(f"{index + 1}")
+        self.idx_badge.setFixedSize(22, 22)
+        self.idx_badge.setAlignment(Qt.AlignCenter)
+        self.idx_badge.setStyleSheet("""
+            QLabel {
+                background: rgba(255, 255, 255, 0.08);
+                color: #8E8E93;
+                font-family: 'SF Pro Text', 'PT Root UI', -apple-system, sans-serif;
+                font-size: 11px;
+                font-weight: 700;
+                border-radius: 6px;
+                border: none;
+            }
+        """)
+        layout.addWidget(self.idx_badge)
+
+        # 2. PDF Icon Chip (Apple Red/Coral accent)
+        icon_chip = QFrame()
+        icon_chip.setFixedSize(32, 32)
+        icon_chip.setStyleSheet("""
+            QFrame {
+                background: rgba(255, 69, 58, 0.12);
+                border: 1px solid rgba(255, 69, 58, 0.22);
+                border-radius: 7px;
+            }
+        """)
+        chip_layout = QVBoxLayout(icon_chip)
+        chip_layout.setContentsMargins(0, 0, 0, 0)
+        chip_layout.setAlignment(Qt.AlignCenter)
+
+        pdf_icon = IconWidget(FluentIcon.DOCUMENT)
+        pdf_icon.setFixedSize(16, 16)
+        pdf_icon.setStyleSheet("color: #FF453A; background: transparent; border: none;")
+        chip_layout.addWidget(pdf_icon, 0, Qt.AlignCenter)
+        layout.addWidget(icon_chip)
+
+        # 3. File Info (Title + Subtitle)
+        info_layout = QVBoxLayout()
+        info_layout.setSpacing(2)
+        info_layout.setContentsMargins(2, 0, 0, 0)
+
+        p = Path(path_str)
+        filename = p.name if path_str else "Untitled PDF"
+        file_exists = p.exists() if path_str else False
+
+        title_lbl = QLabel(filename)
+        title_lbl.setStyleSheet("""
+            color: #FFFFFF;
+            font-family: 'SF Pro Text', 'PT Root UI', -apple-system, sans-serif;
+            font-size: 13px;
+            font-weight: 600;
+            background: transparent;
+            border: none;
+        """)
+        title_lbl.setToolTip(path_str)
+        info_layout.addWidget(title_lbl)
+
+        # Size and status subtitle
+        size_str = ""
+        if file_exists:
+            try:
+                size_str = _human_filesize(p.stat().st_size)
+            except Exception:
+                size_str = "PDF Document"
+        else:
+            size_str = "File not found"
+
+        status_color = "#8E8E93" if file_exists else "#FF453A"
+        sub_lbl = QLabel(f"PDF • {size_str}")
+        sub_lbl.setStyleSheet(f"""
+            color: {status_color};
+            font-family: 'SF Pro Text', 'PT Root UI', -apple-system, sans-serif;
+            font-size: 11px;
+            font-weight: 400;
+            background: transparent;
+            border: none;
+        """)
+        info_layout.addWidget(sub_lbl)
+        layout.addLayout(info_layout, 1)
+
+        # 4. Action Buttons (Up, Down, Remove)
+        btn_layout = QHBoxLayout()
+        btn_layout.setSpacing(4)
+        btn_layout.setContentsMargins(0, 0, 0, 0)
+
+        btn_style = """
+            QPushButton {
+                background: rgba(255, 255, 255, 0.05);
+                border: 1px solid rgba(255, 255, 255, 0.07);
+                border-radius: 6px;
+                color: #AEAEB2;
+                font-family: 'SF Pro Text', 'PT Root UI', -apple-system, sans-serif;
+                font-size: 11px;
+                font-weight: 600;
+                padding: 0px;
+            }
+            QPushButton:hover {
+                background: rgba(255, 255, 255, 0.12);
+                border-color: rgba(255, 255, 255, 0.18);
+                color: #FFFFFF;
+            }
+            QPushButton:disabled {
+                background: transparent;
+                border-color: transparent;
+                color: rgba(255, 255, 255, 0.15);
+            }
+        """
+
+        self.up_btn = QPushButton("↑")
+        self.up_btn.setFixedSize(26, 26)
+        self.up_btn.setToolTip("Move Certificate Up")
+        self.up_btn.setCursor(Qt.PointingHandCursor)
+        self.up_btn.setStyleSheet(btn_style)
+        self.up_btn.setEnabled(index > 0)
+        self.up_btn.clicked.connect(lambda: self.move_up_requested.emit(self.index))
+        btn_layout.addWidget(self.up_btn)
+
+        self.down_btn = QPushButton("↓")
+        self.down_btn.setFixedSize(26, 26)
+        self.down_btn.setToolTip("Move Certificate Down")
+        self.down_btn.setCursor(Qt.PointingHandCursor)
+        self.down_btn.setStyleSheet(btn_style)
+        self.down_btn.setEnabled(index < total_count - 1)
+        self.down_btn.clicked.connect(lambda: self.move_down_requested.emit(self.index))
+        btn_layout.addWidget(self.down_btn)
+
+        self.rm_btn = QPushButton("✕")
+        self.rm_btn.setFixedSize(26, 26)
+        self.rm_btn.setToolTip("Remove Certificate")
+        self.rm_btn.setCursor(Qt.PointingHandCursor)
+        self.rm_btn.setStyleSheet("""
+            QPushButton {
+                background: rgba(255, 255, 255, 0.05);
+                border: 1px solid rgba(255, 255, 255, 0.07);
+                border-radius: 6px;
+                color: #8E8E93;
+                font-family: 'SF Pro Text', 'PT Root UI', -apple-system, sans-serif;
+                font-size: 11px;
+                font-weight: 600;
+                padding: 0px;
+            }
+            QPushButton:hover {
+                background: rgba(255, 69, 58, 0.15);
+                border-color: rgba(255, 69, 58, 0.3);
+                color: #FF453A;
+            }
+        """)
+        self.rm_btn.clicked.connect(lambda: self.remove_requested.emit(self.index))
+        btn_layout.addWidget(self.rm_btn)
+
+        layout.addLayout(btn_layout)
+
+
+class ZeugisseManagerDialog(QDialog):
+    """
+    Pro Apple-style modal dialog to manage, reorder, add and remove Zeugnisse certificate PDFs.
+    Designed to match macOS Pro Human Interface Guidelines and Zugzwang's dark aesthetic.
+    """
+
+    def __init__(self, paths: list[str], parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Manage Zeugnisse")
+        self._paths: list[str] = [p for p in paths if p]
+        self._drag_pos: Optional[QPoint] = None
+
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.Dialog)
+        self.setAttribute(Qt.WA_TranslucentBackground)
+        self.setMinimumSize(540, 440)
+        self.resize(560, 460)
+        self.setAcceptDrops(True)
+
+        if parent:
+            center = parent.geometry().center()
+            self.move(center.x() - self.width() // 2, center.y() - self.height() // 2)
+
+        # Root layout with padding for window drop shadow
+        root_layout = QVBoxLayout(self)
+        root_layout.setContentsMargins(14, 14, 14, 14)
+        root_layout.setSpacing(0)
+
+        # Main macOS glass/surface container
+        self.container = QFrame(self)
+        self.container.setObjectName("MainContainer")
+        self.container.setStyleSheet("""
+            QFrame#MainContainer {
+                background: #1E1E22;
+                border: 1px solid rgba(255, 255, 255, 0.12);
+                border-radius: 16px;
+            }
+        """)
+
+        # Drop shadow
+        shadow = QGraphicsDropShadowEffect(self.container)
+        shadow.setBlurRadius(28)
+        shadow.setColor(QColor(0, 0, 0, 160))
+        shadow.setOffset(0, 10)
+        self.container.setGraphicsEffect(shadow)
+
+        root_layout.addWidget(self.container)
+
+        # Inner container layout
+        inner_layout = QVBoxLayout(self.container)
+        inner_layout.setContentsMargins(22, 20, 22, 18)
+        inner_layout.setSpacing(14)
+
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        # 1. PRO APPLE HEADER
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        header_layout = QHBoxLayout()
+        header_layout.setContentsMargins(0, 0, 0, 0)
+        header_layout.setSpacing(14)
+
+        # Header Icon Chip (Red/Coral Certificate Badge)
+        icon_badge = QFrame()
+        icon_badge.setFixedSize(42, 42)
+        icon_badge.setStyleSheet("""
+            QFrame {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 rgba(255, 69, 58, 0.18), stop:1 rgba(255, 69, 58, 0.08));
+                border: 1px solid rgba(255, 69, 58, 0.28);
+                border-radius: 11px;
+            }
+        """)
+        ib_layout = QVBoxLayout(icon_badge)
+        ib_layout.setContentsMargins(0, 0, 0, 0)
+        ib_layout.setAlignment(Qt.AlignCenter)
+
+        top_icon = IconWidget(FluentIcon.DOCUMENT)
+        top_icon.setFixedSize(20, 20)
+        top_icon.setStyleSheet("color: #FF453A; background: transparent; border: none;")
+        ib_layout.addWidget(top_icon, 0, Qt.AlignCenter)
+        header_layout.addWidget(icon_badge, 0, Qt.AlignVCenter)
+
+        # Header Title & Subtitle
+        title_block = QVBoxLayout()
+        title_block.setSpacing(3)
+        title_block.setContentsMargins(0, 0, 0, 0)
+
+        title_lbl = QLabel("Manage Zeugnisse")
+        title_lbl.setStyleSheet("""
+            color: #FFFFFF;
+            font-family: 'SF Pro Display', 'PT Root UI', -apple-system, sans-serif;
+            font-size: 17px;
+            font-weight: 700;
+            background: transparent;
+            border: none;
+        """)
+        title_block.addWidget(title_lbl)
+
+        sub_lbl = QLabel("Attach and reorder certificate PDFs for your application.")
+        sub_lbl.setStyleSheet("""
+            color: #8E8E93;
+            font-family: 'SF Pro Text', 'PT Root UI', -apple-system, sans-serif;
+            font-size: 12px;
+            font-weight: 400;
+            background: transparent;
+            border: none;
+        """)
+        sub_lbl.setWordWrap(True)
+        title_block.addWidget(sub_lbl)
+        header_layout.addLayout(title_block, 1)
+
+        # Header Close Button (✕)
+        close_btn = QPushButton("✕")
+        close_btn.setFixedSize(28, 28)
+        close_btn.setCursor(Qt.PointingHandCursor)
+        close_btn.setStyleSheet("""
+            QPushButton {
+                background: rgba(255, 255, 255, 0.06);
+                border: 1px solid rgba(255, 255, 255, 0.08);
+                border-radius: 14px;
+                color: #8E8E93;
+                font-family: 'SF Pro Text', sans-serif;
+                font-size: 12px;
+                font-weight: 600;
+                padding: 0px;
+            }
+            QPushButton:hover {
+                background: rgba(255, 255, 255, 0.12);
+                color: #FFFFFF;
+            }
+        """)
+        close_btn.clicked.connect(self.reject)
+        header_layout.addWidget(close_btn, 0, Qt.AlignTop)
+
+        inner_layout.addLayout(header_layout)
+
+        # Divider
+        divider = QFrame()
+        divider.setFixedHeight(1)
+        divider.setStyleSheet("background: rgba(255, 255, 255, 0.08); border: none;")
+        inner_layout.addWidget(divider)
+
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        # 2. CERTIFICATES LIST AREA / EMPTY STATE
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setFrameShape(QFrame.NoFrame)
+        self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.scroll_area.setStyleSheet("""
+            QScrollArea {
+                background: transparent;
+                border: none;
+            }
+            QScrollBar:vertical {
+                background: transparent;
+                width: 6px;
+                margin: 0px;
+            }
+            QScrollBar::handle:vertical {
+                background: rgba(255, 255, 255, 0.16);
+                border-radius: 3px;
+                min-height: 24px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: rgba(255, 255, 255, 0.28);
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0px;
+                background: transparent;
+            }
+        """)
+
+        self.cards_container = QWidget()
+        self.cards_container.setStyleSheet("background: transparent;")
+        self.cards_layout = QVBoxLayout(self.cards_container)
+        self.cards_layout.setContentsMargins(0, 4, 4, 4)
+        self.cards_layout.setSpacing(8)
+        self.cards_layout.setAlignment(Qt.AlignTop)
+
+        self.scroll_area.setWidget(self.cards_container)
+        inner_layout.addWidget(self.scroll_area, 1)
+
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        # 3. PRO APPLE FOOTER TOOLBAR
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        footer_divider = QFrame()
+        footer_divider.setFixedHeight(1)
+        footer_divider.setStyleSheet("background: rgba(255, 255, 255, 0.08); border: none;")
+        inner_layout.addWidget(footer_divider)
+
+        footer_layout = QHBoxLayout()
+        footer_layout.setContentsMargins(0, 4, 0, 0)
+        footer_layout.setSpacing(10)
+
+        # Add Files Button (+ Add Certificates)
+        self.add_btn = QPushButton("+ Add Certificates")
+        self.add_btn.setFixedHeight(34)
+        self.add_btn.setCursor(Qt.PointingHandCursor)
+        self.add_btn.setStyleSheet("""
+            QPushButton {
+                background: rgba(255, 255, 255, 0.08);
+                border: 1px solid rgba(255, 255, 255, 0.14);
+                border-radius: 8px;
+                color: #FFFFFF;
+                font-family: 'SF Pro Text', 'PT Root UI', -apple-system, sans-serif;
+                font-size: 12px;
+                font-weight: 600;
+                padding: 0 14px;
+            }
+            QPushButton:hover {
+                background: rgba(255, 255, 255, 0.13);
+                border-color: rgba(255, 255, 255, 0.22);
+            }
+            QPushButton:pressed {
+                background: rgba(255, 255, 255, 0.06);
+            }
+        """)
+        self.add_btn.clicked.connect(self._add_files)
+        footer_layout.addWidget(self.add_btn)
+
+        # Counter text
+        self.count_lbl = QLabel("")
+        self.count_lbl.setStyleSheet("""
+            color: #8E8E93;
+            font-family: 'SF Pro Text', 'PT Root UI', -apple-system, sans-serif;
+            font-size: 11px;
+            font-weight: 500;
+            background: transparent;
+            border: none;
+            padding-left: 4px;
+        """)
+        footer_layout.addWidget(self.count_lbl)
+
+        # Clear All link button
+        self.clear_all_btn = QPushButton("Clear all")
+        self.clear_all_btn.setCursor(Qt.PointingHandCursor)
+        self.clear_all_btn.setStyleSheet("""
+            QPushButton {
+                background: transparent;
+                border: none;
+                color: #8E8E93;
+                font-family: 'SF Pro Text', 'PT Root UI', -apple-system, sans-serif;
+                font-size: 11px;
+                text-decoration: underline;
+                padding: 0 4px;
+            }
+            QPushButton:hover {
+                color: #FF453A;
+            }
+        """)
+        self.clear_all_btn.clicked.connect(self._clear_all)
+        footer_layout.addWidget(self.clear_all_btn)
+
+        footer_layout.addStretch(1)
+
+        # Cancel Button
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.setFixedHeight(34)
+        cancel_btn.setCursor(Qt.PointingHandCursor)
+        cancel_btn.setStyleSheet("""
+            QPushButton {
+                background: rgba(255, 255, 255, 0.06);
+                border: 1px solid rgba(255, 255, 255, 0.08);
+                border-radius: 8px;
+                color: #AEAEB2;
+                font-family: 'SF Pro Text', 'PT Root UI', -apple-system, sans-serif;
+                font-size: 12px;
+                font-weight: 600;
+                padding: 0 16px;
+            }
+            QPushButton:hover {
+                background: rgba(255, 255, 255, 0.1);
+                color: #FFFFFF;
+                border-color: rgba(255, 255, 255, 0.15);
+            }
+        """)
+        cancel_btn.clicked.connect(self.reject)
+        footer_layout.addWidget(cancel_btn)
+
+        # Done / Save Button (Apple Pro Signature Blue)
+        done_btn = QPushButton("Done")
+        done_btn.setFixedHeight(34)
+        done_btn.setDefault(True)
+        done_btn.setCursor(Qt.PointingHandCursor)
+        done_btn.setStyleSheet("""
+            QPushButton {
+                background: #0A84FF;
+                border: none;
+                border-radius: 8px;
+                color: #FFFFFF;
+                font-family: 'SF Pro Text', 'PT Root UI', -apple-system, sans-serif;
+                font-size: 12px;
+                font-weight: 700;
+                padding: 0 22px;
+            }
+            QPushButton:hover {
+                background: #409CFF;
+            }
+            QPushButton:pressed {
+                background: #0071E3;
+            }
+        """)
+        done_btn.clicked.connect(self.accept)
+        footer_layout.addWidget(done_btn)
+
+        inner_layout.addLayout(footer_layout)
+
+        # Populate UI
+        self._refresh_list()
+
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    # WINDOW DRAGGING SUPPORT (macOS Sheet Behavior)
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton and event.pos().y() <= 70:
+            self._drag_pos = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
+            event.accept()
+
+    def mouseMoveEvent(self, event):
+        if event.buttons() == Qt.LeftButton and self._drag_pos is not None:
+            self.move(event.globalPosition().toPoint() - self._drag_pos)
+            event.accept()
+
+    def mouseReleaseEvent(self, event):
+        self._drag_pos = None
+
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    # DRAG & DROP PDF FILES FROM FINDER
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls():
+            for url in event.mimeData().urls():
+                if url.toLocalFile().lower().endswith(".pdf"):
+                    event.acceptProposedAction()
+                    return
+        event.ignore()
+
+    def dropEvent(self, event):
+        added = False
+        for url in event.mimeData().urls():
+            file_path = url.toLocalFile()
+            if file_path.lower().endswith(".pdf") and file_path not in self._paths:
+                self._paths.append(file_path)
+                added = True
+        if added:
+            self._refresh_list()
+            event.acceptProposedAction()
+
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    # LIST MANAGEMENT
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    def _refresh_list(self):
+        # Clear existing items
+        while self.cards_layout.count():
+            item = self.cards_layout.takeAt(0)
+            w = item.widget()
+            if w:
+                w.deleteLater()
+
+        count = len(self._paths)
+        if count == 0:
+            # Empty state
+            empty_frame = QFrame()
+            empty_frame.setObjectName("EmptyZone")
+            empty_frame.setCursor(Qt.PointingHandCursor)
+            empty_frame.setStyleSheet("""
+                QFrame#EmptyZone {
+                    background: rgba(255, 255, 255, 0.02);
+                    border: 1.5px dashed rgba(255, 255, 255, 0.12);
+                    border-radius: 12px;
+                }
+                QFrame#EmptyZone:hover {
+                    background: rgba(255, 255, 255, 0.04);
+                    border-color: rgba(10, 132, 255, 0.35);
+                }
+            """)
+            empty_layout = QVBoxLayout(empty_frame)
+            empty_layout.setContentsMargins(20, 36, 20, 36)
+            empty_layout.setSpacing(8)
+            empty_layout.setAlignment(Qt.AlignCenter)
+
+            e_icon = IconWidget(FluentIcon.FOLDER)
+            e_icon.setFixedSize(36, 36)
+            e_icon.setStyleSheet("color: #636366; background: transparent; border: none;")
+            empty_layout.addWidget(e_icon, 0, Qt.AlignCenter)
+
+            e_title = QLabel("No Certificates Attached")
+            e_title.setStyleSheet("""
+                color: #FFFFFF;
+                font-family: 'SF Pro Text', 'PT Root UI', -apple-system, sans-serif;
+                font-size: 14px;
+                font-weight: 600;
+                background: transparent;
+                border: none;
+            """)
+            e_title.setAlignment(Qt.AlignCenter)
+            empty_layout.addWidget(e_title)
+
+            e_sub = QLabel("Drag and drop PDF files here, or click to browse.")
+            e_sub.setStyleSheet("""
+                color: #8E8E93;
+                font-family: 'SF Pro Text', 'PT Root UI', -apple-system, sans-serif;
+                font-size: 12px;
+                font-weight: 400;
+                background: transparent;
+                border: none;
+            """)
+            e_sub.setAlignment(Qt.AlignCenter)
+            empty_layout.addWidget(e_sub)
+
+            empty_frame.mousePressEvent = lambda e: self._add_files() if e.button() == Qt.LeftButton else None
+
+            self.cards_layout.addWidget(empty_frame)
+            self.count_lbl.setText("No certificates")
+            self.clear_all_btn.hide()
+        else:
+            total_size = 0
+            for i, p_str in enumerate(self._paths):
+                card = ZeugnisCard(p_str, i, count, self.cards_container)
+                card.move_up_requested.connect(self._move_up)
+                card.move_down_requested.connect(self._move_down)
+                card.remove_requested.connect(self._remove_at)
+                self.cards_layout.addWidget(card)
+
+                try:
+                    p = Path(p_str)
+                    if p.exists():
+                        total_size += p.stat().st_size
+                except Exception:
+                    pass
+
+            plural = "certificates" if count != 1 else "certificate"
+            size_part = f" • {_human_filesize(total_size)}" if total_size > 0 else ""
+            self.count_lbl.setText(f"{count} {plural}{size_part}")
+            self.clear_all_btn.show()
+
+    def _move_up(self, index: int):
+        if index > 0:
+            self._paths[index], self._paths[index - 1] = self._paths[index - 1], self._paths[index]
+            self._refresh_list()
+
+    def _move_down(self, index: int):
+        if index < len(self._paths) - 1:
+            self._paths[index], self._paths[index + 1] = self._paths[index + 1], self._paths[index]
+            self._refresh_list()
+
+    def _remove_at(self, index: int):
+        if 0 <= index < len(self._paths):
+            self._paths.pop(index)
+            self._refresh_list()
+
+    def _clear_all(self):
+        self._paths.clear()
+        self._refresh_list()
+
+    def _add_files(self):
+        start = QStandardPaths.writableLocation(QStandardPaths.DocumentsLocation)
+        paths, _ = QFileDialog.getOpenFileNames(
+            self,
+            "Select Certificate PDF(s)",
+            start,
+            "PDF Files (*.pdf)"
+        )
+        if paths:
+            for p in paths:
+                if p not in self._paths:
+                    self._paths.append(p)
+            self._refresh_list()
+
+    def get_paths(self) -> list[str]:
+        return list(self._paths)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Document Order List Widget (Send-page drag-and-drop style)
+# ─────────────────────────────────────────────────────────────────────────────
+
+DOC_CARD_NORMAL_STYLE = """
+    QFrame#docRow {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 7px;
+    }
+    QFrame#docRow:hover {
+        background: #2a2a2c;
+        border-color: rgba(255, 255, 255, 0.12);
+    }
+"""
+
+DOC_CARD_DROP_STYLE = """
+    QFrame#docRow {
+        background: #2a2a2c;
+        border: 1px solid #0A84FF;
+        border-radius: 7px;
+    }
+"""
+
+class DocCardRow(QFrame):
+    def __init__(self, key: str, idx: int, meta: dict, container=None, on_action=None, on_clear=None):
+        super().__init__()
+        self.setObjectName("docRow")
+        self.setFixedHeight(34)
+        self.setStyleSheet(DOC_CARD_NORMAL_STYLE)
+        self.key = key
+        self.container = container
+        self._dragging = False
+
+        rl = QHBoxLayout(self)
+        rl.setContentsMargins(8, 2, 6, 2)
+        rl.setSpacing(7)
+
+        # Position indicator number (1., 2., 3., 4.)
+        self.pos_lbl = QLabel(f"{idx + 1}.")
+        self.pos_lbl.setFixedWidth(14)
+        self.pos_lbl.setStyleSheet("color: #636366; font-family: 'PT Root UI', sans-serif; font-size: 10px; font-weight: 700; background: transparent; border: none;")
+        rl.addWidget(self.pos_lbl)
+
+        # Main clickable area with icon, title, and clean status
+        main_btn = QPushButton()
+        main_btn.setCursor(Qt.PointingHandCursor)
+        main_btn.setStyleSheet("QPushButton { background: transparent; border: none; text-align: left; padding: 0; }")
+        m_layout = QHBoxLayout(main_btn)
+        m_layout.setContentsMargins(0, 0, 0, 0)
+        m_layout.setSpacing(6)
+
+        icon_w = IconWidget(meta.get("icon", FluentIcon.DOCUMENT))
+        icon_w.setFixedSize(14, 14)
+        icon_w.setStyleSheet("background: transparent; color: #a0a0a5; border: none;")
+        m_layout.addWidget(icon_w)
+
+        title_lbl = QLabel(meta["title"])
+        title_lbl.setStyleSheet("color: #FFFFFF; font-family: 'PT Root UI', sans-serif; font-size: 11px; font-weight: 600; background: transparent; border: none;")
+        m_layout.addWidget(title_lbl)
+
+        sub_text = meta.get("sub", "")
+        if len(sub_text) > 22:
+            sub_text = sub_text[:20] + "…"
+        sub_lbl = QLabel(f"• {sub_text}")
+        sub_lbl.setStyleSheet(f"color: {meta['color']}; font-family: 'PT Root UI', sans-serif; font-size: 10px; font-weight: 500; background: transparent; border: none;")
+        m_layout.addWidget(sub_lbl)
+        m_layout.addStretch()
+
+        if on_action:
+            main_btn.clicked.connect(on_action)
+        rl.addWidget(main_btn, 1)
+
+        # Clear button if file is loaded
+        if meta.get("has_file") and on_clear:
+            rm_btn = QPushButton("✕")
+            rm_btn.setFixedSize(18, 18)
+            rm_btn.setCursor(Qt.PointingHandCursor)
+            rm_btn.setToolTip(f"Remove {meta['title']}")
+            rm_btn.setStyleSheet("""
+                QPushButton {
+                    background: transparent; border: none; border-radius: 4px;
+                    color: #8E8E93; font-size: 10px; font-weight: bold; padding: 0;
+                }
+                QPushButton:hover {
+                    color: #FF453A; background: rgba(255, 69, 58, 0.15);
+                }
+            """)
+            rm_btn.clicked.connect(on_clear)
+            rl.addWidget(rm_btn)
+
+        # Three bands drag handle button (≡) — drag up or down to reorder
+        self.handle = QPushButton()
+        self.handle.setFixedSize(22, 22)
+        self.handle.setIcon(FluentIcon.MENU.icon(color="#8E8E93"))
+        self.handle.setIconSize(QSize(13, 13))
+        self.handle.setCursor(Qt.SizeVerCursor)
+        self.handle.setToolTip(f"Drag up or down to reorder {meta['title']}")
+        self.handle.setStyleSheet("""
+            QPushButton {
+                background: transparent; border: none; border-radius: 4px; padding: 0;
+            }
+            QPushButton:hover {
+                background: rgba(255, 255, 255, 0.12);
+            }
+        """)
+
+        self.handle.mousePressEvent = self._handle_press
+        self.handle.mouseMoveEvent = self._handle_move
+        self.handle.mouseReleaseEvent = self._handle_release
+        rl.addWidget(self.handle)
+
+    def set_position_number(self, num: int):
+        self.pos_lbl.setText(f"{num}.")
+
+    def _handle_press(self, event):
+        if event.button() == Qt.LeftButton:
+            self._dragging = True
+            self.setStyleSheet(DOC_CARD_DROP_STYLE)
+        QPushButton.mousePressEvent(self.handle, event)
+
+    def _handle_move(self, event):
+        if self._dragging:
+            global_y = event.globalPosition().toPoint().y()
+            if self.container:
+                self.container._on_card_dragged(self, global_y)
+        QPushButton.mouseMoveEvent(self.handle, event)
+
+    def _handle_release(self, event):
+        if self._dragging:
+            self._dragging = False
+            self.setStyleSheet(DOC_CARD_NORMAL_STYLE)
+            if self.container:
+                self.container._on_card_drag_finished()
+        QPushButton.mouseReleaseEvent(self.handle, event)
+
+
 class EditPage(QWidget):
     """Three-panel workspace for auto-generated motivation letters."""
     
@@ -1294,7 +2099,7 @@ class EditPage(QWidget):
         scroll.setObjectName("EditRightPanel")
         scroll.setWidgetResizable(True)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         scroll.setFrameShape(QFrame.NoFrame)
         scroll.setStyleSheet("""
             QScrollArea#EditRightPanel { 
@@ -1303,24 +2108,22 @@ class EditPage(QWidget):
                 border-radius: 12px;
             }
             QWidget#rightContainer { background: transparent; }
-            QScrollBar:vertical { background: transparent; width: 8px; margin: 0px 2px 0px 2px; }
-            QScrollBar::handle:vertical { background: #3A3A3C; border-radius: 2px; }
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
-            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: transparent; border: none; height: 0px; }
+            QScrollBar:vertical { background: transparent; width: 0px; height: 0px; }
+            QScrollBar::handle:vertical { background: transparent; }
         """)
 
         container = QWidget()
         container.setObjectName("rightContainer")
         layout = QVBoxLayout(container)
-        layout.setContentsMargins(8, 8, 8, 12)
-        layout.setSpacing(16)
+        layout.setContentsMargins(10, 8, 10, 8)
+        layout.setSpacing(10)
 
         def _create_card():
             card = QFrame()
             card.setObjectName("sidebarCard")
             card.setStyleSheet("QFrame#sidebarCard { background-color: #1a1a1c; border: 1px solid #2a2a2c; border-radius: 8px; }")
             cl = QVBoxLayout(card)
-            cl.setContentsMargins(11, 10, 11, 10)
+            cl.setContentsMargins(12, 10, 12, 10)
             cl.setSpacing(0)
             return card, cl
 
@@ -1336,13 +2139,11 @@ class EditPage(QWidget):
             lbl.setStyleSheet("color: #8E8E93; font-family: 'PT Root UI'; font-size: 11px; font-weight: 600; letter-spacing: 1.5px; background: transparent;")
             return lbl
 
-
-
         # CARD 4 - PROFILE & SIGNATURE
         card4, cl4 = _create_card()
-        lbl4 = _section_label(tr("edit.profile.title", get_language(config_manager.settings.app_language)))
+        lbl4 = _section_label("PROFILE & SIGNATURE")
         cl4.addWidget(lbl4)
-        cl4.addSpacing(7)
+        cl4.addSpacing(6)
         self._btn_edit_profile = self._create_sidebar_button(FluentIcon.PEOPLE, tr("edit.sidebar.set_info", get_language(config_manager.settings.app_language)), self._edit_profile)
         self._btn_upload_sig = self._create_sidebar_button(FluentIcon.UPDATE, tr("edit.sidebar.upload_sig", get_language(config_manager.settings.app_language)), self._upload_signature)
         self._btn_clear_sig = self._create_sidebar_button(FluentIcon.DELETE, tr("edit.sidebar.clear_sig", get_language(config_manager.settings.app_language)), self._clear_signature)
@@ -1357,161 +2158,160 @@ class EditPage(QWidget):
         card5, cl5 = _create_card()
         lbl5 = _section_label(tr("edit.template.title", get_language(config_manager.settings.app_language)))
         cl5.addWidget(lbl5)
-        cl5.addSpacing(7)
+        cl5.addSpacing(4)
         self._template_status = QLabel(self._template_status_text())
         self._template_status.setStyleSheet("color: #6E6E73; font-size: 11px; font-weight: 400; background: transparent;")
         cl5.addWidget(self._template_status)
-        cl5.addSpacing(6)
+        cl5.addSpacing(4)
         self._btn_edit_template = self._create_sidebar_button(FluentIcon.EDIT, tr("edit.sidebar.edit_template", get_language(config_manager.settings.app_language)), self._edit_template)
         cl5.addWidget(self._btn_edit_template)
         layout.addWidget(card5)
 
         # CARD 6 - BEWERBUNG
         card6, cl6 = _create_card()
-        
+
+        # --- Header: section label + status pill ---
         header_row = QHBoxLayout()
         header_row.setContentsMargins(0, 0, 0, 0)
-        
         lbl6 = _section_label(tr("edit.bewerbung.title", get_language(config_manager.settings.app_language)))
         header_row.addWidget(lbl6)
-        header_row.addSpacing(8)
-
-        self._bewerbung_status_label = QLabel(tr("No PDF", get_language(config_manager.settings.app_language)))
+        header_row.addStretch()
+        self._bewerbung_status_label = QLabel("0/2 ready")
         self._bewerbung_status_label.setFixedHeight(22)
         self._bewerbung_status_label.setStyleSheet("""
             QLabel {
-                background: #2C2C2E;
+                background: rgba(255, 255, 255, 0.06);
+                border: 1px solid rgba(255, 255, 255, 0.08);
                 border-radius: 6px;
                 color: #8E8E93;
-                padding: 3px 10px;
-                font-family: system-ui, -apple-system, "SF Pro Text", sans-serif;
-                font-size: 11px;
-                font-weight: 400;
-            }
-        """)
-        
-        header_row.addWidget(self._bewerbung_status_label)
-        header_row.addStretch()
-        
-        cl6.addLayout(header_row)
-        cl6.addSpacing(7)
-
-        # PAGE INDEX ROW (styled perfectly to match sidebar buttons)
-        page_widget = QWidget()
-        page_widget.setStyleSheet("QWidget { background: transparent; }")
-        
-        page_row = QHBoxLayout(page_widget)
-        page_row.setContentsMargins(12, 4, 12, 4)
-        page_row.setSpacing(0)
-        
-        from qfluentwidgets import IconWidget
-        icon_w = IconWidget(FluentIcon.ALIGNMENT)
-        icon_w.setFixedSize(14, 14)
-        icon_w.setStyleSheet("background: transparent; color: #a0a0a5;")
-        
-        page_lbl = QLabel(tr("   INSERT PAGE", get_language(config_manager.settings.app_language)))
-        page_lbl.setStyleSheet("""
-            color: #a0a0a5;
-            font-family: 'PT Root UI', sans-serif;
-            font-size: 11px;
-            font-weight: 600;
-            letter-spacing: 1px;
-            background: transparent;
-            border: none;
-        """)
-        
-        from PySide6.QtWidgets import QLineEdit
-        self._page_input = QLineEdit()
-        self._page_input.setFixedSize(28, 26)
-        self._page_input.setAlignment(Qt.AlignCenter)
-        self._page_input.setStyleSheet("""
-            QLineEdit {
-                background: rgba(0, 0, 0, 0.2);
-                border: 1px solid #3A3A3C;
-                border-radius: 4px;
-                color: #FFFFFF;
+                padding: 2px 8px;
                 font-family: 'PT Root UI', sans-serif;
-                font-size: 11px;
-                font-weight: 600;
-                padding: 0px;
-                margin: 0px;
-            }
-            QLineEdit:focus {
-                border: 1px solid #0A84FF;
-                background: rgba(10, 132, 255, 0.1);
+                font-size: 10px;
+                font-weight: 500;
             }
         """)
-        
-        saved_page = getattr(config_manager.settings, "bewerbung_anschreiben_page", 1)
-        self._page_input.setText(str(saved_page))
-        self._page_input.editingFinished.connect(self._save_anschreiben_page)
-        self._save_anschreiben_page()
-        
-        page_row.addWidget(icon_w)
-        page_row.addWidget(page_lbl)
-        page_row.addStretch()
-        page_row.addWidget(self._page_input)
-        
-        cl6.addWidget(page_widget)
-        cl6.addSpacing(4)
+        header_row.addWidget(self._bewerbung_status_label)
+        cl6.addLayout(header_row)
+        cl6.addSpacing(6)
 
-        def _show_export_menu():
+        # --- Export mode segmented bar (no dropdown popups) ---
+        cur_mode = getattr(config_manager.settings, "bewerbung_export_mode", "full") or "full"
+
+
+
+        mode_bar = QFrame()
+        mode_bar.setObjectName("modeBar")
+        mode_bar.setStyleSheet("""
+            QFrame#modeBar {
+                background: rgba(0, 0, 0, 0.25);
+                border: 1px solid rgba(255, 255, 255, 0.08);
+                border-radius: 7px;
+                padding: 2px;
+            }
+        """)
+        mbl = QHBoxLayout(mode_bar)
+        mbl.setContentsMargins(2, 2, 2, 2)
+        mbl.setSpacing(2)
+
+        self._mode_btn_full = QPushButton("Full Mappe")
+        self._mode_btn_split = QPushButton("Letter+CV")
+        self._mode_btn_sep = QPushButton("Separate")
+
+        for b in (self._mode_btn_full, self._mode_btn_split, self._mode_btn_sep):
+            b.setFixedHeight(24)
+            b.setCursor(Qt.PointingHandCursor)
+            mbl.addWidget(b)
+
+        def _update_mode_styles(active_mode: str):
+            _active_style = """
+                QPushButton {
+                    background: #0A84FF; border: none; border-radius: 5px;
+                    color: #FFFFFF; font-family: 'PT Root UI', sans-serif; font-size: 11px; font-weight: 600;
+                    padding: 0 4px;
+                }
+            """
+            _inactive_style = """
+                QPushButton {
+                    background: transparent; border: none; border-radius: 5px;
+                    color: #8E8E93; font-family: 'PT Root UI', sans-serif; font-size: 11px; font-weight: 500;
+                    padding: 0 4px;
+                }
+                QPushButton:hover { background: rgba(255, 255, 255, 0.06); color: #FFFFFF; }
+            """
+            self._mode_btn_full.setStyleSheet(_active_style if active_mode == "full" else _inactive_style)
+            self._mode_btn_split.setStyleSheet(_active_style if active_mode == "letter_cv_certs" else _inactive_style)
+            self._mode_btn_sep.setStyleSheet(_active_style if active_mode == "separate" else _inactive_style)
+
+        def _select_mode(mode_key: str):
+            config_manager.settings.bewerbung_export_mode = mode_key
+            config_manager.save()
+            _update_mode_styles(mode_key)
+            self._refresh_bewerbung_export_btn()
+
+        self._mode_btn_full.clicked.connect(lambda: _select_mode("full"))
+        self._mode_btn_split.clicked.connect(lambda: _select_mode("letter_cv_certs"))
+        self._mode_btn_sep.clicked.connect(lambda: _select_mode("separate"))
+
+        _update_mode_styles(cur_mode)
+        cl6.addWidget(mode_bar)
+        cl6.addSpacing(6)
+
+        # --- Documents Section (Cards style with drag-and-drop reordering) ---
+
+        self._doc_order_container = QWidget()
+        self._doc_order_container.setStyleSheet("background: transparent;")
+        self._doc_order_layout = QVBoxLayout(self._doc_order_container)
+        self._doc_order_layout.setContentsMargins(0, 0, 0, 0)
+        self._doc_order_layout.setSpacing(6)
+        cl6.addWidget(self._doc_order_container)
+        cl6.addSpacing(8)
+
+        # --- Action rows ---
+        self._btn_preview_pdf = self._create_sidebar_button(FluentIcon.VIEW, tr("edit.sidebar.preview_pdf", get_language(config_manager.settings.app_language)), self._preview_merged_pdf)
+
+        self._btn_clear_bewerbung = self._create_sidebar_button(FluentIcon.CLOSE, "CLEAR ALL DOCUMENTS", self._clear_bewerbung_all)
+        self._btn_clear_bewerbung.setIcon(FluentIcon.CLOSE.icon(color="#FF453A"))
+        self._btn_clear_bewerbung.setStyleSheet("""
+            QPushButton {
+                background: transparent; border: none; border-radius: 6px;
+                color: #FF453A; font-family: 'PT Root UI', sans-serif;
+                font-size: 11px; font-weight: 600; letter-spacing: 1px;
+                text-align: left; padding: 8px 12px;
+            }
+            QPushButton:hover { background: rgba(255,69,58,0.1); }
+            QPushButton:disabled { color: rgba(255,69,58,0.35); }
+        """)
+
+        def _show_export_bewerbung_menu():
             from src.ui.components import GlassMenu
             menu = GlassMenu(parent=self)
-            
-            a1 = Action(FluentIcon.DOCUMENT, "Export .txt")
+            a1 = Action(FluentIcon.DOCUMENT, "Export .txt", parent=menu)
             a1.triggered.connect(self._export_letter)
             menu.addAction(a1)
-            
-            a2 = Action(FluentIcon.DOCUMENT, "Export .docx")
+            a2 = Action(FluentIcon.DOCUMENT, "Export .docx", parent=menu)
             a2.triggered.connect(self._export_docx)
             menu.addAction(a2)
-            
+            a3 = Action(FluentIcon.DOWNLOAD, "Export PDF Bewerbungsmappe")
+            a3.triggered.connect(self._run_bewerbung_export)
+            menu.addAction(a3)
             menu.exec(self._btn_export.mapToGlobal(QPoint(0, self._btn_export.height())))
 
-        self._btn_export = self._create_sidebar_button(FluentIcon.DOWNLOAD, tr("edit.sidebar.export_letter", get_language(config_manager.settings.app_language)), _show_export_menu)
-        self._btn_preview_pdf = self._create_sidebar_button(FluentIcon.VIEW, tr("edit.sidebar.preview_pdf", get_language(config_manager.settings.app_language)), self._preview_merged_pdf)
-        self._btn_add_page = self._create_sidebar_button(FluentIcon.ADD, tr("edit.sidebar.load_bewerbung", get_language(config_manager.settings.app_language)), self._on_pdf_browse)
-        self._btn_close = self._create_sidebar_button(FluentIcon.CLOSE, tr("edit.sidebar.clear_pdf", get_language(config_manager.settings.app_language)), self._clear_bewerbung_pdf)
+        self._btn_export = self._create_sidebar_button(FluentIcon.DOWNLOAD, tr("edit.sidebar.export_letter", get_language(config_manager.settings.app_language)), _show_export_bewerbung_menu)
 
-        # Style Clear PDF button to be red
-        self._btn_close.setIcon(FluentIcon.CLOSE.icon(color="#FF453A"))
-        self._btn_close.setStyleSheet("""
-            QPushButton {
-                background: transparent;
-                border: none;
-                border-radius: 6px;
-                color: #FF453A;
-                font-family: 'PT Root UI', sans-serif;
-                font-size: 11px;
-                font-weight: 600;
-                letter-spacing: 1px;
-                text-align: left;
-                padding: 8px 12px;
-            }
-            QPushButton:hover {
-                background: rgba(255, 69, 58, 0.1);
-            }
-            QPushButton:disabled {
-                color: rgba(255, 69, 58, 0.4);
-            }
-        """)
-
-        cl6.addWidget(self._btn_add_page)
-        cl6.addSpacing(4)
         cl6.addWidget(self._btn_preview_pdf)
         cl6.addSpacing(4)
-        cl6.addWidget(self._btn_close)
+        cl6.addWidget(self._btn_clear_bewerbung)
         cl6.addSpacing(4)
         cl6.addWidget(self._btn_export)
-        
+
         layout.addWidget(card6)
+
+        # Initialise status labels from persisted settings
+        self._refresh_bewerbung_status_ui()
 
         # CARD 7 - BATCH ACTIONS
         card7, cl7 = _create_card()
-        lbl7 = _section_label(tr("edit.batch.title", get_language(config_manager.settings.app_language)))
-        cl7.addWidget(lbl7)
-        cl7.addSpacing(7)
+
 
         self._btn_sync_leads = self._create_sidebar_button(FluentIcon.DOWNLOAD, tr("edit.sidebar.import_leads", get_language(config_manager.settings.app_language)), self._show_import_menu)
         self._btn_export_and_send_left = self._create_sidebar_button(FluentIcon.SEND, tr("edit.sidebar.send_queue", get_language(config_manager.settings.app_language)), self._action_export_and_send_batch)
@@ -3001,6 +3801,10 @@ class EditPage(QWidget):
         action_dasoertliche.triggered.connect(lambda: self._do_import("dasoertliche"))
         menu.addAction(action_dasoertliche)
         
+        action_azubiyo = Action(FluentIcon.PEOPLE, "From Azubiyo", self)
+        action_azubiyo.triggered.connect(lambda: self._do_import("azubiyo"))
+        menu.addAction(action_azubiyo)
+        
         action_maps = Action(FluentIcon.PIN, "From Google Maps", self)
         action_maps.triggered.connect(lambda: self._do_import("maps"))
         menu.addAction(action_maps)
@@ -3041,6 +3845,8 @@ class EditPage(QWidget):
             filtered = [r for r in all_records if r.source_type and "ausbildung" in str(r.source_type).lower()]
         elif filter_type == "aubi":
             filtered = [r for r in all_records if r.source_type and "aubi" in str(r.source_type).lower()]
+        elif filter_type == "azubiyo":
+            filtered = [r for r in all_records if r.source_type and "azubiyo" in str(r.source_type).lower()]
         elif filter_type == "city":
             target_city = ""
             if orchestrator.current_job and orchestrator.current_job.config and orchestrator.current_job.config.city:
@@ -3963,8 +4769,285 @@ class EditPage(QWidget):
         layout.addWidget(card)
 
 
-    def _on_pdf_dropped(self, path: str) -> None:
-        self._load_bewerbung_pdf(Path(path))
+    # ── BEWERBUNG Card handlers ──────────────────────────────────────────
+
+    def _get_doc_order(self) -> list[str]:
+        """Return ordered list of document keys."""
+        import json
+        raw = getattr(config_manager.settings, "bewerbung_doc_order", "") or ""
+        valid_keys = ["deckblatt", "anschreiben", "lebenslauf", "zeugnisse"]
+        try:
+            order = json.loads(raw) if raw else []
+            order = [k for k in order if k in valid_keys]
+            for k in valid_keys:
+                if k not in order:
+                    order.append(k)
+            return order
+        except Exception:
+            return ["deckblatt", "anschreiben", "lebenslauf", "zeugnisse"]
+
+    def _save_doc_order(self, order: list[str]) -> None:
+        import json
+        config_manager.settings.bewerbung_doc_order = json.dumps(order)
+        config_manager.save()
+
+    def _on_doc_reordered(self, src_key: str, target_key: str) -> None:
+        if src_key == target_key:
+            return
+        order = self._get_doc_order()
+        if src_key in order and target_key in order:
+            src_idx = order.index(src_key)
+            target_idx = order.index(target_key)
+            item = order.pop(src_idx)
+            order.insert(target_idx, item)
+            self._save_doc_order(order)
+            self._refresh_doc_order_ui()
+            self._refresh_bewerbung_export_btn()
+
+    def _on_card_dragged(self, dragged_row: DocCardRow, global_y: int) -> None:
+        if not hasattr(self, "_doc_card_rows") or dragged_row not in self._doc_card_rows:
+            return
+        dragged_idx = self._doc_card_rows.index(dragged_row)
+        for i, row in enumerate(self._doc_card_rows):
+            if row is dragged_row:
+                continue
+            r_rect = row.rect()
+            top_y = row.mapToGlobal(r_rect.topLeft()).y()
+            bottom_y = row.mapToGlobal(r_rect.bottomRight()).y()
+            center_y = (top_y + bottom_y) // 2
+
+            if i > dragged_idx and global_y > center_y:
+                self._reorder_rows_in_place(dragged_idx, i)
+                break
+            elif i < dragged_idx and global_y < center_y:
+                self._reorder_rows_in_place(dragged_idx, i)
+                break
+
+    def _reorder_rows_in_place(self, from_idx: int, to_idx: int) -> None:
+        item = self._doc_card_rows.pop(from_idx)
+        self._doc_card_rows.insert(to_idx, item)
+        for idx, row in enumerate(self._doc_card_rows):
+            self._doc_order_layout.removeWidget(row)
+            self._doc_order_layout.addWidget(row)
+            row.set_position_number(idx + 1)
+
+    def _on_card_drag_finished(self) -> None:
+        if not hasattr(self, "_doc_card_rows"):
+            return
+        new_order = [row.key for row in self._doc_card_rows]
+        self._save_doc_order(new_order)
+        self._refresh_bewerbung_export_btn()
+
+    def _clear_deckblatt(self) -> None:
+        config_manager.settings.bewerbung_deckblatt_path = ""
+        config_manager.save()
+        self._refresh_bewerbung_status_ui()
+
+    def _clear_lebenslauf(self) -> None:
+        config_manager.settings.bewerbung_lebenslauf_path = ""
+        config_manager.save()
+        self._refresh_bewerbung_status_ui()
+
+    def _clear_zeugnisse(self) -> None:
+        self._save_zeugnisse_paths([])
+        self._refresh_bewerbung_status_ui()
+
+    def _refresh_doc_order_ui(self) -> None:
+        if not hasattr(self, "_doc_order_layout"):
+            return
+        while self._doc_order_layout.count():
+            item = self._doc_order_layout.takeAt(0)
+            w = item.widget()
+            if w:
+                w.deleteLater()
+
+        self._doc_card_rows = []
+        order = self._get_doc_order()
+        db_path = getattr(config_manager.settings, "bewerbung_deckblatt_path", "") or ""
+        lv_path = getattr(config_manager.settings, "bewerbung_lebenslauf_path", "") or ""
+        zeug_paths = self._get_zeugnisse_paths()
+
+        has_db = bool(db_path and Path(db_path).exists())
+        has_lv = bool(lv_path and Path(lv_path).exists())
+        has_zeug = bool(zeug_paths)
+
+        doc_meta = {
+            "deckblatt": {
+                "title": "Deckblatt",
+                "sub": Path(db_path).name if has_db else "optional",
+                "color": "#30D158" if has_db else "#8E8E93",
+                "icon": FluentIcon.PHOTO,
+                "action": self._on_deckblatt_browse,
+                "has_file": has_db,
+                "clear_fn": self._clear_deckblatt,
+            },
+            "anschreiben": {
+                "title": "Anschreiben",
+                "sub": "ready",
+                "color": "#30D158",
+                "icon": FluentIcon.DOCUMENT,
+                "action": lambda: self._editor.setFocus() if hasattr(self, "_editor") else None,
+                "has_file": False,
+                "clear_fn": None,
+            },
+            "lebenslauf": {
+                "title": "Lebenslauf",
+                "sub": Path(lv_path).name if has_lv else "required",
+                "color": "#30D158" if has_lv else "#FF9F0A",
+                "icon": FluentIcon.PEOPLE,
+                "action": self._on_lebenslauf_browse,
+                "has_file": has_lv,
+                "clear_fn": self._clear_lebenslauf,
+            },
+            "zeugnisse": {
+                "title": "Zeugnisse",
+                "sub": f"{len(zeug_paths)} file{'s' if len(zeug_paths) != 1 else ''}" if has_zeug else "optional",
+                "color": "#30D158" if has_zeug else "#8E8E93",
+                "icon": FluentIcon.FOLDER,
+                "action": self._on_manage_zeugnisse,
+                "has_file": has_zeug,
+                "clear_fn": self._clear_zeugnisse,
+            },
+        }
+
+        for idx, key in enumerate(order):
+            meta = doc_meta.get(key, {"title": key, "sub": "", "color": "#8E8E93", "has_file": False, "icon": FluentIcon.DOCUMENT, "action": None, "clear_fn": None})
+            row = DocCardRow(
+                key=key,
+                idx=idx,
+                meta=meta,
+                container=self,
+                on_action=meta.get("action"),
+                on_clear=meta.get("clear_fn"),
+            )
+            self._doc_card_rows.append(row)
+            self._doc_order_layout.addWidget(row)
+
+    def _get_zeugnisse_paths(self) -> list[str]:
+        """Return the current ordered list of Zeugnisse PDF paths from settings."""
+        import json
+        raw = getattr(config_manager.settings, "bewerbung_zeugnisse_paths", "[]") or "[]"
+        try:
+            return json.loads(raw)
+        except Exception:
+            return []
+
+    def _save_zeugnisse_paths(self, paths: list[str]) -> None:
+        import json
+        config_manager.settings.bewerbung_zeugnisse_paths = json.dumps(paths)
+        config_manager.save()
+
+    def _refresh_bewerbung_status_ui(self) -> None:
+        """Update status pill, Deckblatt, Lebenslauf, Zeugnisse, and order list."""
+        db_path = getattr(config_manager.settings, "bewerbung_deckblatt_path", "") or ""
+        lv_path = getattr(config_manager.settings, "bewerbung_lebenslauf_path", "") or ""
+        zeug_paths = self._get_zeugnisse_paths()
+
+        has_db = bool(db_path and Path(db_path).exists())
+        has_lv = bool(lv_path and Path(lv_path).exists())
+        has_zeug = bool(zeug_paths)
+
+        if hasattr(self, "_db_status_lbl"):
+            if has_db:
+                self._db_status_lbl.setText(f"Deckblatt: {Path(db_path).name}")
+                self._db_status_lbl.setStyleSheet("color: #30A46C; font-size: 11px; font-weight: 500; background: transparent; padding-left: 2px;")
+            else:
+                self._db_status_lbl.setText("Deckblatt: optional / not loaded")
+                self._db_status_lbl.setStyleSheet("color: #6E6E73; font-size: 11px; font-weight: 400; background: transparent; padding-left: 2px;")
+
+        if hasattr(self, "_lv_status_lbl"):
+            if has_lv:
+                self._lv_status_lbl.setText(f"Lebenslauf: {Path(lv_path).name}")
+                self._lv_status_lbl.setStyleSheet("color: #30A46C; font-size: 11px; font-weight: 500; background: transparent; padding-left: 2px;")
+            else:
+                self._lv_status_lbl.setText("Lebenslauf: required / not loaded")
+                self._lv_status_lbl.setStyleSheet("color: #FF9F0A; font-size: 11px; font-weight: 400; background: transparent; padding-left: 2px;")
+
+        if hasattr(self, "_zeug_status_lbl"):
+            if has_zeug:
+                self._zeug_status_lbl.setText(f"Zeugnisse: {len(zeug_paths)} file{'s' if len(zeug_paths) != 1 else ''}")
+                self._zeug_status_lbl.setStyleSheet("color: #30A46C; font-size: 11px; font-weight: 500; background: transparent; padding-left: 2px;")
+            else:
+                self._zeug_status_lbl.setText("Zeugnisse: 0 files (optional)")
+                self._zeug_status_lbl.setStyleSheet("color: #6E6E73; font-size: 11px; font-weight: 400; background: transparent; padding-left: 2px;")
+
+        if hasattr(self, "_bewerbung_status_label"):
+            pill = self._bewerbung_status_label
+            if has_lv:
+                ready_count = 1 + (1 if has_db else 0) + (1 if has_zeug else 0)
+                pill.setText(f"Ready ({ready_count}/3 files)")
+                pill.setStyleSheet("""
+                    QLabel {
+                        background: rgba(48, 209, 88, 0.15);
+                        border: 1px solid rgba(48, 209, 88, 0.28);
+                        border-radius: 6px;
+                        color: #30D158;
+                        padding: 2px 8px;
+                        font-family: 'PT Root UI', sans-serif;
+                        font-size: 10px;
+                        font-weight: 600;
+                    }
+                """)
+            else:
+                pill.setText("Needs CV")
+                pill.setStyleSheet("""
+                    QLabel {
+                        background: rgba(255, 159, 10, 0.15);
+                        border: 1px solid rgba(255, 159, 10, 0.28);
+                        border-radius: 6px;
+                        color: #FF9F0A;
+                        padding: 2px 8px;
+                        font-family: 'PT Root UI', sans-serif;
+                        font-size: 10px;
+                        font-weight: 600;
+                    }
+                """)
+
+        self._refresh_doc_order_ui()
+        self._refresh_bewerbung_export_btn()
+
+    def _refresh_bewerbung_export_btn(self) -> None:
+        """Enable export only when Lebenslauf is loaded (required for all modes)."""
+        if not hasattr(self, "_btn_export"):
+            return
+        lv_path = getattr(config_manager.settings, "bewerbung_lebenslauf_path", "") or ""
+        has_lv = bool(lv_path and Path(lv_path).exists())
+        self._btn_export.setEnabled(has_lv)
+
+    def _on_deckblatt_browse(self) -> None:
+        from PySide6.QtCore import QStandardPaths
+        from PySide6.QtWidgets import QFileDialog
+        start_dir = QStandardPaths.writableLocation(QStandardPaths.DocumentsLocation) or str(Path.home())
+        path, _ = QFileDialog.getOpenFileName(self, "Select Deckblatt (Cover Sheet) PDF", start_dir, "PDF Files (*.pdf)")
+        if path:
+            config_manager.settings.bewerbung_deckblatt_path = path
+            config_manager.save()
+            self._refresh_bewerbung_status_ui()
+
+    def _on_lebenslauf_browse(self) -> None:
+        from PySide6.QtCore import QStandardPaths
+        from PySide6.QtWidgets import QFileDialog
+        start_dir = QStandardPaths.writableLocation(QStandardPaths.DocumentsLocation) or str(Path.home())
+        path, _ = QFileDialog.getOpenFileName(self, "Select Lebenslauf (CV) PDF", start_dir, "PDF Files (*.pdf)")
+        if path:
+            config_manager.settings.bewerbung_lebenslauf_path = path
+            config_manager.save()
+            self._refresh_bewerbung_status_ui()
+
+    def _on_manage_zeugnisse(self) -> None:
+        dlg = ZeugisseManagerDialog(self._get_zeugnisse_paths(), self)
+        if dlg.exec():
+            self._save_zeugnisse_paths(dlg.get_paths())
+            self._refresh_bewerbung_status_ui()
+
+    def _clear_bewerbung_all(self) -> None:
+        """Clear Deckblatt + Lebenslauf + Zeugnisse only (never touches Anschreiben card)."""
+        config_manager.settings.bewerbung_deckblatt_path = ""
+        config_manager.settings.bewerbung_lebenslauf_path = ""
+        config_manager.settings.bewerbung_zeugnisse_paths = "[]"
+        config_manager.save()
+        self._refresh_bewerbung_status_ui()
+
 
     def _on_pdf_browse(self) -> None:
         start_dir = QStandardPaths.writableLocation(QStandardPaths.DocumentsLocation)
@@ -4058,39 +5141,42 @@ class EditPage(QWidget):
             self._bewerbung_status_label.setText("Building…")
             self._bewerbung_status_label.setStyleSheet("""
                 QLabel {
-                    background: #1A2A3A;
+                    background: rgba(10, 132, 255, 0.15);
+                    border: 1px solid rgba(10, 132, 255, 0.28);
                     border-radius: 6px;
                     color: #0A84FF;
-                    padding: 3px 10px;
-                    font-family: system-ui, -apple-system, "SF Pro Text", sans-serif;
-                    font-size: 11px;
-                    font-weight: 400;
+                    padding: 2px 8px;
+                    font-family: 'PT Root UI', sans-serif;
+                    font-size: 10px;
+                    font-weight: 600;
                 }
             """)
         elif loaded:
             self._bewerbung_status_label.setText("PDF ready")
             self._bewerbung_status_label.setStyleSheet("""
                 QLabel {
-                    background: #1A3A1A;
+                    background: rgba(48, 209, 88, 0.15);
+                    border: 1px solid rgba(48, 209, 88, 0.28);
                     border-radius: 6px;
-                    color: #30A46C;
-                    padding: 3px 10px;
-                    font-family: system-ui, -apple-system, "SF Pro Text", sans-serif;
-                    font-size: 11px;
-                    font-weight: 400;
+                    color: #30D158;
+                    padding: 2px 8px;
+                    font-family: 'PT Root UI', sans-serif;
+                    font-size: 10px;
+                    font-weight: 600;
                 }
             """)
         else:
             self._bewerbung_status_label.setText("No PDF")
             self._bewerbung_status_label.setStyleSheet("""
                 QLabel {
-                    background: #2C2C2E;
+                    background: rgba(255, 255, 255, 0.06);
+                    border: 1px solid rgba(255, 255, 255, 0.08);
                     border-radius: 6px;
                     color: #8E8E93;
-                    padding: 3px 10px;
-                    font-family: system-ui, -apple-system, "SF Pro Text", sans-serif;
-                    font-size: 11px;
-                    font-weight: 400;
+                    padding: 2px 8px;
+                    font-family: 'PT Root UI', sans-serif;
+                    font-size: 10px;
+                    font-weight: 500;
                 }
             """)
 
@@ -4138,32 +5224,41 @@ class EditPage(QWidget):
         if not self._selected_record:
             self._show_error("Preview Failed", "No lead selected.")
             return
-            
+
         import tempfile, os
         from PySide6.QtGui import QDesktopServices
         from PySide6.QtCore import QUrl
-        
+
         self._status.setText("Generating preview...")
         QCoreApplication.processEvents()
-        
+
         try:
             filled_text = self._editor.toPlainText()
-            
-            fd, tmp_path = tempfile.mkstemp(suffix=".pdf", prefix=f"preview_")
-            os.close(fd)
-            tmp_file = Path(tmp_path)
-            
-            if self._bewerbung_pdf_path:
-                self._export_bewerbungsmappe(self._selected_record, filled_text, tmp_file)
+            lv_path = getattr(config_manager.settings, "bewerbung_lebenslauf_path", "") or ""
+            has_lv = bool(lv_path and Path(lv_path).exists())
+
+            if has_lv:
+                tmp_dir = Path(tempfile.mkdtemp(prefix="zz_preview_"))
+                out_paths = self._export_bewerbungsmappe(self._selected_record, filled_text, tmp_dir)
+                # Open the first (or only) file for preview
+                QDesktopServices.openUrl(QUrl.fromLocalFile(str(out_paths[0])))
+                if len(out_paths) > 1:
+                    self._status.setText(f"Preview opened ({len(out_paths)} files — showing first).")
+                else:
+                    self._status.setText("Preview opened.")
             else:
+                # Fallback: render Anschreiben only
+                fd, tmp_path = tempfile.mkstemp(suffix=".pdf", prefix="preview_")
+                os.close(fd)
+                tmp_file = Path(tmp_path)
                 pdf_bytes = self._render_letter_as_pdf_page(filled_text)
                 with open(tmp_file, "wb") as f:
                     f.write(pdf_bytes)
-            
-            QDesktopServices.openUrl(QUrl.fromLocalFile(str(tmp_file)))
-            self._status.setText("Preview opened.")
+                QDesktopServices.openUrl(QUrl.fromLocalFile(str(tmp_file)))
+                self._status.setText("Preview opened (Anschreiben only — load Lebenslauf for full preview).")
         except Exception as e:
             self._show_error("Preview Error", str(e))
+
 
     def _render_letter_as_pdf_page(self, text: str) -> bytes:
         import io
@@ -4342,79 +5437,146 @@ class EditPage(QWidget):
         doc.build(story)
         return buffer.getvalue()
 
-    def _export_bewerbungsmappe(self, record: LeadRecord, letter_text: str, output_path: Path | None = None) -> Path:
-        import pypdf
-        import io
+    def _export_bewerbungsmappe(self, record: LeadRecord, letter_text: str, output_dir: Path | None = None) -> list[Path]:
+        """
+        Assemble and write the Bewerbungsmappe PDFs.
+        Returns a list of produced Path objects (1, 2, or 3 files depending on mode).
+        Raises ValueError if required documents are not loaded.
+        """
+        import pypdf, io, json
 
-        if not self._bewerbung_pdf_path:
-            raise ValueError("Upload your Bewerbung PDF first")
+        # ── resolve document sources ────────────────────────────────────────
+        db_path_str = getattr(config_manager.settings, "bewerbung_deckblatt_path", "") or ""
+        has_db = bool(db_path_str and Path(db_path_str).exists())
 
-        letter_bytes = self._render_letter_as_pdf_page(letter_text)
-        reader = pypdf.PdfReader(self._bewerbung_pdf_path)
-        if reader.is_encrypted:
-            raise ValueError("PDF is password-protected. Please unlock it first.")
-            
-        num_pages = len(reader.pages)
-        letter_reader = pypdf.PdfReader(io.BytesIO(letter_bytes))
-        
-        writer = pypdf.PdfWriter()
-        target_idx = self._bewerbung_anschreiben_page
-        appended_at_end = False
-        
-        import sys
-        old_limit = sys.getrecursionlimit()
-        sys.setrecursionlimit(max(10000, old_limit))
-        
+        lv_path_str = getattr(config_manager.settings, "bewerbung_lebenslauf_path", "") or ""
+        if not lv_path_str or not Path(lv_path_str).exists():
+            raise ValueError("Lebenslauf PDF not loaded. Please load it via LOAD LEBENSLAUF.")
+        has_lv = True
+
+        zeug_paths_raw = getattr(config_manager.settings, "bewerbung_zeugnisse_paths", "[]") or "[]"
         try:
-            if target_idx < 0 or target_idx >= num_pages:
-                appended_at_end = True
-                for page in reader.pages:
-                    writer.add_page(page)
-                for new_page in letter_reader.pages:
-                    if num_pages > 0:
-                        orig_page = reader.pages[0]
-                        new_page.scale_to(float(orig_page.mediabox.width), float(orig_page.mediabox.height))
-                    writer.add_page(new_page)
-            else:
-                for i in range(num_pages):
-                    if i == target_idx:
-                        orig_page = reader.pages[i]
-                        for new_page in letter_reader.pages:
-                            new_page.scale_to(float(orig_page.mediabox.width), float(orig_page.mediabox.height))
-                            writer.add_page(new_page)
-                    else:
-                        writer.add_page(reader.pages[i])
-        finally:
-            sys.setrecursionlimit(old_limit)
-                    
-        beruf = self._cached_sender_settings.get("beruf", "") or record.job_title or "Ausbildung"
-        sender = self._load_sender_settings().get("name", "")
-        if not sender:
-            sender = config_manager.settings.email_from_name
-        if not sender:
-            sender = "Bewerber"
-        
-        def sanitize(v):
-            return re.sub(r'[<>:"/\\|?*]', '_', v)
-            
-        beruf_san = sanitize(beruf)
-        sender_san = sanitize(sender)
-        
-        if output_path is None:
-            filename = f"Bewerbung als {beruf_san} - {sender_san}.pdf"
-            output_path = get_exports_dir() / filename
+            zeug_paths: list[str] = json.loads(zeug_paths_raw)
+        except Exception:
+            zeug_paths = []
+        zeug_paths = [p for p in zeug_paths if p and Path(p).exists()]
 
+        mode = getattr(config_manager.settings, "bewerbung_export_mode", "full")
+        doc_order = self._get_doc_order()
+
+        # ── naming helpers ───────────────────────────────────────────────────
+        beruf = self._cached_sender_settings.get("beruf", "") or record.job_title or "Ausbildung"
+        sender = self._load_sender_settings().get("name", "") or config_manager.settings.email_from_name or "Bewerber"
+        firma = record.company_name or ""
+
+        def sanitize(v: str) -> str:
+            return re.sub(r'[<>:"/\\|?*]', '_', v)
+
+        b = sanitize(beruf)
+        s = sanitize(sender)
+        f = sanitize(firma)
+        out_dir = output_dir or get_exports_dir()
         
-        with open(output_path, "wb") as f:
-            writer.write(f)
+        base_name = f"Bewerbung als {b} - {s}"
+        if f:
+            base_name += f" @ {f}"
             
-        if appended_at_end:
-            self._show_error(
-                "Export Warning",
-                f"Page {target_idx + 1} not found — Anschreiben appended at end."
-            )
-            
-        return output_path
+        if len(base_name) > 150:
+            base_name = base_name[:146].strip()
+
+
+        # ── PDF building helpers ─────────────────────────────────────────────
+        letter_bytes = self._render_letter_as_pdf_page(letter_text)
+
+        def _append_pdf_from_bytes(writer: pypdf.PdfWriter, data: bytes):
+            try:
+                r = pypdf.PdfReader(io.BytesIO(data))
+                for page in r.pages:
+                    writer.add_page(page)
+            except Exception as e:
+                print(f"Warning: could not merge letter bytes: {e}")
+
+        def _append_pdf(writer: pypdf.PdfWriter, path: str):
+            try:
+                r = pypdf.PdfReader(path)
+                if r.is_encrypted:
+                    return
+                for page in r.pages:
+                    writer.add_page(page)
+            except Exception as e:
+                print(f"Warning: could not merge {path}: {e}")
+
+        def _write(writer: pypdf.PdfWriter, dest: Path):
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            with open(dest, "wb") as f:
+                writer.write(f)
+            return dest
+
+        # ── export modes ────────────────────────────────────────────────────
+        if mode == "full":
+            # Single PDF: All available documents ordered according to user's doc_order
+            w = pypdf.PdfWriter()
+            for doc_key in doc_order:
+                if doc_key == "deckblatt" and has_db:
+                    _append_pdf(w, db_path_str)
+                elif doc_key == "anschreiben":
+                    _append_pdf_from_bytes(w, letter_bytes)
+                elif doc_key == "lebenslauf" and has_lv:
+                    _append_pdf(w, lv_path_str)
+                elif doc_key == "zeugnisse":
+                    for zp in zeug_paths:
+                        _append_pdf(w, zp)
+            dest = out_dir / f"{base_name}.pdf"
+            return [_write(w, dest)]
+
+        elif mode == "letter_cv_certs":
+            # File 1: Dossier (Deckblatt, Anschreiben, Lebenslauf in user's doc_order)
+            w1 = pypdf.PdfWriter()
+            for doc_key in doc_order:
+                if doc_key == "deckblatt" and has_db:
+                    _append_pdf(w1, db_path_str)
+                elif doc_key == "anschreiben":
+                    _append_pdf_from_bytes(w1, letter_bytes)
+                elif doc_key == "lebenslauf" and has_lv:
+                    _append_pdf(w1, lv_path_str)
+            dest1 = out_dir / f"{base_name}_AnschreibenLebenslauf.pdf"
+            _write(w1, dest1)
+            result = [dest1]
+            # File 2: all Zeugnisse merged (if any)
+            if zeug_paths:
+                w2 = pypdf.PdfWriter()
+                for zp in zeug_paths:
+                    _append_pdf(w2, zp)
+                dest2 = out_dir / f"{base_name}_Zeugnisse.pdf"
+                result.append(_write(w2, dest2))
+            return result
+
+        else:  # "separate"
+            result = []
+            for doc_key in doc_order:
+                if doc_key == "deckblatt" and has_db:
+                    w_d = pypdf.PdfWriter()
+                    _append_pdf(w_d, db_path_str)
+                    dest_d = out_dir / f"{base_name}_Deckblatt.pdf"
+                    result.append(_write(w_d, dest_d))
+                elif doc_key == "anschreiben":
+                    w_a = pypdf.PdfWriter()
+                    _append_pdf_from_bytes(w_a, letter_bytes)
+                    dest_a = out_dir / f"{base_name}_Anschreiben.pdf"
+                    result.append(_write(w_a, dest_a))
+                elif doc_key == "lebenslauf" and has_lv:
+                    w_l = pypdf.PdfWriter()
+                    _append_pdf(w_l, lv_path_str)
+                    dest_l = out_dir / f"{base_name}_Lebenslauf.pdf"
+                    result.append(_write(w_l, dest_l))
+                elif doc_key == "zeugnisse" and zeug_paths:
+                    w_z = pypdf.PdfWriter()
+                    for zp in zeug_paths:
+                        _append_pdf(w_z, zp)
+                    dest_z = out_dir / f"{base_name}_Zeugnisse.pdf"
+                    result.append(_write(w_z, dest_z))
+            return result
+
 
     def _export_bewerbungsmappe_batch(self, out_dir: Path | None = None, records: list = None) -> bool:
         from ..core.power import WakeLock
@@ -4425,31 +5587,13 @@ class EditPage(QWidget):
             WakeLock.release("Batch PDF Export")
 
     def _do_export_bewerbungsmappe_batch(self, out_dir: Path | None = None, records: list = None) -> None:
-        import pypdf
-        import io
+        lv_path = getattr(config_manager.settings, "bewerbung_lebenslauf_path", "") or ""
+        if not lv_path or not Path(lv_path).exists():
+            raise ValueError("Lebenslauf PDF not loaded. Please load it via LOAD LEBENSLAUF.")
 
-        if not self._bewerbung_pdf_path:
-            raise ValueError("Upload your Bewerbung PDF first")
-
-        reader = pypdf.PdfReader(self._bewerbung_pdf_path)
-        if reader.is_encrypted:
-            raise ValueError("PDF is password-protected. Please unlock it first.")
-            
-        num_pages = len(reader.pages)
-        target_idx = self._bewerbung_anschreiben_page
         records = records if records is not None else self._pending_lead_records
         total = len(records)
-        sender = self._load_sender_settings().get("name", "")
-        if not sender:
-            sender = config_manager.settings.email_from_name
-        if not sender:
-            sender = "Bewerber"
         
-        def sanitize(v):
-            return re.sub(r'[<>:"/\\|?*]', '_', v)
-            
-        sender_san = sanitize(sender)
-        warnings = []
         self._progress_info_bar = None
         self._batch_export_cancelled = False
         
@@ -4478,80 +5622,21 @@ class EditPage(QWidget):
                 state = self._states.get(record.id)
                 letter_text = (state.letter_text if state else None) or self._assemble_letter(record)
                 
-                letter_bytes = self._render_letter_as_pdf_page(letter_text)
-                letter_reader = pypdf.PdfReader(io.BytesIO(letter_bytes))
-                
-                if not letter_reader.pages:
-                    raise ValueError(f"Cover letter template generated an empty page for lead #{record.id} ('{record.company_name or record.email}'). Ensure the template generates text for this lead.")
+                if not letter_text:
+                    raise ValueError(f"Cover letter template generated an empty text for lead #{record.id} ('{record.company_name or record.email}').")
                     
-                new_page = letter_reader.pages[0]
-                
-                writer = pypdf.PdfWriter()
-                appended_at_end = False
-                
-                if target_idx < 0 or target_idx >= num_pages:
-                    appended_at_end = True
-                    for page in reader.pages:
-                        writer.add_page(page)
-                    if num_pages > 0:
-                        orig_page = reader.pages[0]
-                        new_page.scale_to(float(orig_page.mediabox.width), float(orig_page.mediabox.height))
-                    writer.add_page(new_page)
-                else:
-                    for i in range(num_pages):
-                        if i == target_idx:
-                            orig_page = reader.pages[i]
-                            new_page.scale_to(float(orig_page.mediabox.width), float(orig_page.mediabox.height))
-                            writer.add_page(new_page)
-                        else:
-                            writer.add_page(reader.pages[i])
-                
-                beruf = self._cached_sender_settings.get("beruf", "") or record.job_title or "Ausbildung"
-                firma = record.company_name or "Firma"
-                
-                beruf_san = sanitize(beruf)
-                firma_san = sanitize(firma)
-                
-                filename = f"Bewerbung als {beruf_san} - {sender_san} @ {firma_san}.pdf"
-                if len(filename) > 150:
-                    filename = filename[:-4][:146].strip() + ".pdf"
-                    
-                if out_dir:
-                    output_path = out_dir / filename
-                else:
-                    output_path = get_exports_dir() / filename
-                
                 try:
-                    with open(output_path, "wb") as f:
-                        writer.write(f)
-                except OSError as e:
-                    raise OSError(f"Failed to save PDF. The company name '{firma}' might be too long for your computer's file path limit. Shorten the company name and try again. (Details: {e})")
-                    
-                if idx == 0:
-                    try:
-                        generic_name = f"Bewerbung als {beruf_san} - {sender_san}.pdf"
-                        generic_path = (out_dir if out_dir else get_exports_dir()) / generic_name
-                        with open(generic_path, "wb") as f:
-                            writer.write(f)
-                    except Exception:
-                        pass
-                    
-                if appended_at_end:
-                    warnings.append(record.company_name or "Unknown Company")
-                    
+                    self._export_bewerbungsmappe(record, letter_text, out_dir)
+                except Exception as e:
+                    print(f"Failed to export {record.id}: {e}")
+            
             if self._progress_info_bar:
                 self._progress_info_bar.close_anim()
                 self._progress_info_bar = None
                 
             self._show_success("Batch Export Completed", f"Successfully exported {total} PDFs.")
-            
-            if warnings:
-                self._show_error(
-                    "Export Warning",
-                    f"For {len(warnings)} leads, page {target_idx + 1} was out of range. Anschreiben was appended at the end."
-                )
             return True
-                
+            
         except Exception as e:
             if self._progress_info_bar:
                 self._progress_info_bar.close_anim()
@@ -4562,11 +5647,12 @@ class EditPage(QWidget):
         if not self._selected_record:
             self._show_error("Export Failed", "Select a lead first")
             return
-            
-        if not self._bewerbung_pdf_path:
-            self._show_error("Export Failed", "Upload your Bewerbung PDF first")
+
+        lv_path = getattr(config_manager.settings, "bewerbung_lebenslauf_path", "") or ""
+        if not lv_path or not Path(lv_path).exists():
+            self._show_error("Export Failed", "Load your Lebenslauf PDF first (BEWERBUNG → Load Lebenslauf).")
             return
-            
+
         from ..core.security import LicenseManager
         if not LicenseManager.can_export_pdf(1):
             status = LicenseManager.get_pdf_trial_status()
@@ -4581,13 +5667,13 @@ class EditPage(QWidget):
                 parent=self.window()
             )
             return
-            
+
         try:
             import pypdf
         except ImportError:
             self._show_error("Dependency Missing", "Install pypdf:  pip install pypdf")
             return
-            
+
         try:
             import reportlab
         except ImportError:
@@ -4595,36 +5681,31 @@ class EditPage(QWidget):
             return
 
         try:
-            beruf = self._cached_sender_settings.get("beruf", "") or self._selected_record.job_title or "Ausbildung"
-            sender = self._load_sender_settings().get("name", "Bewerber")
-            beruf_san = re.sub(r'[<>:"/\\|?*]', '_', beruf)
-            sender_san = re.sub(r'[<>:"/\\|?*]', '_', sender)
-            default_name = f"Bewerbung als {beruf_san} - {sender_san}.pdf"
-            
-            out_file, _ = QFileDialog.getSaveFileName(
+            out_dir_str = QFileDialog.getExistingDirectory(
                 self,
-                "Save Bewerbungsmappe PDF",
-                default_name,
-                "PDF Files (*.pdf)"
+                "Choose Export Folder",
+                str(Path.home() / "Documents"),
             )
-            
-            if not out_file:
+            if not out_dir_str:
                 return
-                
+
             letter_text = self._editor.toPlainText()
-            out_path = self._export_bewerbungsmappe(self._selected_record, letter_text, output_path=Path(out_file))
+            out_paths = self._export_bewerbungsmappe(self._selected_record, letter_text, Path(out_dir_str))
             LicenseManager.record_pdf_export(1)
-            self._show_success("Exported", out_path.name)
+            names = ", ".join(p.name for p in out_paths)
+            self._show_success("Exported", names)
         except Exception as e:
             self._show_error("Export Failed", str(e))
+
 
     def _action_export_bewerbungsmappe_batch(self) -> None:
         if not self._pending_lead_records:
             self._show_error("Nothing to export", "No leads match current filter.")
             return
             
-        if not self._bewerbung_pdf_path:
-            self._show_error("Export Failed", "Upload your Bewerbung PDF first")
+        lv_path = getattr(config_manager.settings, "bewerbung_lebenslauf_path", "") or ""
+        if not lv_path or not Path(lv_path).exists():
+            self._show_error("Export Failed", "Load your Lebenslauf PDF first (BEWERBUNG → Load Lebenslauf).")
             return
             
         from ..core.security import LicenseManager
@@ -4696,8 +5777,9 @@ class EditPage(QWidget):
             self._show_error("Export Failed", "No leads match current filter.")
             return
             
-        if not self._bewerbung_pdf_path:
-            self._show_error("Export Failed", "Upload your Bewerbung PDF first")
+        lv_path = getattr(config_manager.settings, "bewerbung_lebenslauf_path", "") or ""
+        if not lv_path or not Path(lv_path).exists():
+            self._show_error("Export Failed", "Load your Lebenslauf PDF first (BEWERBUNG → Load Lebenslauf).")
             return
             
         from ..core.security import LicenseManager
@@ -4731,11 +5813,11 @@ class EditPage(QWidget):
             
             out_dir = get_exports_dir()
             
-            # Copy the raw PDF to act as a fallback for leads beyond the trial limit
+            # Copy the generic Lebenslauf to act as a fallback for leads beyond the trial limit
             raw_pdf_path = out_dir / "Bewerbung_Raw_Uploaded.pdf"
             try:
-                if self._bewerbung_pdf_path and self._bewerbung_pdf_path.exists():
-                    shutil.copy2(str(self._bewerbung_pdf_path), str(raw_pdf_path))
+                if lv_path and Path(lv_path).exists():
+                    shutil.copy2(str(lv_path), str(raw_pdf_path))
             except Exception as e:
                 pass # Non-fatal if we can't copy it
                 
@@ -4766,3 +5848,4 @@ class EditPage(QWidget):
         except Exception as e:
             self._show_error("Batch Export & Send Failed", str(e))
 
+# 1.1.0

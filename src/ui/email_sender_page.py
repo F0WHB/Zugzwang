@@ -2705,21 +2705,36 @@ class EmailSenderPage(QWidget):
         firma_san = sanitize(company)
         sender_san = sanitize(sender_name)
 
-        pdf_filename = f"Bewerbung als {beruf_san} - {sender_san} @ {firma_san}.pdf"
-        if len(pdf_filename) > 150:
-            pdf_filename = pdf_filename[:-4][:146].strip() + ".pdf"
-        generic_pdf_filename = f"Bewerbung als {beruf_san} - {sender_san}.pdf"
+        base_filename = f"Bewerbung als {beruf_san} - {sender_san} @ {firma_san}"
+        if len(base_filename) > 150:
+            base_filename = base_filename[:146].strip()
+        generic_base = f"Bewerbung als {beruf_san} - {sender_san}"
+
+        export_mode = getattr(config_manager.settings, "bewerbung_export_mode", "full")
+        
+        if export_mode == "separate":
+            pdf_filename = f"{base_filename}_Anschreiben.pdf"
+            generic_pdf_filename = f"{generic_base}_Anschreiben.pdf"
+            display_name = "Anschreiben.pdf"
+        elif export_mode == "letter_cv_certs":
+            pdf_filename = f"{base_filename}_AnschreibenLebenslauf.pdf"
+            generic_pdf_filename = f"{generic_base}_AnschreibenLebenslauf.pdf"
+            display_name = "Anschreiben_Lebenslauf.pdf"
+        else:
+            pdf_filename = f"{base_filename}.pdf"
+            generic_pdf_filename = f"{generic_base}.pdf"
+            display_name = generic_pdf_filename
 
         dynamic_pdf_path = get_exports_dir() / pdf_filename
         generic_pdf_path = get_exports_dir() / generic_pdf_filename
         raw_pdf_path = get_exports_dir() / "Bewerbung_Raw_Uploaded.pdf"
 
         chosen_pdf_path = None
-        chosen_display_name = pdf_filename
+        chosen_display_name = display_name
 
         if dynamic_pdf_path.exists() and not has_manual_attachments:
             chosen_pdf_path = dynamic_pdf_path
-            chosen_display_name = pdf_filename
+            chosen_display_name = display_name
         elif not has_manual_attachments:
             # Fallback checks only when the user did not provide manual attachments
             if generic_pdf_path.exists():
@@ -2739,8 +2754,72 @@ class EmailSenderPage(QWidget):
                 msg.attach(part)
             except Exception as e:
                 raise RuntimeError(f"Failed to attach PDF {chosen_pdf_path}: {e}")
-        elif not has_manual_attachments:
-            raise FileNotFoundError(f"No attachment found. Please manually attach files in the Send tab or generate a Bewerbungsmappe in the Edit page first.")
+
+        # Multi-doc modes: attach Lebenslauf and/or Zeugnisse as extra files
+        if not has_manual_attachments:
+            import json as _json
+            export_mode = getattr(config_manager.settings, "bewerbung_export_mode", "full")
+            lv_path = getattr(config_manager.settings, "bewerbung_lebenslauf_path", "") or ""
+            zeug_raw = getattr(config_manager.settings, "bewerbung_zeugnisse_paths", "[]") or "[]"
+            try:
+                zeug_paths = _json.loads(zeug_raw)
+            except Exception:
+                zeug_paths = []
+            zeug_paths = [p for p in zeug_paths if p and Path(p).exists()]
+
+            def _attach_pdf_file(path: str, display_name: str):
+                try:
+                    part = MIMEBase("application", "pdf")
+                    with open(path, "rb") as f:
+                        part.set_payload(f.read())
+                    encoders.encode_base64(part)
+                    _add_safe_filename_header(part, "attachment", display_name)
+                    msg.attach(part)
+                except Exception as e:
+                    self._log(f"Failed to attach {display_name}: {e}", "WARNING")
+
+            if export_mode == "separate":
+                # Separate files: Deckblatt (if available), Lebenslauf, and merged Zeugnisse.
+                db_path = getattr(config_manager.settings, "bewerbung_deckblatt_path", "") or ""
+                if db_path and Path(db_path).exists():
+                    _attach_pdf_file(db_path, "Deckblatt.pdf")
+                if lv_path and Path(lv_path).exists():
+                    _attach_pdf_file(lv_path, "Lebenslauf.pdf")
+                if zeug_paths:
+                    import io, pypdf as _pypdf
+                    w = _pypdf.PdfWriter()
+                    for zp in zeug_paths:
+                        try:
+                            r = _pypdf.PdfReader(zp)
+                            for pg in r.pages:
+                                w.add_page(pg)
+                        except Exception:
+                            pass
+                    buf = io.BytesIO()
+                    w.write(buf)
+                    try:
+                        z_part = MIMEBase("application", "pdf")
+                        z_part.set_payload(buf.getvalue())
+                        encoders.encode_base64(z_part)
+                        _add_safe_filename_header(z_part, "attachment", "Zeugnisse.pdf")
+                        msg.attach(z_part)
+                    except Exception as e:
+                        self._log(f"Failed to attach Zeugnisse: {e}", "WARNING")
+
+            elif export_mode == "letter_cv_certs":
+                # Lebenslauf is merged with Anschreiben in the first file (handled by export).
+                # Attach the Zeugnisse PDF separately if it was written.
+                if zeug_paths:
+                    zeug_dest_dynamic = get_exports_dir() / f"{base_filename}_Zeugnisse.pdf"
+                    zeug_dest_generic = get_exports_dir() / f"{generic_base}_Zeugnisse.pdf"
+                    
+                    if zeug_dest_dynamic.exists():
+                        _attach_pdf_file(str(zeug_dest_dynamic), "Zeugnisse.pdf")
+                    elif zeug_dest_generic.exists():
+                        _attach_pdf_file(str(zeug_dest_generic), "Zeugnisse.pdf")
+
+        if not has_manual_attachments and not chosen_pdf_path:
+            raise FileNotFoundError("No attachment found. Please load your Lebenslauf in the Edit page or attach files manually in the Send tab.")
         return msg, tracking_id
 
     def _create_smtp_connection(self, silent: bool = False):
@@ -2977,4 +3056,4 @@ class EmailSenderPage(QWidget):
 
     # End of class
 
-# 1.1.0 Beta6
+# 1.1.0

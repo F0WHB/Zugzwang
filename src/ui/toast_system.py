@@ -431,3 +431,5 @@ class ToastNotification(QFrame):
         toast.show()
         toast.raise_()
         return toast
+
+# 1.1.0

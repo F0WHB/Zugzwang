@@ -92,4 +92,4 @@ class UpdateDialog(ZugzwangDialog):
         self.cancel_btn.setEnabled(True)
         InfoBar.error("Update Failed", msg, duration=5000, parent=self)
 
-# 1.1.0 Beta6
+# 1.1.0

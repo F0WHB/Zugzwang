@@ -141,4 +141,4 @@ if __name__ == "__main__":
     inject_changelog(root_dir, new_version, changes_en, changes_ar)
     print("Done!")
 
-# 1.1.0 Beta6
+# 1.1.0

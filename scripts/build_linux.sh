@@ -32,11 +32,11 @@ chmod +x dist/ZUGZWANG/ZUGZWANG.desktop
 # 4. Create distributable tar.gz archive
 echo "[3/3] Creating Linux distributable archive..."
 cd dist
-tar -czf "ZUGZWANG_Linux_1.1.0 Beta6.tar.gz" ZUGZWANG/
+tar -czf "ZUGZWANG_Linux_1.1.0.tar.gz" ZUGZWANG/
 cd ..
 
 echo "=========================================================="
-echo "[SUCCESS] Built Linux package: dist/ZUGZWANG_Linux_1.1.0 Beta6.tar.gz"
+echo "[SUCCESS] Built Linux package: dist/ZUGZWANG_Linux_1.1.0.tar.gz"
 echo "=========================================================="
 
-# 1.1.0 Beta6
+# 1.1.0

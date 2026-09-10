@@ -76,7 +76,7 @@ class SearchSourceCard(QFrame):
         layout.addLayout(header)
         layout.addStretch(1)
 
-        self._title = QLabel(title)
+        self._title = QLabel(title.upper())
         self._title.setStyleSheet(f"color: #FFFFFF; font-family: 'PT Root UI', sans-serif; font-size: 18px; font-weight: 700; background: transparent; border: none;")
         layout.addWidget(self._title)
 
@@ -122,7 +122,7 @@ class SearchSourceCard(QFrame):
             "ausbildung": "Find apprenticeship positions across Germany",
             "aubiplus": "High-quality vocational training and study positions",
             "dasoertliche": "Search German business directory Das Örtliche",
-            "azubiyo": "Sophisticated matching for apprenticeships (Coming Soon)"
+            "azubiyo": "Find apprenticeships and dual study programs on Azubiyo.de"
         }
         self.setToolTip(tooltips.get(self._key, ""))
 
@@ -164,7 +164,7 @@ class SearchHistoryDropdown(QFrame):
     closed = Signal()
 
     # Internal key strings for source cards
-    _SOURCE_KEYS = ("maps", "jobsuche", "ausbildung", "aubiplus", "dasoertliche") #, "azubiyo" - Staged for v1.1.0
+    _SOURCE_KEYS = ("maps", "jobsuche", "ausbildung", "aubiplus", "dasoertliche", "azubiyo")
 
     def __init__(self, language: str, parent=None):
         super().__init__(parent, Qt.Tool | Qt.FramelessWindowHint | Qt.WindowDoesNotAcceptFocus)
@@ -604,27 +604,25 @@ class SearchPage(QWidget):
             "Scrape German business directory",
             tr("search.selected", self._language),
         )
-        # Azubiyo visible as disabled sneak-peek
         self._card_azubiyo = SearchSourceCard(
             "azubiyo",
             FluentIcon.PEOPLE,
-            "AZUBIYO.DE",
-            "Coming in v1.1.0",
+            tr("search.source.azubiyo.title", self._language),
+            tr("search.source.azubiyo.body", self._language),
             tr("search.selected", self._language),
         )
-        self._card_azubiyo.setEnabled(False)
-        from PySide6.QtWidgets import QGraphicsOpacityEffect
-        op = QGraphicsOpacityEffect(self._card_azubiyo)
-        op.setOpacity(0.5)
-        self._card_azubiyo.setGraphicsEffect(op)
 
         self._card_maps.activated.connect(self._select_source)
         self._card_jobsuche.activated.connect(self._select_source)
         self._card_ausbildung.activated.connect(self._select_source)
         self._card_aubiplus.activated.connect(self._select_source)
         self._card_dasoertliche.activated.connect(self._select_source)
+        self._card_azubiyo.activated.connect(self._select_source)
         
-        self._interactive_widgets.extend([self._card_maps, self._card_jobsuche, self._card_ausbildung, self._card_aubiplus, self._card_dasoertliche])
+        self._interactive_widgets.extend([
+            self._card_maps, self._card_jobsuche, self._card_ausbildung,
+            self._card_aubiplus, self._card_dasoertliche, self._card_azubiyo
+        ])
 
         layout.addWidget(self._card_maps, 1)
         layout.addWidget(self._card_jobsuche, 1)
@@ -894,6 +892,7 @@ class SearchPage(QWidget):
         self._card_ausbildung.set_active(source == "ausbildung")
         self._card_aubiplus.set_active(source == "aubiplus")
         self._card_dasoertliche.set_active(source == "dasoertliche")
+        self._card_azubiyo.set_active(source == "azubiyo")
 
         settings = config_manager.settings
         self._offer_type_container.setEnabled(source not in ("maps", "dasoertliche"))
@@ -1279,4 +1278,4 @@ class SearchPage(QWidget):
         run_in_thread(_fetch_cities, on_result=_on_cities_fetched)
 
 
-# 1.1.0 Beta6
+# 1.1.0

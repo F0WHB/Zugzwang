@@ -991,4 +991,4 @@ class MonitorPage(QWidget):
             return f"{minutes}m {secs}s"
         return f"{secs}s"
 
-# 1.1.0 Beta6
+# 1.1.0

@@ -850,4 +850,4 @@ class DashboardPage(QWidget):
             else:
                 label.parentWidget().hide()
 
-# 1.1.0 Beta6
+# 1.1.0

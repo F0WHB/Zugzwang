@@ -590,6 +590,7 @@ class LeadFilterProxy(QSortFilterProxyModel):
             if self._source_filter == 3 and "ausbildung" not in source_val: return False
             if self._source_filter == 4 and "aubiplus" not in source_val: return False
             if self._source_filter == 5 and "oertliche" not in source_val: return False
+            if self._source_filter == 6 and "azubiyo" not in source_val: return False
 
         if self._status_filter != 0:
             has_email = bool(record.email)
@@ -1481,6 +1482,7 @@ class ResultsPage(QWidget):
         menu.add_item(tr("results.source.ausbildung", self._language), 3, self._proxy._source_filter == 3)
         menu.add_item(tr("results.source.aubiplus", self._language), 4, self._proxy._source_filter == 4)
         menu.add_item("Das Oertliche", 5, self._proxy._source_filter == 5)
+        menu.add_item(tr("results.source.azubiyo", self._language), 6, self._proxy._source_filter == 6)
         
         menu.itemSelected.connect(lambda t, i: self._apply_source_filter(i, t))
         self._source_chip.set_open(True)
@@ -2287,4 +2289,4 @@ class ResultsPage(QWidget):
         if msg.exec():
             self._remove_all_records()
 
-# 1.1.0 Beta6
+# 1.1.0

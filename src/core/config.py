@@ -19,8 +19,8 @@ from .models import AppSettings
 logger = logging.getLogger(__name__)
 
 APP_NAME = "ZUGZWANG"
-APP_VERSION = "1.1.0 Beta6"
-APP_BUILD = 6
+APP_VERSION = "1.1.0"
+APP_BUILD = 7
 APP_AUTHOR = "ZUGZWANG"
 
 
@@ -195,6 +195,11 @@ class ConfigManager(QObject):
             "email_recipients": settings.email_recipients,
             "email_attachments": settings.email_attachments,
             "bewerbung_anschreiben_page": settings.bewerbung_anschreiben_page,
+            "bewerbung_export_mode": settings.bewerbung_export_mode,
+            "bewerbung_deckblatt_path": settings.bewerbung_deckblatt_path,
+            "bewerbung_lebenslauf_path": settings.bewerbung_lebenslauf_path,
+            "bewerbung_zeugnisse_paths": settings.bewerbung_zeugnisse_paths,
+            "bewerbung_doc_order": settings.bewerbung_doc_order,
             "last_search_latest_offers_only": settings.last_search_latest_offers_only,
             "column_visibility": settings.column_visibility,
             "results_table_state": settings.results_table_state,
@@ -444,4 +449,4 @@ class ConfigManager(QObject):
 # Global singleton access
 config_manager = ConfigManager()
 
-# 1.1.0 Beta6
+# 1.1.0

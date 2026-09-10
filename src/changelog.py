@@ -1,15 +1,31 @@
 # ZUGZWANG Changelog Definitions
 # Contains version history and changes for the "What's New" dialog.
 
-APP_VERSION = "1.1.0 Beta6"
+APP_VERSION = "1.1.0"
 
 CHANGELOG = [
     {
-        "version": "1.1.0 Beta6",
+        "version": "1.1.0",
         "date": "September 10, 2026",
-        "label": "LATEST",
+        "label": "STABLE",
         "label_color": "#30D158",
         "changes": [
+            {
+                "type": "new",
+                "text": "Native Pro-Apple Attachments & Zeugnisse Dialog — Re-architected certificate management with an ultra-sleek macOS card modal, featuring interactive drag-and-drop reordering, fluid animations, instant PDF previewing, and inline document removal."
+            },
+            {
+                "type": "improved",
+                "text": "Unified Outreach Trial Quota — Standardized trial limits across the entire platform to 20 Anschreiben cover letters and 20 email deliveries, eliminating quota discrepancies between exports and campaign outreach."
+            },
+            {
+                "type": "fixed",
+                "text": "Seamless Zeugnisse Bundle Delivery — Resolved export and email dispatch attachment issues to ensure Zeugnisse PDFs match dynamic file patterns and attach reliably alongside Cover Letters and CVs."
+            },
+            {
+                "type": "new",
+                "text": "Azubiyo Intelligent Job & Training Scraper — Added automated extraction for Azubiyo listings with fast pagination, location filtering, and direct company contact discovery."
+            },
             {
                 "type": "new",
                 "text": "Redesigned macOS Toast Notification System — Introduced a floating native macOS card (#2C2C2E, 14px radius, 0.5px border, 400px fixed width, zero shadow) with role-colored badges, clean typography, smooth physics animations, and persistent top-right window anchoring."
@@ -632,9 +648,9 @@ CHANGELOG = [
 
 CHANGELOG_AR = [
     {
-        "version": "1.1.0 Beta6",
+        "version": "1.1.0",
         "date": "10 سبتمبر 2026",
-        "label": "الأحدث",
+        "label": "مستقر",
         "label_color": "#30D158",
         "type_labels": {
             "new": "جديد",
@@ -643,6 +659,22 @@ CHANGELOG_AR = [
             "removed": "مُزال"
         },
         "changes": [
+            {
+                "type": "new",
+                "text": "نافذة إدارة المرفقات والشهادات (Zeugnisse) بتصميم Apple الاحترافي — إعادة بناء شاملة لنافذة المرفقات بأسلوب بطاقات macOS الفاخر، مع دعم إعادة الترتيب التفاعلي بالسحب والإفلات (Drag & Drop)، وحركات انسيابية، ومعاينة فورية للمستندات وحذف سهل."
+            },
+            {
+                "type": "improved",
+                "text": "توحيد حدود التجربة المجانية — رفع وتوحيد الحد التجريبي للمنصة بالكامل إلى 20 خطاب تقديم (Anschreiben) و20 بريداً إلكترونياً، مما يلغي التفاوت بين التصدير والإرسال."
+            },
+            {
+                "type": "fixed",
+                "text": "إصلاح إرفاق حزم الشهادات التلقائي — حل مشكلة إرفاق ملفات الشهادات (Zeugnisse) في ميزة التصدير والإرسال 'خطاب + سيرة ذاتية + شهادات'، لتتطابق أسماء الملفات ديناميكياً وتصل إلى المستلم بدقة."
+            },
+            {
+                "type": "new",
+                "text": "مستخرج وظائف وتدريب Azubiyo الذكي — إضافة محرك استخراج تلقائي متطور لمنصة Azubiyo مع دعم التصفح والتصفية حسب الموقع الجغرافي واستخراج بيانات التواصل المباشرة للشركات."
+            },
             {
                 "type": "new",
                 "text": "نظام إشعارات Toast بتصميم macOS الأصلي — تصميم بطاقة macOS عائمة أنيقة (#2C2C2E، نصف قطر 14px، حدود 0.5px، عرض 400px، بدون ظلال غير مرغوبة) مع شارات ملونة للأيقونات (#0A84FF للمعلومات والتقدم، #3A3A3C مع أيقونات ملونة للنجاح والأخطاء)، وخطوط محسّنة وموقع ثابت في الزاوية العلوية اليمنى مع حركات انسيابية."
@@ -1307,4 +1339,4 @@ CHANGELOG_AR = [
     }
 ]
 
-# 1.1.0 Beta6
+# 1.1.0

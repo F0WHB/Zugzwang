@@ -442,6 +442,13 @@ class AppSettings:
     email_attachments: str = ""
     bewerbung_anschreiben_page: int = 1
 
+    # Bewerbung Multi-Document Configuration (persists globally, not per-lead)
+    bewerbung_export_mode: str = "full"      # "full" | "letter_cv_certs" | "separate"
+    bewerbung_deckblatt_path: str = ""       # single Deckblatt (Cover Sheet) PDF, user-uploaded
+    bewerbung_lebenslauf_path: str = ""      # single CV PDF, user-uploaded
+    bewerbung_zeugnisse_paths: str = "[]"    # JSON list of certificate PDF paths (ordered)
+    bewerbung_doc_order: str = '["deckblatt", "anschreiben", "lebenslauf", "zeugnisse"]'  # ordered document keys
+
     # Security & Licensing
     machine_id: str = ""
     security_pin: str = ""
@@ -455,8 +462,8 @@ class AppSettings:
     auto_backup: bool = True
     backup_dir: str = ""
 
-    app_version: str = "1.1.0 Beta6"
-    app_build: int = 6
+    app_version: str = "1.1.0"
+    app_build: int = 7
 
 
     # Free Trial Tracking
@@ -467,4 +474,4 @@ class AppSettings:
     trial_email_count: int = 0
     trial_email_last_reset_date: str = ""
 
-# 1.1.0 Beta6
+# 1.1.0
