@@ -504,7 +504,7 @@ class SettingsPage(QWidget):
         
         lic_lt = QVBoxLayout(); lic_lt.setSpacing(2); lic_lt.setContentsMargins(0, 0, 0, 0)
         lic_lbl = QLabel(tr("settings.license.title", self._language).upper())
-        lic_lbl.setStyleSheet("color: rgba(48, 209, 88, 0.95); font-family: 'PT Root UI', sans-serif; font-size: 10px; font-weight: 800; letter-spacing: 1px;")
+        lic_lbl.setStyleSheet("color: rgba(48, 209, 88, 0.95); font-family: 'PT Root UI', sans-serif; font-size: 12px; font-weight: 800; letter-spacing: 1px;")
         self._lic_desc_card4 = QLabel(tr("Loading...", self._language)); self._lic_desc_card4.setStyleSheet("color: #8E8E93; font-family: 'PT Root UI', sans-serif; font-size: 11px; background: transparent;")
         lic_lt.addWidget(lic_lbl); lic_lt.addWidget(self._lic_desc_card4)
         lic_hl.addLayout(lic_lt, 1)
@@ -678,7 +678,7 @@ class SettingsPage(QWidget):
         cache_hl.addWidget(c_ic)
 
         ctxt = QVBoxLayout(); ctxt.setSpacing(2); ctxt.setContentsMargins(0, 0, 0, 0)
-        ch = QLabel(tr("settings.appdata.title", self._language)); ch.setStyleSheet("color: rgba(255, 159, 10, 0.95); font-family: 'PT Root UI', sans-serif; font-size: 10px; font-weight: 800; letter-spacing: 1px;")
+        ch = QLabel(tr("settings.appdata.title", self._language)); ch.setStyleSheet("color: rgba(255, 159, 10, 0.95); font-family: 'PT Root UI', sans-serif; font-size: 12px; font-weight: 800; letter-spacing: 1px;")
         cb = QLabel(tr("settings.appdata.desc", self._language)); cb.setStyleSheet("color: #8E8E93; font-family: 'PT Root UI', sans-serif; font-size: 11px;")
         ctxt.addWidget(ch); ctxt.addWidget(cb)
         cache_hl.addLayout(ctxt, 1)
@@ -719,7 +719,7 @@ class SettingsPage(QWidget):
         danger_hl.addWidget(d_ic)
 
         dtxt = QVBoxLayout(); dtxt.setSpacing(2); dtxt.setContentsMargins(0, 0, 0, 0)
-        dh = QLabel(tr("settings.db.title", self._language)); dh.setStyleSheet("color: rgba(255, 69, 58, 0.9); font-family: 'PT Root UI', sans-serif; font-size: 10px; font-weight: 800; letter-spacing: 1px;")
+        dh = QLabel(tr("settings.db.title", self._language)); dh.setStyleSheet("color: rgba(255, 69, 58, 0.9); font-family: 'PT Root UI', sans-serif; font-size: 12px; font-weight: 800; letter-spacing: 1px;")
         db = QLabel(tr("settings.db.desc", self._language)); db.setStyleSheet("color: #8E8E93; font-family: 'PT Root UI', sans-serif; font-size: 11px;")
         dtxt.addWidget(dh); dtxt.addWidget(db)
         danger_hl.addLayout(dtxt, 1)
@@ -851,7 +851,7 @@ class SettingsPage(QWidget):
         update_hl.addWidget(u_ic)
 
         utxt = QVBoxLayout(); utxt.setSpacing(2); utxt.setContentsMargins(0, 0, 0, 0)
-        uh = QLabel(tr("settings.update.title", self._language).upper()); uh.setStyleSheet("color: rgba(10, 132, 255, 0.95); font-family: 'PT Root UI', sans-serif; font-size: 10px; font-weight: 800; letter-spacing: 1px;")
+        uh = QLabel(tr("settings.update.title", self._language).upper()); uh.setStyleSheet("color: rgba(10, 132, 255, 0.95); font-family: 'PT Root UI', sans-serif; font-size: 12px; font-weight: 800; letter-spacing: 1px;")
         ub = QLabel(tr("settings.update.desc", self._language))
         ub.setStyleSheet("color: #8E8E93; font-family: 'PT Root UI', sans-serif; font-size: 11px;")
         utxt.addWidget(uh); utxt.addWidget(ub)
