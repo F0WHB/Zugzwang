@@ -82,7 +82,7 @@ class RowSelectionDelegate(QStyledItemDelegate):
         field = TABLE_COLUMNS[index.column()][0] if 0 <= index.column() < len(TABLE_COLUMNS) else ""
 
         if field == "email":
-            font = QFont("PT Root UI", 9)
+            font = QFont("PT Root UI", 11)
             painter.setFont(font)
             if text and text != "—":
                 painter.setPen(QColor("#0A84FF"))
@@ -94,7 +94,7 @@ class RowSelectionDelegate(QStyledItemDelegate):
             
         elif field == "source_type":
             if text and text != "—":
-                font = QFont("PT Root UI", 9)
+                font = QFont("PT Root UI", 11)
                 font.setWeight(QFont.Bold)
                 painter.setFont(font)
                 fm = painter.fontMetrics()
@@ -111,12 +111,12 @@ class RowSelectionDelegate(QStyledItemDelegate):
                 painter.setPen(QColor("#FFFFFF"))
                 painter.drawText(pill_rect, Qt.AlignCenter, text)
             else:
-                font = QFont("PT Root UI", 10)
+                font = QFont("PT Root UI", 12)
                 painter.setFont(font)
                 painter.setPen(QColor("#48484A"))
                 painter.drawText(rect.adjusted(14, 0, -14, 0), Qt.AlignVCenter | Qt.AlignLeft, "—")
         else:
-            font = QFont("PT Root UI", 10)
+            font = QFont("PT Root UI", 12)
             painter.setFont(font)
             if text == "—":
                 painter.setPen(QColor("#48484A"))
@@ -1339,7 +1339,7 @@ class ResultsPage(QWidget):
                 color: #636366;
                 font-family: 'PT Root UI', sans-serif;
                 font-weight: 600;
-                font-size: 10px;
+                font-size: 12px;
                 letter-spacing: 1.6px;
                 text-transform: uppercase;
                 padding: 0 14px;
