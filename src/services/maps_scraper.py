@@ -240,26 +240,27 @@ class GoogleMapsScraper:
             logger.info(f"[{self.job_id}] Opening google.com/maps ...")
 
             success = await self.session.navigate(
-
                 page, MAPS_HOME, timeout=30_000, retries=3,
-
                 wait_until="domcontentloaded",
-
             )
+            if self._cancelled:
+                return
 
             if not success:
-
                 raise BrowserError("Failed to load Google Maps after retries")
-
 
             logger.info(f"[{self.job_id}] Google Maps loaded. Checking consent/startup state...")
             try:
                 await asyncio.wait_for(self._dismiss_consent_banner(page), timeout=3.0)
             except asyncio.TimeoutError as exc:
                 raise BrowserError("Timed out while checking the Google Maps consent banner.") from exc
+            
+            if self._cancelled:
+                return
             logger.info(f"[{self.job_id}] Maps startup checks completed.")
 
-
+            if self._cancelled:
+                return
 
             logger.info(f"[{self.job_id}] Typing search: {query}")
 
@@ -268,31 +269,45 @@ class GoogleMapsScraper:
                     '//input[@id="searchboxinput"] | //input[@role="combobox"]'
                 ).first
                 await search_input.wait_for(state="visible", timeout=15_000)
+                if self._cancelled:
+                    return
                 await search_input.click(timeout=2000, force=True)
                 await search_input.fill(query, timeout=2000)
                 await asyncio.sleep(0.15)
+                if self._cancelled:
+                    return
                 await self._submit_maps_search(page, search_input)
 
             except Exception as e:
+                if self._cancelled:
+                    return
                 raise BrowserError(f"Could not interact with Maps search box: {e}")
 
-
+            if self._cancelled:
+                return
 
             await self._wait_for_listings(page)
+
+            if self._cancelled:
+                return
 
             async with self._captcha_lock:
                 await self._handle_captcha(page)
 
-
+            if self._cancelled:
+                return
 
             try:
-
                 await page.hover(LISTING_XPATH, timeout=1000, force=True)
-
             except Exception:
                 pass
 
+            if self._cancelled:
+                return
+
             listings = await self._scroll_and_collect_listings(page)
+            if self._cancelled:
+                return
             logger.info(f"[{self.job_id}] Total listings collected: {len(listings)}")
 
             results_count = 0
@@ -300,7 +315,12 @@ class GoogleMapsScraper:
             emitted_emails: set[str] = set()
             emitted_companies: set[str] = set()
 
+            if self._cancelled:
+                return
+
             feed_records = self._build_records_from_feed(query)
+            if self._cancelled:
+                return
             if feed_records:
                 logger.info(
                     f"[{self.job_id}] Fast feed parser produced {len(feed_records)} Maps candidates"
@@ -483,7 +503,7 @@ class GoogleMapsScraper:
                 await self.session.rate_limiter.wait()
 
         except BrowserError as e:
-            if "Target page, context or browser has been closed" in str(e):
+            if self._cancelled or "Target page, context or browser has been closed" in str(e):
                 logger.info(f"[{self.job_id}] Browser or page was closed. Stopping job gracefully.")
                 return
             logger.error(f"[{self.job_id}] Scraper encountered BrowserError: {e}")
@@ -491,7 +511,7 @@ class GoogleMapsScraper:
             raise
 
         except Exception as e:
-            if "Target page, context or browser has been closed" in str(e):
+            if self._cancelled or "Target page, context or browser has been closed" in str(e):
                 logger.info(f"[{self.job_id}] Browser or page was closed manually. Stopping job gracefully.")
                 return
 
@@ -860,6 +880,8 @@ class GoogleMapsScraper:
 
     async def _scroll_and_collect_listings(self, page: Page) -> list:
         """Scroll the results sidebar and collect listing card handles."""
+        if self._cancelled:
+            return []
         previously_counted = 0
         stall_count = 0
         max_stalls = 5
@@ -878,6 +900,9 @@ class GoogleMapsScraper:
             while self._paused and not self._cancelled:
                 await asyncio.sleep(0.1)
 
+            if self._cancelled:
+                return []
+
             # Scroll using mouse wheel over feed and DOM scrollBy
             await page.mouse.wheel(0, 8000)
             try:
@@ -891,6 +916,8 @@ class GoogleMapsScraper:
             count = await page.locator(LISTING_XPATH).count()
             deadline = asyncio.get_running_loop().time() + 1.8
             while count == previously_counted and asyncio.get_running_loop().time() < deadline:
+                if self._cancelled:
+                    return []
                 await asyncio.sleep(0.3)
                 count = await page.locator(LISTING_XPATH).count()
 
@@ -1232,21 +1259,17 @@ class GoogleMapsScraper:
 
 
     async def _wait_for_listings(self, page: Page) -> None:
-
         """Wait for first listing link to appear after search."""
-
+        if self._cancelled:
+            return
         try:
-
             await page.wait_for_selector(
-
                 LISTING_XPATH, state="attached", timeout=20_000,
-
             )
-
         except Exception:
-
+            if self._cancelled:
+                return
             # Results might take longer on slow connections
-
             await asyncio.sleep(0.25)
 
 

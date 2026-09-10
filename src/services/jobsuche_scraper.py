@@ -188,21 +188,30 @@ class JobsucheScraper:
                 page, JOBSUCHE_URL, timeout=30_000, retries=3,
                 wait_until="domcontentloaded",
             )
+            if self._cancelled:
+                return
             if not success:
                 raise BrowserError("Failed to load Jobsuche portal after retries")
 
             await self._wait_for_page_ready(page)
+            if self._cancelled:
+                return
             await self._handle_captcha(page)
 
             # ── Accept cookies ────────────────────────────────────
             await self._dismiss_cookie_banner(page)
-            # Ensure results are still there if we get interrupted
+            if self._cancelled:
+                return
             await self._wait_for_page_ready(page)
 
             # ── Select Ausbildung/Duales Studium from dropdown ────
+            if self._cancelled:
+                return
             await self._select_angebotsart(page)
 
             # ── Fill "Was" (search term) ──────────────────────────
+            if self._cancelled:
+                return
             await self._fill_search_field(
                 page,
                 selectors='input[id*="was"], input[placeholder*="Berufsfeld"], input[aria-label*="Was"]',
@@ -212,6 +221,8 @@ class JobsucheScraper:
 
             # ── Fill "Wo" (location) if provided ──────────────────
             if self.config.city or self.config.region:
+                if self._cancelled:
+                    return
                 wo_value = self.config.city or self.config.region
                 await self._fill_search_field(
                     page,
@@ -219,11 +230,14 @@ class JobsucheScraper:
                     value=wo_value,
                     field_name="Wo",
                 )
-                # ── Select Radius (Umkreis) ──────────────────
+                if self._cancelled:
+                    return
                 await self._select_radius(page)
 
+            if self._cancelled:
+                return
+
             # ── Submit search ─────────────────────────────────────
-            # Give UI a moment to settle after radius/field changes
             await asyncio.sleep(0.1)
             
             search_btn = page.locator('button[id*="suchen"], button:has-text("Suche"), button:has-text("Jobs finden"), button[type="submit"]').first
@@ -238,7 +252,12 @@ class JobsucheScraper:
                 await page.keyboard.press("Enter")
                 logger.info(f"[{self.job_id}] Search submitted via Enter key (fallback)")
 
+            if self._cancelled:
+                return
+
             await self._wait_for_results(page)
+            if self._cancelled:
+                return
             captcha_seen = await self._handle_captcha(page)
             if captcha_seen:
                 await self._resync_results_after_captcha(page)
@@ -326,9 +345,13 @@ class JobsucheScraper:
                 await self.session.rate_limiter.wait()
 
 
-        except BrowserError:
+        except BrowserError as e:
+            if self._cancelled:
+                return
             raise
         except Exception as e:
+            if self._cancelled:
+                return
             logger.error(f"[{self.job_id}] Scraper error: {e}", exc_info=True)
             if page is not None:
                 await self.session.screenshot_on_failure(page, "crash")
@@ -609,6 +632,8 @@ class JobsucheScraper:
 
     async def _wait_for_results(self, page: Page) -> None:
         """Wait for search results to appear after form submission."""
+        if self._cancelled:
+            return
         try:
             # Wait for either the listing container or the "no results" message
             await page.wait_for_selector(
@@ -618,6 +643,8 @@ class JobsucheScraper:
             )
             await asyncio.sleep(0.1)
         except Exception:
+            if self._cancelled:
+                return
             # Results might take longer or there may be none
             logger.debug(f"[{self.job_id}] Results selector timeout - continuing")
             await asyncio.sleep(0.1)

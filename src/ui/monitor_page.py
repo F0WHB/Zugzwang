@@ -886,10 +886,6 @@ class MonitorPage(QWidget):
         self._btn_resume.setEnabled(False)
 
     def _cancel(self):
-        was_running = orchestrator.is_running and not self._is_paused
-        if was_running:
-            orchestrator.pause_job()
-
         from .components import ZugzwangDialog
         msg = ZugzwangDialog(
             tr("monitor.dialog.stop.title", self._language),
@@ -899,9 +895,6 @@ class MonitorPage(QWidget):
         )
         if msg.exec():
             orchestrator.cancel_job()
-        else:
-            if was_running and orchestrator.is_running:
-                orchestrator.resume_job()
 
     def _on_log_scrolled(self, value):
         scrollbar = self._log_tail.verticalScrollBar()
