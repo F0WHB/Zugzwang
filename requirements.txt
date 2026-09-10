@@ -1,4 +1,4 @@
-# ZUGZWANG - Python Dependencies
+# ZUGZWANG 1.1.0 Beta6 - Python Dependencies
 # Install with: pip install -r requirements.txt
 # Then: playwright install chromium
 

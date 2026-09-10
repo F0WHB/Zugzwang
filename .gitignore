@@ -1,3 +1,4 @@
+# ZUGZWANG 1.1.0 Beta6 - Git Ignore
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

@@ -1,416 +1,213 @@
 <p align="center">
-  <img src="src/ui/assets/logo-mark.png" alt="ZUGZWANG" width="120">
+  <img src="src/ui/assets/logo-mark.png" alt="ZUGZWANG" width="110">
 </p>
 
 <h1 align="center">ZUGZWANG</h1>
 
 <p align="center">
-  Lead generation, enrichment, and outreach in one cross-platform desktop app for macOS, Linux, and Windows.
+  <b>Smart Lead Discovery, Cover Letter Personalization & Outreach Desktop Suite</b><br>
+  Designed for job seekers, recruiters, and sales teams across Germany.
 </p>
 
 <p align="center">
-  <img alt="Platform" src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-0A84FF?style=for-the-badge">
-  <img alt="Python" src="https://img.shields.io/badge/python-3.11+-30D158?style=for-the-badge">
-  <img alt="UI" src="https://img.shields.io/badge/UI-PySide6-5AC8FA?style=for-the-badge">
-  <img alt="Automation" src="https://img.shields.io/badge/automation-Playwright-FF9F0A?style=for-the-badge">
-  <img alt="Version" src="https://img.shields.io/badge/version-1.1.0%20Beta%205-E5E5EA?style=for-the-badge&color=2C2C2E">
+  <a href="https://github.com/whbexc/Zugzwang/releases"><img alt="Version" src="https://img.shields.io/badge/version-1.1.0%20Beta%206-0A84FF?style=for-the-badge"></a>
+  <img alt="Platform" src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-30D158?style=for-the-badge">
+  <img alt="Python" src="https://img.shields.io/badge/python-3.11+-5AC8FA?style=for-the-badge">
+  <img alt="Automation" src="https://img.shields.io/badge/browser-Playwright-FF9F0A?style=for-the-badge">
+  <img alt="License" src="https://img.shields.io/badge/license-Proprietary-FF453A?style=for-the-badge">
 </p>
 
 <p align="center">
-  <b>Search.</b> <b>Scrape.</b> <b>Enrich.</b> <b>Review.</b> <b>Send.</b>
+  <b>🔍 Search Leads</b> &nbsp;&bull;&nbsp; <b>📑 Tailor Cover Letters</b> &nbsp;&bull;&nbsp; <b>✉️ Safe Outreach</b> &nbsp;&bull;&nbsp; <b>🔒 100% Local & Private</b>
 </p>
 
 ---
 
-## Overview
+## 💡 What is ZUGZWANG?
 
-ZUGZWANG is a PySide6 desktop application built for high-volume lead discovery and outbound workflow. It combines browser-based scraping, local lead persistence, enrichment, review, and SMTP outreach inside one interface.
+**ZUGZWANG** is a desktop application built to turn tedious outreach into an easy, automated workflow. 
 
-It is designed for:
-
-## What It Does
-
-### Multi-source scraping
-
-- Google Maps
-- Jobsuche / Bundesagentur
-- Ausbildung.de
-- Aubi-Plus
-- Azubiyo
-- Das Örtliche
-
-### Lead enrichment
-
-- email extraction
-- website discovery
-- phone normalization
-- address and city parsing
-- social/profile fields where available
-
-### Outreach workflow
-
-- SMTP sending
-- Gmail-safe broadcast mode
-- recipient queue management
-- inline queue editing
-- manual recipient add dialog
-- duplicate-send protection
-- message-sensitive resend logic
-- attachment persistence
-- HTML preview
-- sender profiles with autocomplete
-
-### Local persistence
-
-- SQLite-backed app memory
-- search history
-- outreach history
-- saved sender settings
-- saved attachment paths
-- one-time upgrade reset for stale local UI state
-
-## Product Flow
-
-```text
-Search -> Monitor -> Results -> Send
-```
-
-ZUGZWANG keeps that loop in one app instead of splitting it across separate scraper, spreadsheet, and mail tools.
-
-## Core Screens
-
-### Dashboard
-<p align="center">
-  <img src="screenshot_dashboard_clean.png" alt="Dashboard" width="800" style="border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-</p>
-
-### Search & Extract
-<p align="center">
-  <img src="screenshot_search_clean.png" alt="Search Interface" width="800" style="border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-</p>
-
-### Persistent Lead Library
-<p align="center">
-  <img src="screenshot_results_clean.png" alt="Results Interface" width="800" style="border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-</p>
-
-### Anschreiben Personalization
-<p align="center">
-  <img src="screenshot_edit_clean.png" alt="Cover Letter Editor" width="800" style="border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-</p>
-
-### SMTP Outreach Workflow
-<p align="center">
-  <img src="screenshot_send_clean.png" alt="Email Sender" width="800" style="border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-</p>
-
-### Live Scraping Monitor
-<p align="center">
-  <img src="screenshot_monitor_clean.png" alt="Live Scraping Monitor" width="800" style="border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-</p>
-
-### Application Settings
-<p align="center">
-  <img src="screenshot_settings_clean.png" alt="Application Settings" width="800" style="border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-</p>
-
-### System Logs
-<p align="center">
-  <img src="screenshot_logs_clean.png" alt="System Logs" width="800" style="border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-</p>
-
-## Feature Snapshot
-
-### Scraping engine
-
-- Playwright-based browser automation
-- source-specific scraper modules
-- background orchestration to keep UI responsive
-- CAPTCHA handoff flow
-- rate limiting and session management
-- direct fallback paths for unstable packaged-search flows
-
-### Lead model
-
-- company name
-- category
-- email
-- phone
-- website
-- address
-- city / postal code
-- source metadata
-
-### Sending engine
-
-- STARTTLS / SSL SMTP support
-- Gmail per-recipient fresh-session mode
-- Gmail Anti-Lockdown Protection with 45s+ velocity floor, human-like randomized jitter (+5-18s), and 2.5-minute micro-batch cooldowns every 12 emails
-- Smart 5-minute backoff when SMTP rate-limit or throttling codes (421/450/451/452/550) are detected
-- Auto-cleanup of sent company-specific PDF cover letters to optimize disk space while preserving raw CV attachments
-- reconnect and retry logic
-- test-send and full broadcast flows
-- sent-history tracking
-- sender identity profiles
-- inline recipient editing and manual-add flow
-- resend allowed when the message content changes
-
-### Storage model
-
-- local AppData settings
-- local app memory database
-- dedupe via stable lead identifiers
-- persisted attachment and sender state
-- targeted upgrade cleanup that preserves scraped data, send data, and Pro activation
-
-## Tech Stack
-
-- Python 3.11+
-- PySide6
-- PyQt-Fluent-Widgets
-- Playwright
-- SQLite
-- openpyxl
-- httpx
-- certifi
-
-## Project Structure
-
-```text
-src/
-  core/        models, config, security, events
-  services/    scrapers, browser session, export/import, orchestrator
-  ui/          pages, dialogs, theme, components
-assets/        installer and branding assets
-tests/         verification and regression tests
-```
-
-## Quick Start
-
-### Standalone App Download (Recommended)
-
-Download the latest standalone desktop release for your operating system from [GitHub Releases](https://github.com/whbexc/Zugzwang/releases):
-
-- **🍎 macOS:** Download the `.zip` archive, extract it, and place `ZUGZWANG.app` in your `Downloads` or `Applications` folder.
-  > [!IMPORTANT]
-  > **macOS Gatekeeper Notice:** Because the macOS application bundle is ad-hoc signed, Gatekeeper may display an "app is damaged" warning or prevent launching. Run the following command in Terminal to clear the quarantine flag before opening:
-  > ```bash
-  > xattr -cr ~/Downloads/ZUGZWANG.app
-  > ```
-  > *(If placed in Applications, use `xattr -cr /Applications/ZUGZWANG.app` instead.)*
-
-- **🪟 Windows:** Download and run `ZUGZWANG_Setup_x.x.x.exe`.
-- **🐧 Linux:** Download the `.tar.gz` archive, extract, and execute `./ZUGZWANG`.
+Instead of juggling multiple browser tabs, scrapers, Excel sheets, and email drafts, ZUGZWANG handles the entire pipeline in one interface:
+1. **Find target companies and job vacancies** across multiple platforms (Google Maps, Bundesagentur für Arbeit, Ausbildung.de, Aubi-Plus, Das Örtliche).
+2. **Automatically extract decision-maker contacts** (HR emails, telephone, websites, and postal addresses).
+3. **Generate tailored German application packages** (*Bewerbungsmappe*) by combining customized cover letters with your existing PDF CV.
+4. **Send personalized outreach emails safely** through your own SMTP/Gmail account with built-in human delay timers and anti-lockdown protection.
 
 ---
 
-### Running from Source
+## ⚡ How It Works in 3 Easy Steps
 
-#### Requirements
-- Python 3.11+
-- Operating System: **macOS 11+**, **Linux** (Ubuntu, Debian, Fedora, Arch), or **Windows 10/11**
-- Chromium installed through Playwright
+```text
+  [ 1. Search ]               [ 2. Personalize ]               [ 3. Send ]
+  Pick your target      ──>   Auto-merge cover letters   ──>   Send with human-paced
+  profession & city           with your attached CV            delays via safe SMTP
+```
 
-### Setup
+1. **Search**: Enter a job title or industry (e.g. *Fachinformatiker*, *Elektriker*, *Marketing*) and a German city.
+2. **Review & Tailor**: Select leads from your results. Customize your cover letter template once, and ZUGZWANG replaces placeholders (`{{FIRMA}}`, `{{BERUF}}`, `{{ANREDE}}`) instantly for every company.
+3. **Send**: Click Send. The background queue dispatches emails one by one with natural randomized intervals to keep your mailbox safe.
 
-#### 🍎 macOS (Apple Silicon & Intel)
+---
+
+## 🚀 Download & Installation
+
+### Download Standalone Application (Recommended)
+
+Get the latest installer from the **[Releases Page](https://github.com/whbexc/Zugzwang/releases)**:
+
+| Platform | Download | Instructions |
+| :--- | :--- | :--- |
+| **🪟 Windows** | `ZUGZWANG_Setup_1.1.0 Beta6.exe` | Run the installer and launch from your Start Menu. |
+| **🍎 macOS** | `ZUGZWANG_macOS_1.1.0 Beta6.zip` | Unzip, drag `ZUGZWANG.app` to **Applications**, and run the Gatekeeper command below. |
+| **🐧 Linux** | `ZUGZWANG_Linux_1.1.0 Beta6.tar.gz` | Extract archive and run `./ZUGZWANG`. |
+
+> [!NOTE]  
+> **macOS First-Time Setup (Ad-Hoc Signing):**  
+> If macOS displays a notice that the app cannot be verified, open your **Terminal** and run:
+> ```bash
+> xattr -cr /Applications/ZUGZWANG.app
+> ```
+
+---
+
+### Run from Source (Developers)
+
+#### Prerequisites
+- **Python 3.11** or newer
+- **Git**
+
+#### Setup Commands
 
 ```bash
-# 1. Clone repository and enter directory
+# 1. Clone this repository
 git clone https://github.com/whbexc/Zugzwang.git
 cd Zugzwang
 
-# 2. Create and activate Python virtual environment
+# 2. Create and activate a virtual environment
+# On macOS / Linux:
 python3 -m venv .venv
 source .venv/bin/activate
 
-# 3. Install dependencies & Playwright Chromium browser
-pip install -r requirements.txt
-playwright install chromium
-
-# 4. Launch ZUGZWANG
-python3 main.py
-```
-
-#### 🐧 Linux (Ubuntu, Debian, Fedora, Arch)
-
-```bash
-# 1. Clone repository and enter directory
-git clone https://github.com/whbexc/Zugzwang.git
-cd Zugzwang
-
-# 2. Create and activate Python virtual environment
-python3 -m venv .venv
-source .venv/bin/activate
-
-# 3. Install dependencies & Playwright Chromium browser (including OS dependencies)
-pip install -r requirements.txt
-playwright install --with-deps chromium
-
-# 4. Launch ZUGZWANG
-python3 main.py
-```
-
-#### 🪟 Windows (10 & 11)
-
-```powershell
-# 1. Clone repository and enter directory
-git clone https://github.com/whbexc/Zugzwang.git
-cd Zugzwang
-
-# 2. Create and activate Python virtual environment
+# On Windows (PowerShell):
 python -m venv .venv
-.venv\Scripts\activate
+.venv\Scripts\Activate.ps1
 
-# 3. Install dependencies & Playwright Chromium browser
+# 3. Install dependencies and the browser engine
 pip install -r requirements.txt
 playwright install chromium
 
-# 4. Launch ZUGZWANG
+# 4. Run ZUGZWANG
 python main.py
 ```
 
-## Build
+---
 
-### Build local bundle
+## ✨ Key Features
 
-```powershell
-python build_with_browsers.py
-```
+* **Multi-Engine Lead Harvesting**:
+  * **Google Maps**: Extracts business listings, ratings, addresses, phone numbers, and websites.
+  * **Bundesagentur für Arbeit (Jobsuche)**: Direct access to official job postings and apprenticeships across Germany.
+  * **Ausbildung.de & Aubi-Plus**: Specialized vocational education and trainee lead extraction.
+  * **Das Örtliche**: Comprehensive German commercial telephone and business registry.
 
-### Build Windows installer
+* **Smart Website Deep Enrichment**:
+  * Crawls discovered company websites to locate hidden `Impressum`, `Kontakt`, and `Karriere` sub-pages.
+  * Extracts direct HR emails and contact persons with automated deduplication.
 
-```powershell
-iscc installer.iss
-```
+* **Bewerbungsmappe PDF Synthesis**:
+  * Custom DIN 5008-aligned German cover letter generator.
+  * Seamlessly stitches your custom cover letter and your uploaded PDF resume into a single application PDF.
 
-Legacy fallback:
+* **Gmail-Safe SMTP Outreach**:
+  * Humanized delay intervals (+5s to +18s jitter between emails).
+  * Built-in batch coffee breaks (2.5-minute pause every 12 emails) to prevent rate limits.
+  * Real-time sending queue with pause, resume, and retry controls.
 
-```powershell
-makensis installer.nsi
-```
-
-## Current Version
-
-**1.1.0 Beta6**
-
-Recent work includes:
-
-- **Consecutive Multi-Search Reliability** — Resolved an issue where starting a new search after job completion required restarting the app; worker event loops are now strictly isolated with bounded 5-second browser session teardowns
-- **Send Tab Attachment Isolation** — Manually attached files in the Send tab are now strictly isolated, preventing unexpected Anschreiben PDFs from being automatically merged into outbound emails
-- **Deleted Bewerbung Ghost Removal** — Deleting an uploaded PDF in the Edit page now immediately purges raw copies and cached batch PDFs from disk, preventing deleted files from being sent
-- **Extended Multi-Browser Engine** — Overhauled browser automation with native detection and execution support for Safari, Brave, Arc, Dia, and custom Chromium/WebKit installations
-- **Project Obsidian UI Overhaul** — Full aesthetic refactor aligning the entire application (Settings, Dashboard, Monitor, Edit) with Apple macOS System Preferences dark theme standards (`#1C1C1E`)
-- **Unified Component Outlines** — Standardized all card borders (SectionCards and small metric cards) to a consistent, subtle `0.5px solid rgba(255, 255, 255, 0.1)` across all views
-- **Activation & Licensing Dialog Polish** — Rebuilt with native glassmorphism styling, synchronized button icon colors with label typography, dedicated grey 'Reset to Trial', and vibrant green 'Activate' CTA
-- **Dashboard Action Hierarchy** — Streamlined dashboard controls with a primary green 'Support Us' action and removed redundant export triggers
-- **Monitor Page Seamless Integration** — Background perfectly linked to global Obsidian palette, removing clunky inner card shadows for a clean flat surface
-- **Destructive Action Safety** — Distinct solid red warning buttons for high-risk operations (such as 'Purge Sent') to prevent inadvertent data loss
-- **Search History Dropdown macOS Ghost Shadow** — Eliminated the buggy rectangular bounding box on macOS transparent popups; redesigned 'Clear History' into a clean, centered text-link
-- **Monitor Activity Log Spam Reduction** — Aggressively filtered low-level PyPDF warning noise ('Ignoring wrong pointing object') to keep live telemetry and activity streams clean
-
-- **Azubiyo & Das Örtliche Scrapers** — Brand new, highly accurate extraction engines for dual study programs and local regional directories
-- **Ausbildung.de Pagination** — Native infinite scroll support for limitless lead extraction without capping out early
-- **Radius Accuracy** — Search URLs now perfectly match their configured catchment area across all data sources
-- **Progress Indicators** — Resolved an update queue glitch where complete runs appeared stuck at 10%
-- **Smart Decision-Maker NLP Extraction** — Automatically detects and extracts specific German names from role titles (Pflegedienstleitung, Ansprechpartner für Bewerbungen, HR Manager) across Impressum and team pages
-- **Pre-Send DNS Domain Verification** — Verifies recipient email domain DNS resolution before sending campaigns to filter out dead or unreachable domains and protect Gmail sender reputation
-- **macOS Sleep Prevention (`WakeLock`)** — Automatically prevents Mac from sleeping during long scraping jobs, PDF batch generation, and email outreach broadcasts
-- **Multi-Email Extraction with Zero Duplicates** — Scraper captures every unique department and employee email address from an employer's website while dropping duplicate email addresses across listings
-
-- Gmail Anti-Lockdown Protection — comprehensive SMTP throttling engine featuring a safe 45s+ velocity floor, human-like randomized jitter (+5-18s), automatic 2.5-minute micro-batch coffee breaks every 12 emails, and smart 5-minute backoff on server throttling
-- Automated Sent-PDF Disk Optimization — automatically cleans up company-specific 11 MB PDF cover letters immediately after SMTP send confirmation, keeping your exports directory slim while permanently preserving your uploaded CV templates and lead spreadsheets
-- Always-On HTML Email Styling & Inline Signature Embedding — automatically formats every outbound email with crisp paragraphs, clean bullet lists, German grammar placeholder replacement ('in Ihrer Einrichtung'), and embeds your handwritten blue signature inline at the bottom of the message text
-- macOS Apple Dock Icon Polish — scaled down squircle icon to 82% canvas width with standard Apple Dock padding to match the exact visual weight and dimensions of native macOS app icons
-- Fail-Forward Batch Exports — seamlessly falls back to attaching your raw uploaded PDF for leads that exceed your daily custom PDF limit without halting the workflow
-- Auto-Clamped Broadcasting — mass email broadcasts now automatically clamp to your remaining limit instead of blocking the entire batch
-- Dynamic Anschreiben Personalization — automatically generate perfectly tailored and personalized cover letters for every single lead
-- Intrusive Popup Removal — completely removed hard-blocking 'Activate Pro' dialogs from all export and email functions, replacing them with elegant banners
-- Edit Page Redesign — comprehensive rewrite of the editor UI for better responsiveness, cleaner spacing, and strict adherence to the premium macOS dark theme
-- Ausbildung Engine Upgrade — completely refactored the extraction engine to support robust URL-based radius parameters and true infinite-scroll pagination
-- Scraping Latency Optimizations — massively reduced search latency by stripping out legacy hardcoded delays and streamlining intelligent browser timeouts
-- Visual Polish — fixed dark artifacting behind popup text and resolved UI layout overflows across the Settings and Email Sender pages
-
-- separate internal app build tracking so future hotfixes can force updates even when the visible version string stays the same
-- one-time upgrade reset of stale local UI/app state after update
-- scraped leads, sent-email history, send drafts, and Pro activation preserved across that reset
-- atomic settings persistence with backup recovery for license state, SMTP setup, send drafts, and sender profiles
-- machine ID recovery from the persisted local machine ID file if settings ever load without it
-- Send page protection against accidental SMTP host/port loss during local edits or clear actions
-- reduced startup/dashboard refresh pressure to improve Google Maps launch responsiveness and avoid false temporary freeze behavior
-- sender profiles with saved Gmail identities and password autofill
-- recipient queue inline editing fixes with solid in-row editor rendering
-- manual recipient add dialog styled to match the app
-- clear-sent-history control and message-sensitive resend tracking for the same recipient
-- cleaner activity log filtering so internal startup/activation traces stay out of the user activity feed
-- stronger Jobsuche filter, radius, Detailansicht, and Kontakt/CAPTCHA recovery behavior
-- duplicate headed CAPTCHA solver suppression and cleaner shutdown handling per job
-- recurring post-'What's New' upgrade prompting for unsubscribed users without re-prompting activated installs
-- trial-to-Pro max-results recovery so old trial-capped search values do not stay stuck after activation
-- resend logic now allows the same email when the message changed
-- Gmail per-recipient fresh-session delivery hardening
-- packaged Google Maps search fallback improvements
-
-## Licensing
-
-ZUGZWANG includes:
-
-- a daily free trial
-- a machine-bound Pro activation flow
-
-The repository also contains developer-side license utilities for local operations and support workflows.
-
-## Data & Privacy
-
-ZUGZWANG stores local application state in AppData, including:
-
-- settings
-- logs
-- screenshots
-- app memory database
-
-On version upgrades, the app can refresh stale cached local state once to avoid carrying old UI bugs forward. That reset is designed to preserve scraped leads, send-related state, outreach history, and Pro/license state.
-
-You remain responsible for how scraped data and outbound email are used.
-
-## Development Notes
-
-This codebase is optimized around:
-
-- non-blocking UI behavior
-- background persistence
-- source-specific scraper isolation
-- Windows packaging and standalone distribution
-
-Primary folders:
-
-- `src/ui` for app pages and dialogs
-- `src/services` for scraping and orchestration
-- `src/core` for config, models, events, and security
-
-## Roadmap Direction
-
-High-value next additions:
-
-- project workspaces
-- lead status pipeline
-- saved templates with personalization
-- stronger search continuation
-- verification and skip-contacted rules
-
-## Disclaimer
-
-Users are responsible for complying with:
-
-- target platform terms
-- anti-spam and outreach rules
-- privacy and data protection law
+* **Privacy & Security**:
+  * Runs 100% locally on your computer.
+  * No external third-party tracking, telemetry, or cloud databases.
+  * Optional startup PIN protection for sensitive candidate data.
 
 ---
 
+## 📸 Interface Preview
+
+### 1. Central Dashboard
 <p align="center">
-  <b>ZUGZWANG</b><br>
-  Windows desktop scraping and outreach, built for speed.
+  <img src="screenshot_dashboard_clean.png" alt="Dashboard" width="800">
 </p>
 
+### 2. Search & Lead Harvesting
+<p align="center">
+  <img src="screenshot_search_clean.png" alt="Search Interface" width="800">
+</p>
+
+### 3. Lead Results & Export (Excel / CSV)
+<p align="center">
+  <img src="screenshot_results_clean.png" alt="Results Interface" width="800">
+</p>
+
+### 4. Cover Letter & Application Editor
+<p align="center">
+  <img src="screenshot_edit_clean.png" alt="Cover Letter Editor" width="800">
+</p>
+
+### 5. Safe Email Outreach Queue
+<p align="center">
+  <img src="screenshot_send_clean.png" alt="Email Sender" width="800">
+</p>
+
+### 6. Live Scraper Monitor & Diagnostics
+<p align="center">
+  <img src="screenshot_monitor_clean.png" alt="Live Monitor" width="800">
+</p>
+
+### 7. Application Settings
+<p align="center">
+  <img src="screenshot_settings_clean.png" alt="Settings" width="800">
+</p>
+
+---
+
+## 📧 How to Set Up Gmail for Sending
+
+To send applications using your Gmail account:
+1. Go to your **[Google Account Security](https://myaccount.google.com/security)** page.
+2. Enable **2-Step Verification** if it isn't already enabled.
+3. Search for **App passwords** (or visit `https://myaccount.google.com/apppasswords`).
+4. Generate a 16-character password named `ZUGZWANG`.
+5. Open ZUGZWANG **Settings > Email Configuration** and paste your Gmail address and the 16-character App Password.
+
+---
+
+## 🛠️ Building Standalone Binaries Locally
+
+If you wish to package your own executable files locally:
+
+```bash
+# Package the standalone application with embedded Chromium
+python build_with_browsers.py
+
+# Package Windows Setup with Inno Setup
+iscc installer.iss
+
+# Package Windows Setup with NSIS
+makensis installer.nsi
+
+# Package macOS Application Bundle (.app / .zip)
+bash scripts/build_macos.sh
+```
+
+---
+
+## 📝 Changelog
+
+See full version history and release notes in the in-app **What's New** dialog or in [`src/changelog.py`](file:///Users/WAHB/Desktop/WAHB/Zugzwang/src/changelog.py).
+
+---
+
+## 📄 License & Legal Notice
+
+Copyright &copy; 2026 ZUGZWANG. All rights reserved.  
+ZUGZWANG is designed for legitimate recruitment, job searching, and business contact outreach. Users are responsible for complying with relevant local regulations (including GDPR and anti-spam laws) regarding unsolicited commercial communications.
 <!-- 1.1.0 Beta6 -->
