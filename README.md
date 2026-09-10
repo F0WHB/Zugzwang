@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/whbexc/Zugzwang/releases"><img alt="Version" src="https://img.shields.io/badge/version-1.1.0%20Beta%206-0A84FF?style=for-the-badge"></a>
+  <a href="https://github.com/whbexc/Zugzwang/releases"><img alt="Version" src="https://img.shields.io/badge/version-1.1.0-30D158?style=for-the-badge"></a>
   <img alt="Platform" src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-30D158?style=for-the-badge">
   <img alt="Python" src="https://img.shields.io/badge/python-3.11+-5AC8FA?style=for-the-badge">
   <img alt="Automation" src="https://img.shields.io/badge/browser-Playwright-FF9F0A?style=for-the-badge">
