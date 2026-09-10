@@ -26,5 +26,5 @@ reportlab>=4.0.0
 # HTML Parsing
 beautifulsoup4>=4.12.0
 
-
-
+# Offline CAPTCHA Solver
+ddddocr>=1.6.0

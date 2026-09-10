@@ -28,6 +28,12 @@ try:
 except Exception:
     pass
 
+# ddddocr model files
+try:
+    datas += collect_data_files('ddddocr')
+except Exception:
+    pass
+
 # Application Assets & Source Tree (Fonts, Icons, UI, Modules, etc.)
 datas += [
     ('src/ui/assets', 'src/ui/assets'),
@@ -36,6 +42,8 @@ datas += [
 ]
 
 hiddenimports = [
+    'ddddocr',
+    'onnxruntime',
     'PySide6.QtCore',
     'PySide6.QtGui',
     'PySide6.QtWidgets',

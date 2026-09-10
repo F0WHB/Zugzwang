@@ -41,6 +41,13 @@ from ..core.security import LicenseManager
 
 logger = get_logger(__name__)
 
+try:
+    import ddddocr
+    _DDDDOCR_AVAILABLE = True
+except ImportError:
+    _DDDDOCR_AVAILABLE = False
+    ddddocr = None
+
 JOBSUCHE_URL = "https://www.arbeitsagentur.de/jobsuche/"
 DETAIL_BASE  = "https://www.arbeitsagentur.de"
 LISTING_SEL  = 'a[href*="/jobsuche/jobdetail/"]'
@@ -121,6 +128,13 @@ class JobsucheScraper:
         self._interaction_loop = None
         self._last_solver_url: Optional[str] = None
         self._last_solver_completed_at: float = 0.0
+        self._ocr = None
+        if _DDDDOCR_AVAILABLE:
+            try:
+                self._ocr = ddddocr.DdddOcr(show_ad=False)
+            except Exception as e:
+                logger.debug(f"[{self.job_id}] Could not initialize ddddocr: {e}")
+                self._ocr = None
 
     def cancel(self):  self._cancelled = True
     def pause(self):   self._paused = True
@@ -620,12 +634,33 @@ class JobsucheScraper:
             logger.debug(f"[{self.job_id}] Could not fully re-sync after captcha: {e}")
 
     async def _dismiss_cookie_banner(self, page: Page) -> None:
-        """Accept GDPR / cookie banner if present."""
+        """Accept GDPR / cookie banner if present, piercing Shadow DOM if needed."""
         try:
+            dismissed = await page.evaluate("""
+            () => {
+                const el = document.querySelector('bahf-cookie-disclaimer-dpl3');
+                if (el && el.shadowRoot) {
+                    const btn = Array.from(el.shadowRoot.querySelectorAll('button')).find(
+                        b => b.innerText.includes('Alle Cookies akzeptieren')
+                    );
+                    if (btn) {
+                        btn.click();
+                        return true;
+                    }
+                }
+                return false;
+            }
+            """)
+            if dismissed:
+                logger.info(f"[{self.job_id}] Cookie banner dismissed via Shadow DOM")
+                await asyncio.sleep(0.3)
+                return
+
             cookie_btn = page.locator('button:has-text("Alle Cookies akzeptieren")')
-            if await cookie_btn.first.is_visible(timeout=4_000):
+            if await cookie_btn.first.is_visible(timeout=2_000):
                 await cookie_btn.first.click()
-                await asyncio.sleep(0.1)
+                logger.info(f"[{self.job_id}] Cookie banner dismissed via standard button")
+                await asyncio.sleep(0.3)
         except Exception:
             pass
 
@@ -2217,6 +2252,20 @@ class JobsucheScraper:
         if not is_blocked:
             return False
 
+        # Attempt automated solving for the contact data CAPTCHA (Sicherheitsabfrage)
+        if self._ocr is None and _DDDDOCR_AVAILABLE:
+            try:
+                self._ocr = ddddocr.DdddOcr(show_ad=False)
+            except Exception:
+                pass
+
+        if self._ocr is not None:
+            auto_solved = await self._auto_solve_kontaktdaten_captcha(page)
+            if auto_solved:
+                logger.info(f"[{self.job_id}] CAPTCHA resolved automatically via offline OCR")
+                await self._restore_default_view(page)
+                return True
+
         try:
             body_text = (await page.inner_text("body", timeout=1000)).lower()
             has_captcha_error = any(sig in body_text for sig in CAPTCHA_ERROR_SIGNALS)
@@ -2507,6 +2556,117 @@ class JobsucheScraper:
                 except Exception:
                     pass
         return False
+
+    async def _auto_solve_kontaktdaten_captcha(self, page: Page, max_attempts: int = 5) -> bool:
+        """Automatically solve the Jobsuche employer contact data CAPTCHA using local OCR."""
+        try:
+            form_locator = page.locator('#captchaForm, [id*="kontaktdaten-captcha"]')
+            if await form_locator.count() <= 0:
+                return False
+
+            input_locator = page.locator('#kontaktdaten-captcha-input, input[id*="captcha"]').first
+            if await input_locator.count() <= 0:
+                return False
+
+            logger.info(f"[{self.job_id}] Kontaktdaten CAPTCHA detected. Attempting automated solve...")
+            event_bus.emit(
+                event_bus.JOB_LOG,
+                job_id=self.job_id,
+                message="Automated CAPTCHA solver engaged...",
+                level="INFO",
+            )
+
+            for attempt in range(1, max_attempts + 1):
+                if self._cancelled:
+                    return False
+
+                await self._dismiss_cookie_banner(page)
+
+                img_loc = page.locator(
+                    '#kontaktdaten-captcha-image, #kontaktdaten-captcha-image-container img, img[alt="Sicherheitsabfrage"]'
+                ).first
+                try:
+                    await img_loc.wait_for(state="attached", timeout=5_000)
+                except Exception:
+                    logger.debug(f"[{self.job_id}] Captcha image not attached on attempt {attempt}")
+                    continue
+
+                src = await img_loc.get_attribute("src")
+                img_bytes = None
+                if src:
+                    try:
+                        resp = await page.request.get(src, timeout=8_000)
+                        img_bytes = await resp.body()
+                    except Exception as e:
+                        logger.debug(f"[{self.job_id}] Direct captcha image fetch failed: {e}")
+
+                if not img_bytes:
+                    try:
+                        img_bytes = await img_loc.screenshot()
+                    except Exception:
+                        pass
+
+                if not img_bytes:
+                    continue
+
+                prediction = self._ocr.classification(img_bytes)
+                clean_pred = re.sub(r'[^a-zA-Z0-9]', '', prediction or '').strip()
+                if not clean_pred:
+                    clean_pred = (prediction or '').strip()
+
+                logger.info(f"[{self.job_id}] CAPTCHA attempt {attempt}/{max_attempts} predicted: {clean_pred}")
+
+                await input_locator.fill(clean_pred)
+                await asyncio.sleep(0.3)
+
+                submit_btn = page.locator(
+                    '#kontaktdaten-captcha-absenden-button, #captchaForm button[type="submit"], button:has-text("Absenden")'
+                ).first
+                try:
+                    if await submit_btn.is_visible():
+                        await submit_btn.click(timeout=3_000)
+                    else:
+                        await page.keyboard.press("Enter")
+                except Exception:
+                    await page.keyboard.press("Enter")
+
+                await asyncio.sleep(1.8)
+
+                form_visible = False
+                try:
+                    form_visible = await page.locator('#captchaForm').is_visible(timeout=1_000)
+                except Exception:
+                    pass
+
+                if not form_visible:
+                    try:
+                        if not await input_locator.is_visible(timeout=500):
+                            logger.info(f"[{self.job_id}] CAPTCHA solved successfully on attempt {attempt}!")
+                            event_bus.emit(
+                                event_bus.JOB_LOG,
+                                job_id=self.job_id,
+                                message="CAPTCHA solved successfully!",
+                                level="INFO",
+                            )
+                            return True
+                    except Exception:
+                        return True
+
+                reload_btn = page.locator(
+                    '#kontaktdaten-captcha-reload-button, a:has-text("Anderes Bild laden"), button:has-text("Anderes Bild laden")'
+                ).first
+                try:
+                    if await reload_btn.is_visible():
+                        await reload_btn.click()
+                        await asyncio.sleep(1.2)
+                except Exception:
+                    await asyncio.sleep(0.5)
+
+            logger.warning(f"[{self.job_id}] Automated CAPTCHA solving did not succeed after {max_attempts} attempts.")
+            return False
+        except Exception as e:
+            logger.warning(f"[{self.job_id}] Error in automated CAPTCHA solver: {e}")
+            return False
 
     def _log_skip(self, url: str, reason: str) -> None:
         """Log and emit a structured event when a listing is skipped."""
