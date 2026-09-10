@@ -17,7 +17,7 @@ from PySide6.QtCore import QModelIndex, Qt, QSortFilterProxyModel, QTimer, Signa
 from PySide6.QtGui import QGuiApplication, QKeySequence, QShortcut, QStandardItem, QStandardItemModel, QColor, QBrush, QFont, QPainter, QCursor
 from PySide6.QtWidgets import (
     QAbstractItemView, QHBoxLayout, QVBoxLayout, QWidget, QHeaderView, QFileDialog, QSplitter, QTableView, QFrame,
-    QLabel, QPushButton, QStyledItemDelegate, QStyleOptionViewItem, QStyle, QGraphicsDropShadowEffect, QSizePolicy
+    QLabel, QPushButton, QStyledItemDelegate, QStyleOptionViewItem, QStyle, QGraphicsDropShadowEffect, QSizePolicy, QScrollArea
 )
 
 from qfluentwidgets import (
