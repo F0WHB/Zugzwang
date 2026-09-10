@@ -312,19 +312,23 @@ class GoogleMapsScraper:
             semaphore = asyncio.Semaphore(_ENRICH_CONCURRENCY)
 
             async def _enrich_one(record):
-                if self._cancelled or not LicenseManager.can_extract():
+                try:
+                    if self._cancelled or not LicenseManager.can_extract():
+                        return []
+                    async with semaphore:
+                        if self.crawler and record.website and (not record.email or not record.phone):
+                            try:
+                                return await asyncio.wait_for(
+                                    self._enrich_record_contacts(record),
+                                    timeout=12.0
+                                )
+                            except (asyncio.TimeoutError, Exception) as e:
+                                logger.debug(f"Enrichment timeout or error for {record.website}: {e}")
+                                return [record]
+                        return [record]
+                except Exception as e:
+                    logger.debug(f"Unexpected error in _enrich_one: {e}")
                     return []
-                async with semaphore:
-                    if self.crawler and record.website and (not record.email or not record.phone):
-                        try:
-                            return await asyncio.wait_for(
-                                self._enrich_record_contacts(record),
-                                timeout=12.0
-                            )
-                        except (asyncio.TimeoutError, Exception) as e:
-                            logger.debug(f"Enrichment timeout or error for {record.website}: {e}")
-                            return [record]
-                    return [record]
 
             # Stream feed enrichments as they complete rather than blocking on gather
             feed_tasks = [
@@ -334,10 +338,14 @@ class GoogleMapsScraper:
 
             for fut in asyncio.as_completed(feed_tasks):
                 if self._cancelled or results_count >= self.config.max_results:
+                    for task in feed_tasks:
+                        if not task.done():
+                            task.cancel()
                     break
                 try:
                     enriched_list = await fut
-                except Exception:
+                except Exception as e:
+                    logger.debug(f"Task exception in as_completed: {e}")
                     continue
                 if not enriched_list or isinstance(enriched_list, Exception):
                     continue
