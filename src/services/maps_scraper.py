@@ -318,12 +318,9 @@ class GoogleMapsScraper:
                     async with semaphore:
                         if self.crawler and record.website and (not record.email or not record.phone):
                             try:
-                                return await asyncio.wait_for(
-                                    self._enrich_record_contacts(record),
-                                    timeout=12.0
-                                )
-                            except (asyncio.TimeoutError, Exception) as e:
-                                logger.debug(f"Enrichment timeout or error for {record.website}: {e}")
+                                return await self._enrich_record_contacts(record)
+                            except Exception as e:
+                                logger.debug(f"Enrichment error for {record.website}: {e}")
                                 return [record]
                         return [record]
                 except Exception as e:
