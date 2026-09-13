@@ -209,27 +209,20 @@ class JobsucheScraper:
                 return
             await self._select_angebotsart(page)
 
-            # ── Fill "Was" (search term) ──────────────────────────
-            if self._cancelled:
-                return
-            await self._fill_search_field(
-                page,
-                selectors='input[id*="was"], input[placeholder*="Berufsfeld"], input[aria-label*="Was"]',
-                value=self.config.job_title,
-                field_name="Was",
-            )
-
-            # ── Fill "Wo" (location) if provided ──────────────────
+            # ── Step 1: Fill "Wo" (location) FIRST ────────────────
             if self.config.city or self.config.region:
                 if self._cancelled:
                     return
                 wo_value = self.config.city or self.config.region
-                await self._fill_search_field(
-                    page,
-                    selectors='input[id*="wo"], input[placeholder*="Ort"], input[aria-label*="Wo"]',
-                    value=wo_value,
-                    field_name="Wo",
-                )
+                await self._fill_wo_field(page, wo_value)
+
+            # ── Step 2: Fill "Was" (job title) SECOND ─────────────
+            if self._cancelled:
+                return
+            await self._fill_was_field(page, self.config.job_title)
+
+            # ── Step 3: Select "Radius" THIRD ─────────────────────
+            if self.config.city or self.config.region:
                 if self._cancelled:
                     return
                 await self._select_radius(page)
@@ -237,20 +230,9 @@ class JobsucheScraper:
             if self._cancelled:
                 return
 
-            # ── Submit search ─────────────────────────────────────
+            # ── Step 4: Submit search ─────────────────────────────
             await asyncio.sleep(0.1)
-            
-            search_btn = page.locator('button[id*="suchen"], button:has-text("Suche"), button:has-text("Jobs finden"), button[type="submit"]').first
-            try:
-                if await search_btn.is_visible(timeout=3000):
-                    await search_btn.click()
-                    logger.info(f"[{self.job_id}] Search submitted via button")
-                else:
-                    await page.keyboard.press("Enter")
-                    logger.info(f"[{self.job_id}] Search submitted via Enter key")
-            except Exception:
-                await page.keyboard.press("Enter")
-                logger.info(f"[{self.job_id}] Search submitted via Enter key (fallback)")
+            await self._submit_search(page)
 
             if self._cancelled:
                 return
@@ -322,12 +304,7 @@ class JobsucheScraper:
                         f"[{self.job_id}] [{results_count}] {record.company_name or '-'} - "
                         f"{record.job_title or '-'} | email={'yes' if record.email else 'no'}"
                     )
-                    event_bus.emit(
-                        event_bus.JOB_RESULT,
-                        job_id=self.job_id,
-                        record=record,
-                        count=results_count,
-                    )
+
                     LicenseManager.record_extraction()
                     yield record
 
@@ -406,12 +383,7 @@ class JobsucheScraper:
                 f"[{self.job_id}] [{results_count}] {record.company_name or '-'} - "
                 f"{record.job_title or '-'} | email={'yes' if record.email else 'no'}"
             )
-            event_bus.emit(
-                event_bus.JOB_RESULT,
-                job_id=self.job_id,
-                record=record,
-                count=results_count,
-            )
+
             LicenseManager.record_extraction()
             yield record
 
@@ -580,7 +552,17 @@ class JobsucheScraper:
                 if not record:
                     continue
 
-                dedupe_key = record.source_url or f"{record.company_name}|{record.job_title}|{record.website}"
+                company_val = str(record.company_name or "").lower().strip()
+                title_val = str(record.job_title or "").lower().strip()
+                # Strip " bei [company]" suffix Jobsuche appends to titles on cards without
+                # a visible application panel — ensures both variants share the same dedup key.
+                if company_val and " bei " in title_val:
+                    title_val = title_val.split(" bei ")[0].strip()
+                if company_val and title_val:
+                    dedupe_key = f"{company_val}|{title_val}"
+                else:
+                    dedupe_key = record.source_url or f"{record.company_name}|{record.job_title}|{record.website}"
+                
                 if dedupe_key in seen:
                     continue
                 seen.add(dedupe_key)
@@ -604,12 +586,7 @@ class JobsucheScraper:
                     f"[{self.job_id}] [{results_count}] {record.company_name or '-'} - "
                     f"{record.job_title or '-'} | email={'yes' if record.email else 'no'}"
                 )
-                event_bus.emit(
-                    event_bus.JOB_RESULT,
-                    job_id=self.job_id,
-                    record=record,
-                    count=results_count,
-                )
+
                 LicenseManager.record_extraction()
                 yield record
 
@@ -705,16 +682,30 @@ class JobsucheScraper:
             if is_ausbildung:
                 tab = page.locator('#suchbereich-tabbar-item-1, [role="tab"]:has-text("Ausbildung"), a:has-text("Ausbildung")').first
                 if await tab.count() > 0 and await tab.is_visible(timeout=1_500):
+                    # Check if already on this tab before clicking (prevents form field reset)
+                    aria_selected = await tab.get_attribute("aria-selected")
+                    aria_pressed = await tab.get_attribute("aria-pressed")
+                    classes = (await tab.get_attribute("class") or "").lower()
+                    if aria_selected == "true" or aria_pressed == "true" or "active" in classes:
+                        logger.debug(f"[{self.job_id}] Ausbildung tab already active, skipping click")
+                        return
                     await tab.click()
                     logger.info(f"[{self.job_id}] Switched search mode to Ausbildung via tab")
-                    await asyncio.sleep(0.15)
+                    await asyncio.sleep(0.3)
                     return
             elif is_jobs:
                 tab = page.locator('#suchbereich-tabbar-item-0, [role="tab"]:has-text("Jobs"), a:has-text("Jobs")').first
                 if await tab.count() > 0 and await tab.is_visible(timeout=1_500):
+                    # Check if already on this tab before clicking (prevents form field reset)
+                    aria_selected = await tab.get_attribute("aria-selected")
+                    aria_pressed = await tab.get_attribute("aria-pressed")
+                    classes = (await tab.get_attribute("class") or "").lower()
+                    if aria_selected == "true" or aria_pressed == "true" or "active" in classes:
+                        logger.debug(f"[{self.job_id}] Jobs tab already active, skipping click")
+                        return
                     await tab.click()
                     logger.info(f"[{self.job_id}] Switched search mode to Jobs via tab")
-                    await asyncio.sleep(0.15)
+                    await asyncio.sleep(0.3)
                     return
 
             # Fallback for layouts with the dropdown button
@@ -747,10 +738,7 @@ class JobsucheScraper:
         """Select the configured radius (Umkreis) from the dropdown."""
         try:
             radius = self.config.radius
-            # Default is 25km which is typically handled by AA automatically
-            # but if we want 200km or others, we must click.
-            
-            dropdown_btn = page.locator("button#umkreis-dropdown-button")
+            dropdown_btn = page.locator("#umkreis-dropdown-button, button#umkreis-dropdown-button").first
             if not await dropdown_btn.is_visible(timeout=5_000):
                 logger.debug(f"[{self.job_id}] Radius dropdown not visible, skipping selection")
                 return
@@ -765,30 +753,36 @@ class JobsucheScraper:
                 return
 
             await dropdown_btn.click()
-            await asyncio.sleep(0.1)
+            await asyncio.sleep(0.15)
 
-            # Match exactly (e.g. "200 km")
-            target_text = f"{radius} km"
-            option = page.locator(
-                f"#umkreis-dropdownList li:has-text('{target_text}'), "
-                f"#umkreis-dropdownList [role='option']:has-text('{target_text}'), "
-                f"#umkreis-dropdownList button:has-text('{target_text}'), "
-                f"#umkreis-dropdownList a:has-text('{target_text}')"
-            ).first
+            # Match target text, e.g. "200 km", "25 km", or "ganzer Ort" (if 0)
+            if radius == 0:
+                target_text = "ganzer Ort"
+                option = page.locator(
+                    "#umkreis-dropdownList a:has-text('ganzer Ort'), "
+                    "#umkreis-dropdown-item-0, "
+                    "#umkreis-dropdownList li:has-text('ganzer Ort')"
+                ).first
+            else:
+                target_text = f"{radius} km"
+                option = page.locator(
+                    f"#umkreis-dropdownList a:has-text('{target_text}'), "
+                    f"#umkreis-dropdownList li:has-text('{target_text}'), "
+                    f"#umkreis-dropdownList [role='option']:has-text('{target_text}'), "
+                    f"#umkreis-dropdownList button:has-text('{target_text}')"
+                ).first
             
             if await option.count() > 0:
-                await option.wait_for(state="attached", timeout=5_000)
+                await option.wait_for(state="attached", timeout=4_000)
                 try:
                     await option.scroll_into_view_if_needed(timeout=1_500)
                 except Exception:
                     pass
                 await option.click(force=True)
-                # Wait for dropdown to close and UI to reflect change
-                await asyncio.sleep(0.1)
+                await asyncio.sleep(0.15)
                 logger.info(f"[{self.job_id}] Radius set to {target_text}")
             else:
                 logger.warning(f"[{self.job_id}] Could not find radius option: {target_text}")
-                # Close the dropdown by clicking the button again or ESC if it's still open
                 if await dropdown_btn.get_attribute("aria-expanded") == "true":
                     await page.keyboard.press("Escape")
                     await asyncio.sleep(0.1)
@@ -905,8 +899,28 @@ class JobsucheScraper:
 
     async def _extract_result_card(self, page: Page, card: Any, card_index: int) -> Optional[LeadRecord]:
         """Click a left-side result card and extract data from the right detail panel."""
+        # Grab current detail panel content to detect change
+        old_text = ""
+        try:
+            panel = page.locator('#jobdetail-container').first
+            if await panel.count() > 0:
+                old_text = await panel.inner_text(timeout=500)
+        except Exception:
+            pass
+
         await self._click_result_card(page, card, card_index, "initial")
-        await asyncio.sleep(0.1)
+        
+        # Wait for the detail panel to update by checking text changes
+        try:
+            panel = page.locator('#jobdetail-container').first
+            for _ in range(50):
+                await asyncio.sleep(0.1)
+                new_text = await panel.inner_text(timeout=500)
+                if new_text and new_text != old_text and "Wird geladen" not in new_text:
+                    break
+        except Exception:
+            pass
+
         captcha_seen = await self._handle_captcha(page)
         if captcha_seen:
             await self._resync_results_after_captcha(page)
@@ -959,10 +973,15 @@ class JobsucheScraper:
                     company = (clone.textContent || '').trim();
                 }
                 
-                // Location: usually found in the details below the action buttons or in data-testid
-                let location = (container.querySelector(
-                    '#detail-kopfbereich-ort, [id*="arbeitsort"], [class*="arbeitsort"], [data-testid*="location"]'
-                )?.innerText || '').trim();
+                // Location: precisely target header location or address, never match accordion filter
+                let locEl = (
+                    container.querySelector('#detail-kopfbereich-arbeitsort') ||
+                    container.querySelector('#detail-arbeitsorte-arbeitsort-0') ||
+                    container.querySelector('#agdarstellung-hauptsitz') ||
+                    container.querySelector('#detail-kopfbereich-ort') ||
+                    container.querySelector('[data-testid*="location"]')
+                );
+                let location = (locEl ? (locEl.innerText || locEl.textContent || '') : '').trim();
 
                 // Final safety scrub for accessibility artifacts
                 if (jobTitle.toLowerCase().includes('sicherheitsabfrage')) jobTitle = '';
@@ -998,7 +1017,13 @@ class JobsucheScraper:
                         return '';
                     };
                     return {
-                        headerLocation: pick('#detail-kopfbereich-ort', '[id*="arbeitsort"]', '[class*="arbeitsort"]', '[data-testid*="location"]'),
+                        headerLocation: pick(
+                            '#detail-kopfbereich-arbeitsort',
+                            '#detail-arbeitsorte-arbeitsort-0',
+                            '#agdarstellung-hauptsitz',
+                            '#detail-kopfbereich-ort',
+                            '[data-testid*="location"]'
+                        ),
                         publishedText: pick('time', '[class*="veroeffentlicht"]', '[class*="veröffentlicht"]', '[class*="datum"]', '[class*="date"]'),
                         detailText: (container.innerText || '').trim(),
                     };
@@ -1056,11 +1081,12 @@ class JobsucheScraper:
             raw_title = await self._extract_card_text(card, [
                 'h2', 'h3', '[class*="titel"]', '[class*="title"]',
             ]) or ''
-            # Strip screen-reader prefix like "X. Ergebnis: <title>"
-            if ':' in raw_title and 'ergebnis' in raw_title.lower():
-                record.job_title = raw_title.split(':', 1)[-1].strip()
-            elif 'sicherheitsabfrage' not in raw_title.lower() and 'ergebnis' not in raw_title.lower():
-                record.job_title = raw_title
+            
+            # Strip prefixes like "3: " or "1. Suchergebnis: "
+            cleaned_title = re.sub(r'^\d+[\.:]\s*(?:Suchergebnis:?\s*|Ergebnis:?\s*)?', '', raw_title, flags=re.IGNORECASE).strip()
+            
+            if 'sicherheitsabfrage' not in cleaned_title.lower() and 'ergebnis' not in cleaned_title.lower():
+                record.job_title = cleaned_title
 
         if not record.company_name:
             record.company_name = await self._extract_card_text(card, [
@@ -1137,6 +1163,18 @@ class JobsucheScraper:
             preferred_website = self._choose_preferred_website(website_candidates)
             if preferred_website:
                 record.website = preferred_website
+
+        # If website is still missing from page, search for official website
+        if not record.website and record.company_name:
+            searched_site = await self._search_company_website(
+                record.company_name, record.city or self.config.city or ""
+            )
+            if searched_site:
+                record.website = searched_site
+
+        # Ensure city is not empty or generic country when user specified a target city
+        if (not record.city or record.city.lower() in {"germany", "deutschland"}) and (self.config.city or self.config.region):
+            record.city = self.config.city or self.config.region
 
         if record.company_name and _DETAIL_ERROR_PATTERN.search(record.company_name):
             record.company_name = None
@@ -1447,7 +1485,7 @@ class JobsucheScraper:
             try:
                 # Wait for at least one of the panel elements to become visible
                 locator = page.locator(combined_selector).first
-                await locator.wait_for(state='visible', timeout=1500)
+                await locator.wait_for(state='visible', timeout=3000)
                 try:
                     await locator.scroll_into_view_if_needed(timeout=500)
                 except Exception:
@@ -1491,6 +1529,11 @@ class JobsucheScraper:
 
     async def _open_application_panel(self, page: Page) -> None:
         selectors = [
+            '#detailansicht-zur-bewerbung',
+            '#detail-bewerbung-btn',
+            'button#detailansicht-zur-bewerbung',
+            'button:has-text("Info zur Bewerbung")',
+            'button:has-text("Informationen zur Bewerbung")',
             '#detail-bewerbung-button',
             '#detail-kontakt-button',
             '#detail-bewerbung-heading',
@@ -1760,6 +1803,11 @@ class JobsucheScraper:
 
     async def _extract_application_website_candidates(self, page: Page) -> list[str]:
         selectors = [
+            '#agdarstellung-websitelink-0',
+            '[id*="agdarstellung-websitelink"]',
+            '#detail-agdarstellung-agd-linkout',
+            '#detail-agdarstellung-jobsuche-linkout',
+            '#detail-agdarstellung-container',
             '#detail-beschreibung-externe-url-btn',
             '#detail-beschreibung',
             '#detail-beschreibung-container',
@@ -1768,6 +1816,7 @@ class JobsucheScraper:
             'a#detail-bewerbung-url',
             '#jobdetails-kontaktdaten-block',
             '#jobdetails-kontaktdaten-container',
+            '#jobdetail-container',
             '.angebotskontakt-bewerbungsdetails-wrapper',
             '.angebotskontakt',
             '.informationen-zur-bewerbung',
@@ -1893,22 +1942,39 @@ class JobsucheScraper:
         if record.website and self._is_untrusted_website_candidate(record.website):
             logger.info(
                 f"[{self.job_id}] Website candidate is untrusted ({record.website}); "
-                "skipping email crawl for portal/listing pages"
+                "searching for official company website instead"
             )
 
-        for website in candidates:
-            email, source, socials = await self.crawler.find_email(
-                website,
-                record.company_name,
-                self.job_id,
-                bypass_cache=False,
+        # If no valid website candidate, search for the official company website
+        if not candidates and record.company_name:
+            searched = await self._search_company_website(
+                record.company_name, record.city or self.config.city or ""
             )
-            if email:
-                record.email = email
-                record.email_source_page = source
-                if record.website and self._is_untrusted_website_candidate(record.website):
+            if searched:
+                candidates.append(searched)
+                if not record.website or self._is_untrusted_website_candidate(record.website):
+                    record.website = searched
+
+        for website in candidates:
+            try:
+                c_emails, c_phone, c_source, _, c_contact = await self.crawler.find_all_contact_info(
+                    website,
+                    company_name=record.company_name,
+                    bypass_cache=False,
+                )
+                if c_emails and not record.email:
+                    record.email = c_emails[0]
+                    record.email_source_page = c_source or website
+                if c_phone and not record.phone:
+                    record.phone = c_phone
+                if c_contact and not record.contact_person:
+                    record.contact_person = c_contact
+                if not record.website or self._is_untrusted_website_candidate(record.website):
                     record.website = website
-                return
+                if record.email:
+                    return
+            except Exception as e:
+                logger.debug(f"[{self.job_id}] Website crawl error on {website}: {e}")
 
     def _is_generic_location_text(self, text: str) -> bool:
         normalized = " ".join((text or "").strip().lower().split())
@@ -2141,6 +2207,204 @@ class JobsucheScraper:
             logger.info(f"[{self.job_id}] {field_name} field set to '{value}'")
         except Exception as e:
             logger.warning(f"[{self.job_id}] Could not fill {field_name}: {e}")
+
+    @staticmethod
+    def _normalize_location_candidates(value: str) -> list[str]:
+        """Generate common German city variations including umlauts.
+
+        Arbeitsagentur's catalog service requires proper umlauts (e.g. 'München',
+        not 'munchen') to return autocomplete suggestions.
+        """
+        raw = (value or "").strip()
+        if not raw:
+            return []
+
+        candidates = [raw]
+        low = raw.lower()
+
+        city_map = {
+            "munchen": "München",
+            "muenchen": "München",
+            "koln": "Köln",
+            "koeln": "Köln",
+            "dusseldorf": "Düsseldorf",
+            "duesseldorf": "Düsseldorf",
+            "nurnberg": "Nürnberg",
+            "nuernberg": "Nürnberg",
+            "wurzburg": "Würzburg",
+            "wuerzburg": "Würzburg",
+            "furth": "Fürth",
+            "fuerth": "Fürth",
+            "lubeck": "Lübeck",
+            "luebeck": "Lübeck",
+            "munster": "Münster",
+            "muenster": "Münster",
+            "saarbrucken": "Saarbrücken",
+            "saarbruecken": "Saarbrücken",
+            "monchengladbach": "Mönchengladbach",
+            "moenchengladbach": "Mönchengladbach",
+            "gottingen": "Göttingen",
+            "goettingen": "Göttingen",
+            "osnabruck": "Osnabrück",
+            "osnabrueck": "Osnabrück",
+        }
+        if low in city_map and city_map[low] not in candidates:
+            candidates.insert(0, city_map[low])
+
+        digraph_umlaut = raw
+        digraph_umlaut = re.sub(r'([a-z])ue', r'\1ü', digraph_umlaut, flags=re.IGNORECASE)
+        digraph_umlaut = re.sub(r'([a-z])oe', r'\1ö', digraph_umlaut, flags=re.IGNORECASE)
+        digraph_umlaut = re.sub(r'([a-z])ae', r'\1ä', digraph_umlaut, flags=re.IGNORECASE)
+        if digraph_umlaut not in candidates:
+            candidates.append(digraph_umlaut)
+
+        title_cased = raw.title()
+        if title_cased not in candidates:
+            candidates.append(title_cased)
+
+        return candidates
+
+    async def _fill_wo_field(self, page: Page, value: str) -> None:
+        """Fill the 'Wo' location field and select the first autocomplete suggestion.
+
+        Jobsuche requires a suggestion to be picked from the dropdown for the
+        location to be committed — otherwise the radius dropdown stays disabled
+        and the search returns nationwide results.
+        """
+        try:
+            field = page.locator('#wo-input, input[id*="wo"], input[placeholder*="Ort"], input[aria-label*="Wo"]').first
+            await field.wait_for(state="visible", timeout=8_000)
+
+            candidates = self._normalize_location_candidates(value)
+            clicked = False
+            chosen_val = value
+
+            for cand in candidates:
+                await field.click()
+                await field.fill("")
+                await field.type(cand, delay=50)
+                await asyncio.sleep(0.7)  # Wait for autocomplete API to respond
+
+                # Exact selectors discovered on Arbeitsagentur: #wo-vorschlagsliste0, #wo-vorschlagsliste a
+                suggestion_selectors = [
+                    '#wo-vorschlagsliste0',
+                    '#wo-vorschlagsliste a',
+                    '#wo-vorschlagsliste li',
+                    'ul[id*="wo-vorschlagsliste"] a',
+                    '[id*="wo-suggestions"] li:first-child',
+                    '[role="listbox"] [role="option"]:first-child',
+                ]
+                for sel in suggestion_selectors:
+                    try:
+                        suggestion = page.locator(sel).first
+                        if await suggestion.count() > 0 and await suggestion.is_visible(timeout=1_000):
+                            await suggestion.click()
+                            clicked = True
+                            chosen_val = cand
+                            break
+                    except Exception:
+                        continue
+                if clicked:
+                    break
+
+            if not clicked:
+                try:
+                    await field.press("ArrowDown")
+                    await asyncio.sleep(0.1)
+                    await field.press("Enter")
+                    clicked = True
+                except Exception:
+                    pass
+
+            if not clicked:
+                await field.press("Tab")
+
+            await asyncio.sleep(0.25)
+            logger.info(f"[{self.job_id}] Wo field set to '{chosen_val}' (autocomplete={'yes' if clicked else 'fallback'})")
+        except Exception as e:
+            logger.warning(f"[{self.job_id}] Could not fill Wo field: {e}")
+
+    async def _fill_was_field(self, page: Page, value: str) -> None:
+        """Fill the 'Was' job title search field."""
+        if not value:
+            return
+        try:
+            field = page.locator('#was-input, input[id*="was"], input[placeholder*="Beruf"], input[aria-label*="Was"]').first
+            await field.wait_for(state="visible", timeout=8_000)
+            await field.click()
+            await field.fill("")
+            await field.type(value, delay=40)
+            await asyncio.sleep(0.2)
+            await field.press("Tab")
+            await asyncio.sleep(0.1)
+            logger.info(f"[{self.job_id}] Was field set to '{value}'")
+        except Exception as e:
+            logger.warning(f"[{self.job_id}] Could not fill Was field: {e}")
+
+    async def _submit_search(self, page: Page) -> None:
+        """Submit the search form on Jobsuche using #btn-stellen-finden."""
+        try:
+            search_btn = page.locator(
+                '#btn-stellen-finden, '
+                'button:has-text("Stellen finden"), '
+                'button:has-text("Jobs finden"), '
+                'button:has-text("Suche"), '
+                'button[id*="suchen"], '
+                'button[type="submit"]'
+            ).first
+            if await search_btn.is_visible(timeout=3_000):
+                await search_btn.click()
+                logger.info(f"[{self.job_id}] Search submitted via button")
+            else:
+                await page.keyboard.press("Enter")
+                logger.info(f"[{self.job_id}] Search submitted via Enter key")
+        except Exception:
+            await page.keyboard.press("Enter")
+            logger.info(f"[{self.job_id}] Search submitted via Enter key (fallback)")
+
+    async def _search_company_website(self, company: str, city: str = "") -> Optional[str]:
+        """Fast fallback to search for the official company website if missing from Jobsuche."""
+        if not company or len(company.strip()) < 3:
+            return None
+        try:
+            import urllib.request
+            import urllib.parse
+            clean_company = re.sub(r"\b(GmbH|AG|UG|KG|e\.V\.|OHG|SE|Co\.)\b", "", company, flags=re.IGNORECASE).strip()
+            query = f"{clean_company} {city} offizielle website"
+            url = f"https://html.duckduckgo.com/html/?q={urllib.parse.quote(query)}"
+            req = urllib.request.Request(url, headers={
+                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            })
+
+            def _fetch():
+                try:
+                    with urllib.request.urlopen(req, timeout=3.5) as resp:
+                        return resp.read().decode("utf-8", errors="ignore")
+                except Exception:
+                    return ""
+
+            html = await asyncio.to_thread(_fetch)
+            if not html:
+                return None
+
+            links = re.findall(r"uddg=([^&\"\x27]+)", html)
+            ignore = [
+                "duckduckgo.com", "arbeitsagentur.de", "stepstone.de", "indeed.com",
+                "kununu.com", "linkedin.com", "xing.com", "facebook.com",
+                "instagram.com", "youtube.com", "maps.google", "wikipedia.org",
+                "jobvector.de", "meinestadt.de", "gelbeseiten.de", "dasoertliche.de"
+            ]
+            for raw in links:
+                decoded = urllib.parse.unquote(raw)
+                norm = normalize_website(decoded)
+                if not norm:
+                    continue
+                if not any(ig in norm.lower() for ig in ignore) and not self._is_untrusted_website_candidate(norm):
+                    logger.info(f"[{self.job_id}] Discovered company website for {company}: {norm}")
+                    return norm
+        except Exception as e:
+            logger.debug(f"[{self.job_id}] Website search failed for {company}: {e}")
+        return None
 
     async def _wait_for_enabled(self, page: Page, locator: Any, timeout_ms: int = 5_000) -> bool:
         deadline = time.monotonic() + (timeout_ms / 1000)

@@ -134,10 +134,20 @@ class LeadRecord:
 
         if self.city:
             self.city = self.city.strip()
-            if self.city.lower() in ["", "ort", "standort", "location", "arbeitsort", "arbeitsplatz"]:
+            _bad_cities = {
+                "", "ort", "standort", "location", "arbeitsort", "arbeitsplatz",
+                "a-z", "z-a",
+            }
+            # Reject navigation breadcrumb text from Jobsuche detail panels
+            _bad_prefixes = ("zurück zum", "back to", "zur übersicht", "ergebnisliste")
+            city_lower = self.city.lower()
+            if city_lower in _bad_cities or any(city_lower.startswith(p) for p in _bad_prefixes):
+                self.city = None
+            elif len(self.city) > 60 or self.city.count(" ") > 5:
+                # Reject overly long strings — these are full sentences, not city names
                 self.city = None
             else:
-                # If city was extracted from search query (config), sometimes it's like "berlin"
+                # If city was extracted from search query (config), sometimes it's like \"berlin\"
                 if self.city.islower():
                     self.city = self.city.title()
 

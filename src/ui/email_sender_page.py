@@ -34,7 +34,7 @@ from qfluentwidgets import (
     PushButton, PrimaryPushButton, TransparentPushButton, ToolButton,
     ElevatedCardWidget, FluentIcon, LineEdit, PlainTextEdit,
     TransparentToolButton,
-    ScrollArea, Action, IconWidget
+    ScrollArea, Action, IconWidget, InfoBarPosition
 )
 from PySide6.QtGui import QTextCharFormat, QColor, QTextCursor
 

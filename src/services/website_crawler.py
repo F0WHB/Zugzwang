@@ -681,31 +681,29 @@ class WebsiteEmailCrawler:
             return True # Fail open
 
     async def _fetch_html(self, url: str, ignore_rate_limit: bool = False) -> str:
-        """Fetch a page, falling back to http:// when https:// hits SSL issues."""
+        """Fetch a page, using httpx to prevent Playwright Node pipe crashes."""
         from .email_extractor import _cap_html
+        import httpx
         
         html = ""
         probes = self._scheme_fallback_urls(url)
-        for probe in probes:
-            html = await self.session.fetch_url_content_fast(
-                probe,
-                timeout=self._timeout_for_url(probe),
-                ignore_rate_limit=ignore_rate_limit,
-            )
-            if html:
-                break
         
-        if not html:
-            # Final fallback: use a more permissive client (like httpx) if available
-            # to handle legacy SSL versions that Playwright might reject
+        # Use httpx exclusively to prevent Playwright EPIPE / pipe closed crashes
+        # when fetching non-browser-essential external URLs.
+        for probe in probes:
             try:
-                import httpx
-                async with httpx.AsyncClient(verify=False, follow_redirects=True, timeout=2.0) as client:
-                    resp = await client.get(url)
+                # Add a basic User-Agent to prevent basic blocks
+                headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"}
+                
+                async with httpx.AsyncClient(verify=False, follow_redirects=True, timeout=self._timeout_for_url(probe) / 1000.0) as client:
+                    resp = await client.get(probe, headers=headers)
                     if resp.status_code == 200:
-                        html = resp.text
-            except:
-                pass
+                        content_type = resp.headers.get("content-type", "").lower()
+                        if "text/html" in content_type or "application/xhtml+xml" in content_type or not content_type:
+                            html = resp.text
+                            break
+            except Exception as e:
+                logger.debug(f"[{None}] httpx fetch failed for {probe}: {e}")
                 
         return _cap_html(html) if html else ""
 

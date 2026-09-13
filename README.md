@@ -198,6 +198,10 @@ bash scripts/build_macos.sh
 
 ## 📝 Changelog
 
+**Latest Updates (v1.1.1):**
+- **Bug Fix**: Resolved a fatal crash (`NameError`) in the Email Sender page when displaying success notifications.
+- **Bug Fix**: Fixed Playwright `BrowserType.launch` issues by optimizing the browser executable installation process.
+
 See full version history and release notes in the in-app **What's New** dialog or in [`src/changelog.py`](file:///Users/WAHB/Desktop/WAHB/Zugzwang/src/changelog.py).
 
 ---

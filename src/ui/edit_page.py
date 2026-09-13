@@ -1579,7 +1579,12 @@ class EditPage(QWidget):
         self._fetch_sender_settings()
         event_bus.subscribe(EventBus.SETTINGS_CHANGED, self._fetch_sender_settings)
         event_bridge.job_result.connect(self._on_live_result_added)
+        event_bridge.job_started.connect(self._on_job_started)
+        event_bridge.job_completed.connect(self._on_job_finished)
+        event_bridge.job_failed.connect(self._on_job_finished)
+        event_bridge.job_cancelled.connect(self._on_job_finished)
         event_bridge.db_updated.connect(self._on_db_updated)
+        self._job_running = False
 
         self._signature_image_path: str = ""
         run_in_thread(
@@ -2790,7 +2795,21 @@ class EditPage(QWidget):
         """)
         conn.commit()
 
+    def _on_job_started(self, *args, **kwargs):
+        self._job_running = True
+
+    def _on_job_finished(self, *args, **kwargs):
+        self._job_running = False
+        # Now the job is done — reload from SQLite to get the authoritative persisted state
+        run_in_thread(
+            self._load_data,
+            on_result=self._on_data_loaded
+        )
+
     def _on_db_updated(self, records: list):
+        # During a live run, do NOT reload from SQLite — live records come via _on_live_result_added
+        if self._job_running:
+            return
         run_in_thread(
             self._load_data,
             on_result=self._on_data_loaded

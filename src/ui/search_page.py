@@ -1097,7 +1097,7 @@ class SearchPage(QWidget):
         self._country.setCurrentText(settings.last_search_country or "Germany")
 
         # Map back from backend value to localized index
-        backend_val = settings.last_search_offer_type or "Ausbildung"
+        backend_val = settings.last_search_offer_type or "Arbeit"
         rev_map = {
             "Arbeit": tr("search.offer.arbeit", self._language),
             "Ausbildung/Duales Studium": tr("search.offer.ausbildung", self._language),
