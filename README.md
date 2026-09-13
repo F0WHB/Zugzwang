@@ -1,25 +1,41 @@
 <p align="center">
-  <img src="src/ui/assets/logo-mark.png" alt="ZUGZWANG" width="120">
+  <a href="https://github.com/whbexc/Zugzwang">
+    <img src="src/ui/assets/logo-mark.png" alt="ZUGZWANG Logo" width="125" style="border-radius: 26px; box-shadow: 0 8px 30px rgba(0,0,0,0.35);">
+  </a>
 </p>
 
 <h1 align="center">ZUGZWANG</h1>
 
 <p align="center">
-  Lead generation, enrichment, and outreach in one cross-platform desktop app for macOS, Linux, and Windows.<br>
+  <b>Lead Generation, Contact Enrichment & Safe Outreach Desktop Workstation</b><br>
+  <sub>Cross-platform for macOS, Linux, and Windows &bull; Engineered for the German (DACH) Market</sub><br>
   <i>Empowering candidates, job seekers, and recruiters to cut out predatory middlemen and connect directly with German employers.</i>
 </p>
 
 <p align="center">
   <a href="https://github.com/whbexc"><img alt="Crafted by WAHB" src="https://img.shields.io/badge/crafted%20by-WAHB-FF2D55?style=for-the-badge&logo=github&logoColor=white"></a>
+  <a href="https://github.com/whbexc/Zugzwang/releases/latest"><img alt="Version" src="https://img.shields.io/badge/version-1.1.2-30D158?style=for-the-badge&logo=github&logoColor=white"></a>
   <img alt="Platform" src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-0A84FF?style=for-the-badge">
-  <img alt="Python" src="https://img.shields.io/badge/python-3.11+-30D158?style=for-the-badge">
-  <img alt="UI" src="https://img.shields.io/badge/UI-PySide6-5AC8FA?style=for-the-badge">
-  <img alt="Automation" src="https://img.shields.io/badge/automation-Playwright-FF9F0A?style=for-the-badge">
-  <img alt="Version" src="https://img.shields.io/badge/version-1.1.2-E5E5EA?style=for-the-badge&color=2C2C2E">
+  <img alt="Python" src="https://img.shields.io/badge/python-3.11+-5AC8FA?style=for-the-badge&logo=python&logoColor=white">
+  <img alt="UI" src="https://img.shields.io/badge/UI-PySide6%20%7C%20Fluent-BF5AF2?style=for-the-badge&logo=qt&logoColor=white">
+  <img alt="Automation" src="https://img.shields.io/badge/automation-Playwright-FF9F0A?style=for-the-badge&logo=googlechrome&logoColor=white">
 </p>
 
 <p align="center">
-  <b>Search.</b> <b>Scrape.</b> <b>Enrich.</b> <b>Review.</b> <b>Send.</b>
+  <a href="https://github.com/whbexc/Zugzwang/releases/latest"><b>📥 Download Pre-built v1.1.2</b></a> &nbsp;&bull;&nbsp;
+  <a href="#quick-start"><b>⚡ Quick Start</b></a> &nbsp;&bull;&nbsp;
+  <a href="#the-mission"><b>✊ The Mission</b></a> &nbsp;&bull;&nbsp;
+  <a href="#why-zugzwang"><b>⚡ Why ZUGZWANG</b></a> &nbsp;&bull;&nbsp;
+  <a href="#core-screens"><b>📸 Screenshots</b></a> &nbsp;&bull;&nbsp;
+  <a href="#frequently-asked-questions"><b>❓ FAQ</b></a>
+</p>
+
+<p align="center">
+  <code>🔍 Search</code> &nbsp;&bull;&nbsp;
+  <code>⚡ Scrape</code> &nbsp;&bull;&nbsp;
+  <code>🧠 Enrich</code> &nbsp;&bull;&nbsp;
+  <code>📑 Review</code> &nbsp;&bull;&nbsp;
+  <code>✉️ Send</code>
 </p>
 
 ---
@@ -42,26 +58,10 @@
 
 ## Table of Contents
 
-- [Overview](#overview)
-- [The Mission](#the-mission)
-- [Why ZUGZWANG](#why-zugzwang)
-- [Features](#features)
-- [Product Flow](#product-flow)
-- [Screenshots](#screenshots)
-- [Feature Snapshot](#feature-snapshot)
-- [Tech Stack](#tech-stack)
-- [Quick Start](#quick-start)
-- [Build](#build)
-- [Current Version](#current-version)
-- [Shortcuts](#keyboard-shortcuts)
-- [License](#license)
-- [Contributing](#contributing)
-- [Roadmap](#roadmap)
-- [FAQ](#frequently-asked-questions)
-- [Meet the Creator](#meet-the-creator)
-- [Data & Privacy](#data--privacy)
-- [Development Notes](#development-notes)
-- [Disclaimer](#disclaimer)
+| 🚀 Getting Started | ⚡ Features & Workflow | 🛠️ Reference & Project |
+|:---|:---|:---|
+| • [Overview](#overview)<br>• [The Mission](#the-mission)<br>• [Why ZUGZWANG](#why-zugzwang)<br>• [Quick Start](#quick-start)<br>• [Build Commands](#build) | • [What It Does](#features)<br>• [Product Flow](#product-flow)<br>• [Core Screens](#screenshots)<br>• [Feature Snapshot](#feature-snapshot)<br>• [Keyboard Shortcuts](#keyboard-shortcuts) | • [Current Version (1.1.2)](#current-version)<br>• [Tech Stack](#tech-stack)<br>• [Project Structure](#project-structure)<br>• [Frequently Asked Questions](#frequently-asked-questions)<br>• [Roadmap Direction](#roadmap) |
+| • [License (MIT)](#license)<br>• [Contributing](#contributing) | • [Data & Privacy](#data--privacy)<br>• [Development Notes](#development-notes) | • [Meet the Creator](#meet-the-creator)<br>• [Legal Disclaimer](#disclaimer) |
 
 ---
 
@@ -180,45 +180,45 @@ ZUGZWANG keeps that loop in one app instead of splitting it across separate scra
 
 ### Dashboard
 <p align="center">
-  <img src="screenshot_dashboard_clean.png" alt="Dashboard" width="800" style="border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+  <img src="screenshot_dashboard_clean.png" alt="Dashboard" width="820" style="border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.08);">
 </p>
-*The central command dashboard displays overall campaign progress, recent jobs, and active worker status so you can monitor your entire pipeline at a glance.*
+<p align="center"><i>📊 <b>Central Dashboard:</b> Displays overall campaign progress, recent jobs, and active worker status so you can monitor your entire pipeline at a glance.</i></p>
 
 ### Search & Extract
 <p align="center">
-  <img src="screenshot_search_clean.png" alt="Search Interface" width="800" style="border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+  <img src="screenshot_search_clean.png" alt="Search Interface" width="820" style="border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.08);">
 </p>
-*The search targeting screen lets you configure multi-source filters by job role, city, and catchment radius to harvest relevant leads automatically.*
+<p align="center"><i>🎯 <b>Multi-Portal Search:</b> Configure multi-source filters by job role, city, and catchment radius to harvest relevant leads automatically.</i></p>
 
 ### Persistent Lead Library
 <p align="center">
-  <img src="screenshot_results_clean.png" alt="Results Interface" width="800" style="border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+  <img src="screenshot_results_clean.png" alt="Results Interface" width="820" style="border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.08);">
 </p>
-*The local database table organizes discovered leads with column visibility filters, completeness scores, and one-click exports to Excel or CSV.*
+<p align="center"><i>🗃️ <b>Lead Intelligence Table:</b> Organizes discovered leads with column visibility filters, completeness scores, and one-click exports to Excel or CSV.</i></p>
 
 ### Anschreiben Personalization
 <p align="center">
-  <img src="screenshot_edit_clean.png" alt="Cover Letter Editor" width="800" style="border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+  <img src="screenshot_edit_clean.png" alt="Cover Letter Editor" width="820" style="border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.08);">
 </p>
-*The document editor generates DIN 5008-compliant German cover letters and merges them with your uploaded resume into a complete, ready-to-send PDF package.*
+<p align="center"><i>📑 <b>DIN 5008 Cover Letter Editor:</b> Generates customized German cover letters and merges them with your resume and certificates into a complete PDF package.</i></p>
 
 ### SMTP Outreach Workflow
 <p align="center">
-  <img src="screenshot_send_clean.png" alt="Email Sender" width="800" style="border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+  <img src="screenshot_send_clean.png" alt="Email Sender" width="820" style="border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.08);">
 </p>
-*The outreach console manages your live recipient queue, dispatch intervals, and delivery activity streams to ensure controlled, safe email transmission.*
+<p align="center"><i>✉️ <b>Outreach Console:</b> Manages your live recipient queue, dispatch intervals, and delivery activity streams to ensure controlled, safe email transmission.</i></p>
 
 ### Live Scraping Monitor
 <p align="center">
-  <img src="screenshot_monitor_clean.png" alt="Live Scraping Monitor" width="800" style="border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+  <img src="screenshot_monitor_clean.png" alt="Live Scraping Monitor" width="820" style="border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.08);">
 </p>
-*The live monitor tracks active extraction progress, page metrics, and anomaly alerts in real time so you always know how your scrapers are performing.*
+<p align="center"><i>📡 <b>Real-Time Monitor:</b> Tracks active extraction progress, page metrics, and anomaly alerts in real time so you always know how your scrapers are performing.</i></p>
 
 ### Application Settings
 <p align="center">
-  <img src="screenshot_settings_clean.png" alt="Application Settings" width="800" style="border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+  <img src="screenshot_settings_clean.png" alt="Application Settings" width="820" style="border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.08);">
 </p>
-*The settings manager configures browser automation behaviors, network proxy routing, SMTP authentication, and security PIN options in one place.*
+<p align="center"><i>⚙️ <b>Settings Manager:</b> Configures browser automation behaviors, network proxy routing, SMTP authentication, and security PIN options in one place.</i></p>
 
 ---
 
