@@ -12,37 +12,54 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/whbexc"><img alt="Crafted by WAHB" src="https://img.shields.io/badge/crafted%20by-WAHB-FF2D55?style=for-the-badge&logo=github&logoColor=white"></a>
   <a href="https://github.com/whbexc/Zugzwang/releases/latest"><img alt="Latest Release" src="https://img.shields.io/badge/release-v1.1.1%20Stable-30D158?style=for-the-badge&logo=github&logoColor=white"></a>
   <img alt="Platforms" src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-0A84FF?style=for-the-badge">
   <img alt="Python" src="https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.14-5AC8FA?style=for-the-badge&logo=python&logoColor=white">
-  <img alt="Browser Engine" src="https://img.shields.io/badge/browser-Playwright%20Chromium-FF9F0A?style=for-the-badge&logo=googlechrome&logoColor=white">
+  <img alt="Browser Engine" src="https://img.shields.io/badge/engine-Playwright%20Chromium-FF9F0A?style=for-the-badge&logo=googlechrome&logoColor=white">
   <img alt="UI Architecture" src="https://img.shields.io/badge/UI-macOS%20Obsidian%203.0-BF5AF2?style=for-the-badge&logo=apple&logoColor=white">
   <img alt="Privacy" src="https://img.shields.io/badge/privacy-100%25%20Local%20SQLite-30D158?style=for-the-badge">
 </p>
 
 <p align="center">
   <a href="https://github.com/whbexc/Zugzwang/releases/latest"><b>📥 Download Pre-built Binaries</b></a> &nbsp;&bull;&nbsp;
+  <a href="#-the-story-behind-zugzwang"><b>📖 The Origin Story</b></a> &nbsp;&bull;&nbsp;
   <a href="#-feature-showcase"><b>✨ Feature Showcase</b></a> &nbsp;&bull;&nbsp;
   <a href="#-why-zugzwang"><b>⚡ Why ZUGZWANG</b></a> &nbsp;&bull;&nbsp;
   <a href="#-developer-setup"><b>💻 Developer Setup</b></a> &nbsp;&bull;&nbsp;
-  <a href="#-frequently-asked-questions"><b>❓ FAQ</b></a>
+  <a href="#-meet-the-creator"><b>👨‍💻 Meet the Creator</b></a>
 </p>
+
+---
+
+> [!NOTE]
+> *"Software should feel like an extension of your mind — blazingly fast, entirely private, and unapologetically beautiful."*  
+> &mdash; **WAHB**, Creator of ZUGZWANG
 
 ---
 
 ### 📊 At a Glance
 
-| ⚡ 10x Speedup | 🇩🇪 6 Core Portals | 📑 DIN 5008 Ready | 🔒 100% Local |
+| ⚡ 10x Speedup | 🇩🇪 6 Core DACH Portals | 📑 DIN 5008 Ready | 🔒 100% Local & Private |
 |:---:|:---:|:---:|:---:|
 | In-page `fetch()` engine skips DOM rendering for sub-100ms scraping | Ausbildung.de, Aubi-Plus, Azubiyo, BA Jobsuche, Maps, Das Örtliche | Automated cover letter, CV, and *Zeugnisse* PDF bundle merger | No cloud telemetry, no SaaS subscription, zero remote tracking |
 
 ---
 
-## 💡 What is ZUGZWANG?
+## 📖 The Story Behind ZUGZWANG
 
-In chess, **Zugzwang** describes a position where any move puts the opponent at a decisive disadvantage. 
+In chess, **Zugzwang** describes a position where every possible move forces your opponent into a decisive disadvantage. 
 
-**ZUGZWANG (LeadHunter Pro)** applies that winning formula to candidate outreach, recruitment, and B2B lead generation across Germany. Instead of wasting hours manually toggling dozens of browser tabs, copy-pasting addresses from the *Impressum*, and tailoring email drafts in Outlook, ZUGZWANG consolidates the entire lifecycle into one high-density, native-feeling desktop experience.
+I built **ZUGZWANG** because I witnessed firsthand how exhausting and soul-crushing the outreach process is in Germany:
+- 😫 **The Manual Grind:** Searching across 5 different portals, opening 50 browser tabs, digging through dense legal *Impressum* pages to find an HR email, and manually copying everything into messy spreadsheets.
+- 📑 **The Bureaucratic Burden:** Spending hours manually formatting DIN 5008 cover letters in Microsoft Word, aligning address blocks, and using clunky PDF tools to merge certificates (*Zeugnisse*) and CVs.
+- 💸 **The SaaS Trap:** Being forced into $100/month cloud scraping subscriptions that upload your personal leads and confidential contact lists to third-party servers.
+
+**ZUGZWANG turns the tables.** 
+
+It is designed as an all-in-one, local desktop powerhouse that handles the heavy lifting &mdash; discovering high-value target companies, autonomously scraping verified decision-makers, stitching flawless German application packages (*Bewerbungsmappe*), and sending outreach through your own Gmail/SMTP account with anti-ban jitter protection.
+
+No monthly bills. No data leaves your machine. Just pure, unadulterated speed and craftsmanship.
 
 ```mermaid
 flowchart LR
@@ -57,12 +74,12 @@ flowchart LR
 
 | Feature | Manual Work | Cloud SaaS (Apollo/Phantombuster) | **ZUGZWANG** |
 |:---|:---:|:---:|:---:|
-| **Specialized DACH Channels** (Ausbildung, Aubi-Plus, BA) | ❌ Slow | ❌ Not Supported | **✅ Native Built-in** |
-| **Deep *Impressum* & *Kontakt* Crawling** | ❌ Manual | ⚠️ Limited / Extra Cost | **✅ Automated Heuristics** |
+| **Specialized DACH Channels** (Ausbildung, Aubi-Plus, BA) | ❌ Slow & repetitive | ❌ Not Supported | **✅ Native Built-in** |
+| **Deep *Impressum* & *Kontakt* Crawling** | ❌ Manual browsing | ⚠️ Limited / Extra Cost | **✅ Automated Heuristics** |
 | **DIN 5008 German Cover Letter Synthesizer** | ❌ Manual Word Docs | ❌ None | **✅ Instant PDF Synthesis** |
-| **Interactive *Zeugnisse* / Certificate Merger** | ❌ Adobe Acrobat | ❌ None | **✅ Drag-and-Drop Stitched PDF** |
+| **Interactive *Zeugnisse* / Certificate Merger** | ❌ External PDF Editors | ❌ None | **✅ Drag-and-Drop Stitched PDF** |
 | **Data Privacy (GDPR Compliance)** | ⚠️ Risk of Copy-Paste | ❌ Data stored on 3rd-party cloud | **✅ 100% Local Device SQLite** |
-| **Monthly Subscription Costs** | 💸 Hours wasted | 💸 $50 - $200 / month | **🎉 Free & Open (Self-Hosted)** |
+| **Monthly Subscription Costs** | 💸 Hours wasted | 💸 $50 - $200 / month | **🎉 100% Free & Open** |
 | **Anti-Lockout Protection (Gmail / SMTP)** | ⚠️ Easy to trigger spam | ⚠️ Requires dedicated IP | **✅ Human Jitter + Coffee Breaks** |
 
 ---
@@ -147,6 +164,17 @@ flowchart LR
 
 ---
 
+## 🎨 Craftsmanship & Design Philosophy: Obsidian Core 3.0
+
+ZUGZWANG was designed from the ground up with the premise that desktop tools should feel **tactile, responsive, and cinematic**.
+
+- 🍏 **Senior-Grade macOS Aesthetics:** Hand-crafted palette featuring Deep Obsidian (`#1C1C1E`), elevated surface contrast (`#2C2C2E`), and Apple System Blue (`#0A84FF`) accents.
+- ⚡ **Zero-Lag Architecture:** Non-blocking async event bus with zero GUI stutter even when processing hundreds of simultaneous network streams.
+- 🔔 **Physics-Based Floating Toasts:** Bespoke macOS toast notifications with fluid spring animations, category-colored badges, and top-right window anchoring.
+- ⌨️ **Keyboard-First Navigation:** Built-in Spotlight-style command palette (<kbd>Cmd/Ctrl</kbd> + <kbd>K</kbd>) to search leads, execute commands, and navigate without lifting your hands from the keyboard.
+
+---
+
 ## 📦 Downloads & Installation
 
 Download the official pre-compiled standalone releases from **[GitHub Releases](https://github.com/whbexc/Zugzwang/releases/latest)**:
@@ -154,12 +182,12 @@ Download the official pre-compiled standalone releases from **[GitHub Releases](
 | Platform | Format | Architecture | Installation Steps |
 |:---|:---:|:---:|:---|
 | **🪟 Windows** | `.exe` | x86_64 / x64 | Download `ZUGZWANG_Setup_1.1.1.exe` and follow the setup wizard. |
-| **🍎 macOS** | `.zip` / `.app` | Apple Silicon (ARM64) & Intel | Download `ZUGZWANG_macOS_1.1.1.zip`, unzip, and drag to `/Applications`. Run the Gatekeeper bypass below. |
+| **🍎 macOS** | `.zip` / `.app` | Apple Silicon (ARM64) & Intel | Download `ZUGZWANG_macOS_1.1.1.zip`, unzip, and drag to `/Applications`. Run the Gatekeeper command below. |
 | **🐧 Linux** | `.tar.gz` | x86_64 | Download `ZUGZWANG_Linux_1.1.1.tar.gz`, unpack, and run `./ZUGZWANG`. |
 
 > [!TIP]
-> **🍎 macOS Gatekeeper Bypass (Required for First Launch):**  
-> Because ZUGZWANG is ad-hoc signed for independent distribution, macOS will present a quarantine prompt. Run this single command in **Terminal** to clear the attribute:
+> **🍎 macOS Gatekeeper Notice (Required for First Launch):**  
+> Because ZUGZWANG is an independently built application, macOS Gatekeeper may prompt you on first launch. Open **Terminal** and run:
 > ```bash
 > xattr -cr /Applications/ZUGZWANG.app
 > ```
@@ -199,7 +227,7 @@ python main.py
 ```
 
 > [!NOTE]  
-> If running in a virtual environment on macOS, run `.venv/bin/python -m playwright install chromium` to ensure the Chromium binaries are properly downloaded to your local environment cache.
+> If using a dedicated virtual environment on macOS, run `.venv/bin/python -m playwright install chromium` to guarantee browser binaries are installed directly into your local environment cache.
 
 ---
 
@@ -264,6 +292,23 @@ All production executables for macOS, Windows, and Linux are automatically built
 
 ---
 
+## 👨‍💻 Meet the Creator
+
+<p align="center">
+  <b>Built with care, precision, and passion by WAHB</b><br>
+  <i>Casablanca, Morocco 🇲🇦 &rarr; Crafted for users and professionals across Germany & the DACH region 🇩🇪</i>
+</p>
+
+<p align="center">
+  <a href="https://github.com/whbexc"><img src="https://img.shields.io/badge/GitHub-@whbexc-181717?style=for-the-badge&logo=github&logoColor=white"></a>
+</p>
+
+> 💡 **A quick note:** If ZUGZWANG has saved you time, accelerated your job hunt, or helped you find leads, please consider giving the repository a **Star (⭐)**! It helps more people discover independent, privacy-first software.
+>
+> Feel free to open an **[Issue](https://github.com/whbexc/Zugzwang/issues)** or start a **[Discussion](https://github.com/whbexc/Zugzwang/discussions)** if you have feature requests, suggestions, or want to contribute.
+
+---
+
 ## 🛠️ Technical Architecture
 
 <details>
@@ -290,16 +335,12 @@ ZUGZWANG Workstation
     └── WakeLockManager         (macOS caffeinate & Windows sleep inhibitor)
 ```
 
-### Design System: "Obsidian Core 3.0"
-- **Surface Elevation:** Deep Base (`#1C1C1E`), Elevated Card (`#2C2C2E`), Terminal (`#1A1A1A`).
-- **Accent System:** Apple System Blue (`#0A84FF`), Emerald CTA (`#30D158`), Amber Warning (`#FF9F0A`), Crimson Hazard (`#FF453A`).
-- **Typography:** Custom SF Pro Display & Text styling with SF Mono for telemetry outputs.
 </details>
 
 ---
 
 ## 📄 License & Legal Notice
 
-Copyright &copy; 2026 ZUGZWANG &bull; LeadHunter Pro. All rights reserved.
+Copyright &copy; 2026 ZUGZWANG &bull; LeadHunter Pro. Built by **WAHB**. All rights reserved.
 
 *ZUGZWANG is engineered for legitimate recruitment, career management, and business contact discovery. End users are solely responsible for ensuring that all data harvesting and electronic communications comply with relevant regional regulations, including the European Union General Data Protection Regulation (GDPR) and the German Gesetz gegen den unlauteren Wettbewerb (UWG).*
