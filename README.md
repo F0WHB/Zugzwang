@@ -24,6 +24,7 @@
 <p align="center">
   <a href="https://github.com/whbexc/Zugzwang/releases/latest"><b>📥 Download Pre-built v1.1.2</b></a> &nbsp;&bull;&nbsp;
   <a href="#quick-start"><b>⚡ Quick Start</b></a> &nbsp;&bull;&nbsp;
+  <a href="#email--smtp-configuration"><b>📧 Email Setup</b></a> &nbsp;&bull;&nbsp;
   <a href="#the-mission"><b>✊ The Mission</b></a> &nbsp;&bull;&nbsp;
   <a href="#why-zugzwang"><b>⚡ Why ZUGZWANG</b></a> &nbsp;&bull;&nbsp;
   <a href="#core-screens"><b>📸 Screenshots</b></a> &nbsp;&bull;&nbsp;
@@ -60,7 +61,7 @@
 
 | 🚀 Getting Started | ⚡ Features & Workflow | 🛠️ Reference & Project |
 |:---|:---|:---|
-| • [Overview](#overview)<br>• [The Mission](#the-mission)<br>• [Why ZUGZWANG](#why-zugzwang)<br>• [Quick Start](#quick-start)<br>• [Build Commands](#build) | • [What It Does](#features)<br>• [Product Flow](#product-flow)<br>• [Core Screens](#screenshots)<br>• [Feature Snapshot](#feature-snapshot)<br>• [Keyboard Shortcuts](#keyboard-shortcuts) | • [Current Version (1.1.2)](#current-version)<br>• [Tech Stack](#tech-stack)<br>• [Project Structure](#project-structure)<br>• [Frequently Asked Questions](#frequently-asked-questions)<br>• [Roadmap Direction](#roadmap) |
+| • [Overview](#overview)<br>• [The Mission](#the-mission)<br>• [Why ZUGZWANG](#why-zugzwang)<br>• [Quick Start](#quick-start)<br>• [Email & SMTP Setup](#email--smtp-configuration)<br>• [Build Commands](#build) | • [What It Does](#features)<br>• [Product Flow](#product-flow)<br>• [Core Screens](#screenshots)<br>• [Feature Snapshot](#feature-snapshot)<br>• [Keyboard Shortcuts](#keyboard-shortcuts) | • [Current Version (1.1.2)](#current-version)<br>• [Tech Stack](#tech-stack)<br>• [Project Structure](#project-structure)<br>• [Frequently Asked Questions](#frequently-asked-questions)<br>• [Roadmap Direction](#roadmap) |
 | • [License (MIT)](#license)<br>• [Contributing](#contributing) | • [Data & Privacy](#data--privacy)<br>• [Development Notes](#development-notes) | • [Meet the Creator](#meet-the-creator)<br>• [Legal Disclaimer](#disclaimer) |
 
 ---
@@ -377,6 +378,48 @@ playwright install chromium
 # 4. Launch ZUGZWANG
 python main.py
 ```
+
+---
+
+<a id="email--smtp-configuration"></a>
+## 📧 Email & SMTP Configuration
+
+ZUGZWANG connects directly to your existing email provider via encrypted TLS/SSL to deliver personalized applications safely from your own address.
+
+### 🔑 Gmail Setup (Recommended)
+
+To send applications using your Gmail account, Google requires a 16-character **App Password**:
+
+<table>
+  <tr>
+    <td width="33%" valign="top">
+      <h4>1. Security Check 🔐</h4>
+      <p>Go to your <a href="https://myaccount.google.com/security">Google Account Security</a> page and verify that <b>2-Step Verification</b> is turned <b>ON</b>.</p>
+    </td>
+    <td width="33%" valign="top">
+      <h4>2. Generate App Password 🔑</h4>
+      <p>Visit <a href="https://myaccount.google.com/apppasswords">Google App Passwords</a>, enter <code>ZUGZWANG</code> as the app name, and click <b>Generate</b>.</p>
+    </td>
+    <td width="33%" valign="top">
+      <h4>3. Enter Credentials ⚙️</h4>
+      <p>Copy the 16-character code into ZUGZWANG under <b>Settings &rarr; Email Configuration</b>.</p>
+    </td>
+  </tr>
+</table>
+
+### ⚙️ Popular Provider Settings Cheat Sheet
+
+| Provider | SMTP Server Host | Port | Security / Encryption | Authentication |
+|:---|:---|:---:|:---:|:---|
+| **Google Gmail** | `smtp.gmail.com` | `587` or `465` | STARTTLS / SSL | Gmail Address + 16-character App Password |
+| **Microsoft Outlook / Office 365** | `smtp-mail.outlook.com` | `587` | STARTTLS | Outlook Email + Account / App Password |
+| **IONOS / 1&1 (Germany)** | `smtp.ionos.de` | `587` or `465` | STARTTLS / SSL | Full Email Address + Mail Password |
+| **Strato (Germany)** | `smtp.strato.de` | `465` | SSL | Full Email Address + Mail Password |
+| **Custom Corporate SMTP** | *mail.your-company.com* | `587` / `465` | STARTTLS / SSL | Mailbox Username + SMTP Password |
+
+> [!TIP]
+> **🛡️ Built-in Anti-Lockdown Protection:**  
+> ZUGZWANG automatically enforces randomized human delays (**+5s to +18s jitter**) between individual emails and takes a **2.5-minute micro-break every 12 messages**. This mimics natural human behavior and keeps your email account completely safe from automated spam throttling.
 
 ---
 
