@@ -5,209 +5,60 @@
 <h1 align="center">ZUGZWANG</h1>
 
 <p align="center">
-  <b>Smart Lead Discovery, Cover Letter Personalization & Outreach Desktop Suite</b><br>
-  Designed for job seekers, recruiters, and sales teams across Germany.
+  <b>Find jobs. Extract HR emails. Send applications. All in one click.</b>
 </p>
 
 <p align="center">
-  <a href="https://github.com/whbexc/Zugzwang/releases"><img alt="Version" src="https://img.shields.io/badge/version-1.1.1-30D158?style=for-the-badge"></a>
-  <img alt="Platform" src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-30D158?style=for-the-badge">
-  <img alt="Python" src="https://img.shields.io/badge/python-3.11+-5AC8FA?style=for-the-badge">
-  <img alt="Automation" src="https://img.shields.io/badge/browser-Playwright-FF9F0A?style=for-the-badge">
-  <img alt="License" src="https://img.shields.io/badge/license-Proprietary-FF453A?style=for-the-badge">
-</p>
-
-<p align="center">
-  <b>🔍 Search Leads</b> &nbsp;&bull;&nbsp; <b>📑 Tailor Cover Letters</b> &nbsp;&bull;&nbsp; <b>✉️ Safe Outreach</b> &nbsp;&bull;&nbsp; <b>🔒 100% Local & Private</b>
+  <a href="https://github.com/whbexc/Zugzwang/releases"><img alt="Download" src="https://img.shields.io/badge/Download-Latest_Release-0A84FF?style=for-the-badge"></a>
 </p>
 
 ---
 
-## 💡 What is ZUGZWANG?
+## 🚀 Quick Start
 
-**ZUGZWANG** is a desktop application built to turn tedious outreach into an easy, automated workflow. 
+ZUGZWANG automates your entire job search and application process in Germany. No coding required.
 
-Instead of juggling multiple browser tabs, scrapers, Excel sheets, and email drafts, ZUGZWANG handles the entire pipeline in one interface:
-1. **Find target companies and job vacancies** across multiple platforms (Google Maps, Bundesagentur für Arbeit, Ausbildung.de, Aubi-Plus, Das Örtliche).
-2. **Automatically extract decision-maker contacts** (HR emails, telephone, websites, and postal addresses).
-3. **Generate tailored German application packages** (*Bewerbungsmappe*) by combining customized cover letters with your existing PDF CV.
-4. **Send personalized outreach emails safely** through your own SMTP/Gmail account with built-in human delay timers and anti-lockdown protection.
+### 1. Download & Install
+- **[Download the latest release here](https://github.com/whbexc/Zugzwang/releases)**.
+- **Windows**: Run the `.exe` installer.
+- **macOS**: Unzip and drag to Applications. *(If macOS blocks it, open Terminal and run `xattr -cr /Applications/ZUGZWANG.app`)*
 
----
+### 2. Search for Jobs
+Open the app, go to **Search**, and type what you are looking for (e.g., "Software Developer in Berlin"). ZUGZWANG will automatically scrape Google Maps, Ausbildung.de, and official job boards to find companies hiring right now.
 
-## ⚡ Highlights
-
-- **Multi-Source Scraping** — Bundesagentur für Arbeit (Jobsuche), Google Maps Places, Ausbildung.de, Aubi-plus, Das Örtliche, Azubiyo.
-- **Intelligent Email Extraction** — Direct page scraping, Impressum/Datenschutz discovery, pattern scoring, MX validation, and domain-wide harvesting.
-- **Headless & Headed Browser Engines** — Automated Chromium engine with dynamic cookie banner dismissal, stealth headers, and interactive headed CAPTCHA solving.
-- **Rich Lead Enrichment** — Automatic phone, street address, website, postal code, and social link discovery.
-- **Direct SMTP Outreach Workflow** — Built-in email composer with customizable templates, rate-limiting, and PDF attachment merge.
-- **Comprehensive Data Export** — CSV, Excel (`.xlsx`), JSON, and PDF report generation.
-- **Modern Fluent Dark UI** — macOS Obsidian aesthetics, glassmorphism accents, keyboard navigation, and responsive real-time streaming updates.
+### 3. Send Your CV
+Go to the **Send** tab. ZUGZWANG has already found the HR emails for you. Just connect your email, attach your CV, and hit **Send All**. The app will safely email everyone one by one.
 
 ---
 
-## 📦 Downloads (v1.1.1)
-
-Download pre-built standalone binaries from the **[GitHub Releases](https://github.com/whbexc/Zugzwang/releases)** page:
-
-| Platform | File | Instructions |
-|---|---|---|
-| **🪟 Windows** | `ZUGZWANG_Setup_1.1.1.exe` | Run the installer and launch from your Start Menu. |
-| **🍎 macOS** | `ZUGZWANG_macOS_1.1.1.zip` | Unzip, drag `ZUGZWANG.app` to **Applications**, and run the Gatekeeper command below. |
-| **🐧 Linux** | `ZUGZWANG_Linux_1.1.1.tar.gz` | Extract archive and run `./ZUGZWANG`. |
-
-> [!NOTE]  
-> **macOS First-Time Setup (Ad-Hoc Signing):**  
-> If macOS displays a notice that the app cannot be verified, open your **Terminal** and run:
-> ```bash
-> xattr -cr /Applications/ZUGZWANG.app
-> ```
+## ✨ Why use this?
+- **Zero Excel Sheets**: Everything is saved inside the app.
+- **Automatic Emails**: It finds hidden emails on company websites automatically.
+- **Safe Sending**: It mimics human typing and takes breaks so your email doesn't get banned.
+- **100% Private**: Runs entirely on your computer. Your data never goes to a cloud server.
 
 ---
 
-### Run from Source (Developers)
+## 📸 Screenshots
 
-#### Prerequisites
-- **Python 3.11** or newer
-- **Git**
+| Dashboard | Search |
+|-----------|--------|
+| <img src="screenshot_dashboard_clean.png" width="400"> | <img src="screenshot_search_clean.png" width="400"> |
 
-#### Setup Commands
+| Results | Email Sender |
+|---------|--------------|
+| <img src="screenshot_results_clean.png" width="400"> | <img src="screenshot_send_clean.png" width="400"> |
 
+---
+
+## 🛠️ Need to run from source?
+Are you a developer? Just run:
 ```bash
-# 1. Clone this repository
 git clone https://github.com/whbexc/Zugzwang.git
 cd Zugzwang
-
-# 2. Create and activate a virtual environment
-# On macOS / Linux:
-python3 -m venv .venv
-source .venv/bin/activate
-
-# On Windows (PowerShell):
 python -m venv .venv
-.venv\Scripts\Activate.ps1
-
-# 3. Install dependencies and the browser engine
+source .venv/bin/activate  # or .venv\Scripts\activate on Windows
 pip install -r requirements.txt
 playwright install chromium
-
-# 4. Run ZUGZWANG
 python main.py
 ```
-
----
-
-## ✨ Key Features
-
-* **Multi-Engine Lead Harvesting**:
-  * **Google Maps**: Extracts business listings, ratings, addresses, phone numbers, and websites.
-  * **Bundesagentur für Arbeit (Jobsuche)**: Direct access to official job postings and apprenticeships across Germany.
-  * **Ausbildung.de & Aubi-Plus**: Specialized vocational education and trainee lead extraction.
-  * **Das Örtliche**: Comprehensive German commercial telephone and business registry.
-
-* **Smart Website Deep Enrichment**:
-  * Crawls discovered company websites to locate hidden `Impressum`, `Kontakt`, and `Karriere` sub-pages.
-  * Extracts direct HR emails and contact persons with automated deduplication.
-
-* **Bewerbungsmappe PDF Synthesis**:
-  * Custom DIN 5008-aligned German cover letter generator.
-  * Seamlessly stitches your custom cover letter and your uploaded PDF resume into a single application PDF.
-
-* **Gmail-Safe SMTP Outreach**:
-  * Humanized delay intervals (+5s to +18s jitter between emails).
-  * Built-in batch coffee breaks (2.5-minute pause every 12 emails) to prevent rate limits.
-  * Real-time sending queue with pause, resume, and retry controls.
-
-* **Privacy & Security**:
-  * Runs 100% locally on your computer.
-  * No external third-party tracking, telemetry, or cloud databases.
-  * Optional startup PIN protection for sensitive candidate data.
-
----
-
-## 📸 Interface Preview
-
-### 1. Central Dashboard
-<p align="center">
-  <img src="screenshot_dashboard_clean.png" alt="Dashboard" width="800">
-</p>
-
-### 2. Search & Lead Harvesting
-<p align="center">
-  <img src="screenshot_search_clean.png" alt="Search Interface" width="800">
-</p>
-
-### 3. Lead Results & Export (Excel / CSV)
-<p align="center">
-  <img src="screenshot_results_clean.png" alt="Results Interface" width="800">
-</p>
-
-### 4. Cover Letter & Application Editor
-<p align="center">
-  <img src="screenshot_edit_clean.png" alt="Cover Letter Editor" width="800">
-</p>
-
-### 5. Safe Email Outreach Queue
-<p align="center">
-  <img src="screenshot_send_clean.png" alt="Email Sender" width="800">
-</p>
-
-### 6. Live Scraper Monitor & Diagnostics
-<p align="center">
-  <img src="screenshot_monitor_clean.png" alt="Live Monitor" width="800">
-</p>
-
-### 7. Application Settings
-<p align="center">
-  <img src="screenshot_settings_clean.png" alt="Settings" width="800">
-</p>
-
----
-
-## 📧 How to Set Up Gmail for Sending
-
-To send applications using your Gmail account:
-1. Go to your **[Google Account Security](https://myaccount.google.com/security)** page.
-2. Enable **2-Step Verification** if it isn't already enabled.
-3. Search for **App passwords** (or visit `https://myaccount.google.com/apppasswords`).
-4. Generate a 16-character password named `ZUGZWANG`.
-5. Open ZUGZWANG **Settings > Email Configuration** and paste your Gmail address and the 16-character App Password.
-
----
-
-## 🛠️ Building Standalone Binaries Locally
-
-If you wish to package your own executable files locally:
-
-```bash
-# Package the standalone application with embedded Chromium
-python build_with_browsers.py
-
-# Package Windows Setup with Inno Setup
-iscc installer.iss
-
-# Package Windows Setup with NSIS
-makensis installer.nsi
-
-# Package macOS Application Bundle (.app / .zip)
-bash scripts/build_macos.sh
-```
-
----
-
-## 📝 Changelog
-
-**Latest Updates (v1.1.1):**
-- **Bug Fix**: Resolved a fatal crash (`NameError`) in the Email Sender page when displaying success notifications.
-- **Bug Fix**: Fixed Playwright `BrowserType.launch` issues by optimizing the browser executable installation process.
-
-See full version history and release notes in the in-app **What's New** dialog or in [`src/changelog.py`](file:///Users/WAHB/Desktop/WAHB/Zugzwang/src/changelog.py).
-
----
-
-## 📄 License & Legal Notice
-
-Copyright &copy; 2026 ZUGZWANG. All rights reserved.  
-ZUGZWANG is designed for legitimate recruitment, job searching, and business contact outreach. Users are responsible for complying with relevant local regulations (including GDPR and anti-spam laws) regarding unsolicited commercial communications.
-<!-- 1.1.1 -->
