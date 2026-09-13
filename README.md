@@ -5,10 +5,12 @@
 <h1 align="center">ZUGZWANG</h1>
 
 <p align="center">
-  Lead generation, enrichment, and outreach in one cross-platform desktop app for macOS, Linux, and Windows.
+  Lead generation, enrichment, and outreach in one cross-platform desktop app for macOS, Linux, and Windows.<br>
+  <i>Empowering candidates, job seekers, and recruiters to cut out predatory middlemen and connect directly with German employers.</i>
 </p>
 
 <p align="center">
+  <a href="https://github.com/whbexc"><img alt="Crafted by WAHB" src="https://img.shields.io/badge/crafted%20by-WAHB-FF2D55?style=for-the-badge&logo=github&logoColor=white"></a>
   <img alt="Platform" src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-0A84FF?style=for-the-badge">
   <img alt="Python" src="https://img.shields.io/badge/python-3.11+-30D158?style=for-the-badge">
   <img alt="UI" src="https://img.shields.io/badge/UI-PySide6-5AC8FA?style=for-the-badge">
@@ -22,18 +24,43 @@
 
 ---
 
+> [!IMPORTANT]
+> ### 💬 A Note From WAHB:
+> *"An **Ausbildung in Germany is 100% free** — in fact, the company is legally required to **pay YOU a monthly salary** (*Ausbildungsvergütung*) from your very first day.*  
+> *You should **NEVER have to pay shady mediators, agencies, or brokers thousands of euros** just to get an interview or a contract. ZUGZWANG was born to destroy that predatory industry and put direct access back into the hands of ambitious candidates."*  
+> &mdash; **WAHB**, Creator of ZUGZWANG
+
+---
+
+### 📊 At a Glance
+
+| ⚡ 10x Speedup | 🇩🇪 6 Core DACH Portals | 📑 DIN 5008 Ready | 🔒 100% Free & Local |
+|:---:|:---:|:---:|:---:|
+| In-page `fetch()` engine skips DOM rendering for sub-100ms scraping | Ausbildung.de, Aubi-Plus, Azubiyo, BA Jobsuche, Maps, Das Örtliche | Automated cover letter, CV, and *Zeugnisse* PDF bundle merger | No cloud telemetry, no mediator fees, zero remote tracking |
+
+---
+
 ## Table of Contents
 
 - [Overview](#overview)
+- [The Mission](#the-mission)
+- [Why ZUGZWANG](#why-zugzwang)
 - [Features](#features)
+- [Product Flow](#product-flow)
 - [Screenshots](#screenshots)
+- [Feature Snapshot](#feature-snapshot)
 - [Tech Stack](#tech-stack)
 - [Quick Start](#quick-start)
 - [Build](#build)
 - [Current Version](#current-version)
+- [Shortcuts](#keyboard-shortcuts)
 - [License](#license)
 - [Contributing](#contributing)
 - [Roadmap](#roadmap)
+- [FAQ](#frequently-asked-questions)
+- [Meet the Creator](#meet-the-creator)
+- [Data & Privacy](#data--privacy)
+- [Development Notes](#development-notes)
 - [Disclaimer](#disclaimer)
 
 ---
@@ -43,6 +70,47 @@
 ZUGZWANG is a PySide6 desktop application built for high-volume lead discovery and outbound workflow. It combines browser-based scraping, local lead persistence, enrichment, review, and SMTP outreach inside one interface.
 
 It is designed for Ausbildung and job seekers, career coaches, and recruiters who need to find and reach out to employers at volume.
+
+---
+
+## The Mission
+
+In chess, **Zugzwang** describes a position where every move forces the opponent into a decisive disadvantage. 
+
+ZUGZWANG was created to confront a widespread issue affecting thousands of international applicants, young professionals, and job seekers:
+
+### 🚫 The Predatory Middleman Trap
+Across North Africa, Eastern Europe, and worldwide, unregulated "recruitment brokers" charge hopeful applicants **€2,000 to €8,000+** promising to "secure" them an apprenticeship or work contract in Germany.
+
+**The reality they hide:**  
+1. **Ausbildung is completely tuition-free.**  
+2. **German companies pay you every single month** from Day 1 to learn and work.  
+3. Thousands of German employers suffer from acute labor shortages (*Fachkräftemangel*) and **actively want to hire candidates directly**.
+
+Brokers exploit applicants because navigating the German application ecosystem can be daunting: finding listings across fragmented portals, digging through complex legal *Impressum* pages for contact emails, properly formatting DIN 5008 cover letters, and managing mass email outreach safely.
+
+### 🛡️ How ZUGZWANG Levels the Playing Field
+**ZUGZWANG provides candidates and recruiters with an elite agency's complete toolkit for free:**
+- Autonomously finds open positions and hiring companies across Germany's top portals.
+- Visits company websites to extract verified HR decision-makers and direct contact emails.
+- Formats DIN 5008-compliant cover letters and merges resumes and certificates (*Zeugnisse*) into a single application PDF.
+- Dispatches personalized applications safely through your own email account with anti-ban jitter intervals and scheduled pauses.
+
+**Cut out the middleman. Keep your hard-earned money. Apply directly and take control of your career.**
+
+---
+
+## Why ZUGZWANG
+
+| Feature | Manual Work | Cloud SaaS (Apollo/Phantombuster) | **ZUGZWANG** |
+|:---|:---:|:---:|:---:|
+| **Specialized DACH Channels** (Ausbildung, Aubi-Plus, BA) | ❌ Slow & repetitive | ❌ Not Supported | **✅ Native Built-in** |
+| **Deep *Impressum* & *Kontakt* Crawling** | ❌ Manual browsing | ⚠️ Limited / Extra Cost | **✅ Automated Heuristics** |
+| **DIN 5008 German Cover Letter Synthesizer** | ❌ Manual Word Docs | ❌ None | **✅ Instant PDF Synthesis** |
+| **Interactive *Zeugnisse* / Certificate Merger** | ❌ External PDF Editors | ❌ None | **✅ Drag-and-Drop Stitched PDF** |
+| **Data Privacy (GDPR Compliance)** | ⚠️ Risk of Copy-Paste | ❌ Data stored on 3rd-party cloud | **✅ 100% Local Device SQLite** |
+| **Monthly Subscription Costs** | 💸 Hours wasted | 💸 $50 - $200 / month | **🎉 100% Free & Open** |
+| **Anti-Lockout Protection (Gmail / SMTP)** | ⚠️ Easy to trigger spam | ⚠️ Requires dedicated IP | **✅ Human Jitter + Coffee Breaks** |
 
 ---
 
@@ -94,6 +162,13 @@ It is designed for Ausbildung and job seekers, career coaches, and recruiters wh
 
 ```text
 Search -> Monitor -> Results -> Send
+```
+
+```mermaid
+flowchart LR
+    A[🔍 1. Multi-Channel Scraping<br/><i>Maps, BA, Ausbildung, Azubiyo</i>] --> B[🌐 2. Autonomous Web Scanner<br/><i>Impressum, Kontakt, HR extraction</i>]
+    B --> C[📑 3. Application Synthesis<br/><i>DIN 5008 Cover Letter + Zeugnisse</i>]
+    C --> D[✉️ 4. Protected SMTP Outreach<br/><i>Safe jitter pacing, anti-lockdown</i>]
 ```
 
 ZUGZWANG keeps that loop in one app instead of splitting it across separate scraper, spreadsheet, and mail tools.
@@ -341,6 +416,22 @@ See [CHANGELOG.md](CHANGELOG.md) for full release history.
 
 ---
 
+## Keyboard Shortcuts
+
+| Shortcut | Functionality |
+|---|---|
+| <kbd>Ctrl</kbd> / <kbd>Cmd</kbd> + <kbd>1</kbd> &ndash; <kbd>6</kbd> | Instant navigation between pages |
+| <kbd>Ctrl</kbd> / <kbd>Cmd</kbd> + <kbd>K</kbd> | Spotlight Universal Command Palette |
+| <kbd>Ctrl</kbd> / <kbd>Cmd</kbd> + <kbd>N</kbd> | Configure New Scraping Campaign |
+| <kbd>Ctrl</kbd> / <kbd>Cmd</kbd> + <kbd>E</kbd> | Export Selected Table Records |
+| <kbd>Ctrl</kbd> / <kbd>Cmd</kbd> + <kbd>F</kbd> | Focus Search & Filter Input |
+| <kbd>Ctrl</kbd> / <kbd>Cmd</kbd> + <kbd>R</kbd> | Re-execute Last Active Scraping Blueprint |
+| <kbd>Ctrl</kbd> / <kbd>Cmd</kbd> + <kbd>,</kbd> | Open System Settings & Preferences |
+| <kbd>Ctrl</kbd> / <kbd>Cmd</kbd> + <kbd>W</kbd> | Open "What's New" Release Changelog |
+| <kbd>Esc</kbd> | Cancel Active Task or Dismiss Modal Dialog |
+
+---
+
 ## License
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -365,6 +456,51 @@ High-value next additions:
 - Project workspaces for managing distinct outreach campaigns
 - Visual lead status pipeline with Kanban-style progress tracking
 - Stronger search continuation across multiple interrupted sessions
+
+---
+
+## Frequently Asked Questions
+
+<details>
+<summary><b>1. Is my candidate data or scraped lead information stored in the cloud?</b></summary>
+<br>
+<b>No.</b> ZUGZWANG is 100% local software. All extracted leads, credentials, cover letter drafts, and logs are stored inside a local SQLite database (<code>app_memory.db</code>) on your own computer. No analytics, tracking, or cloud sync servers are utilized.
+</details>
+
+<details>
+<summary><b>2. How does ZUGZWANG avoid getting banned or blocked by Google Maps & BA Jobsuche?</b></summary>
+<br>
+ZUGZWANG utilizes an in-page <code>fetch()</code> technique coupled with intelligent request throttling, human cursor jitter emulation, and the <b>Headed CAPTCHA Solver Bridge</b>. If a portal challenges the scraper with an interactive verification, a visual browser window seamlessly prompts the user to resolve it, instantly passes the authenticated session cookies back to the worker thread, and continues extraction without failing the job.
+</details>
+
+<details>
+<summary><b>3. Can I send emails from non-Gmail providers (Outlook, IONOS, Strato, custom SMTP)?</b></summary>
+<br>
+<b>Yes.</b> ZUGZWANG supports standard SMTP with custom hostnames, ports (25, 465, 587), STARTTLS, and SSL. Simply input your provider's credentials under <b>Settings &rarr; Email Configuration</b>.
+</details>
+
+<details>
+<summary><b>4. How are new versions built and released?</b></summary>
+<br>
+All production executables for macOS, Windows, and Linux are automatically built, validated, and signed through our continuous integration pipeline via <b>GitHub Actions</b> (<code>.github/workflows/build_releases.yml</code>) on every version tag.
+</details>
+
+---
+
+## 👨‍💻 Meet the Creator
+
+<p align="center">
+  <b>Built with care, precision, and passion by WAHB</b><br>
+  <i>Casablanca, Morocco 🇲🇦 &rarr; Crafted for users and professionals across Germany & the DACH region 🇩🇪</i>
+</p>
+
+<p align="center">
+  <a href="https://github.com/whbexc"><img src="https://img.shields.io/badge/GitHub-@whbexc-181717?style=for-the-badge&logo=github&logoColor=white"></a>
+</p>
+
+> 💡 **A quick note:** If ZUGZWANG helped you bypass greedy agencies, saved you thousands of euros, or helped you secure an Ausbildung/job directly, please consider giving the repository a **Star (⭐)** and sharing it with other ambitious candidates!
+>
+> Feel free to open an **[Issue](https://github.com/whbexc/Zugzwang/issues)** or start a **[Discussion](https://github.com/whbexc/Zugzwang/discussions)** if you have feature requests, suggestions, or want to contribute.
 
 ---
 
