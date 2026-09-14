@@ -2,3 +2,4 @@
   <rect x="4" y="7" width="16" height="11" rx="2" stroke="#EEEEEE" stroke-width="1.8"/>
   <path d="M9 7V5.8A1.8 1.8 0 0 1 10.8 4H13.2A1.8 1.8 0 0 1 15 5.8V7M4 11.5H20" stroke="#EEEEEE" stroke-width="1.8" stroke-linecap="round"/>
 </svg>
+<!-- 1.1.2 -->
