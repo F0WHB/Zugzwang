@@ -3177,21 +3177,25 @@ class EditPage(QWidget):
 
     def _save_signature_path(self, path_str: str) -> None:
         self._signature_image_path = path_str
-        def _do_save():
+        try:
             import sqlite3
-            try:
-                db_path = get_memory_db_path()
-                conn = sqlite3.connect(db_path, timeout=10.0)
-                self._ensure_settings_table(conn)
-                if path_str:
-                    conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('signature_image_path', ?)", (path_str,))
-                else:
-                    conn.execute("DELETE FROM settings WHERE key = 'signature_image_path'")
-                conn.commit()
-                conn.close()
-            except Exception:
-                pass
-        run_in_thread(_do_save)
+            db_path = get_memory_db_path()
+            conn = sqlite3.connect(db_path, timeout=5.0)
+            self._ensure_settings_table(conn)
+            if path_str:
+                conn.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('signature_image_path', ?)", (path_str,))
+            else:
+                conn.execute("DELETE FROM settings WHERE key = 'signature_image_path'")
+            conn.commit()
+            conn.close()
+        except Exception:
+            pass
+
+        try:
+            event_bus.emit(EventBus.SETTINGS_CHANGED)
+            event_bus.emit("signature.changed", path=path_str)
+        except Exception:
+            pass
 
     def _edit_profile(self) -> None:
         from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
@@ -5347,6 +5351,13 @@ class EditPage(QWidget):
             fontName=f"{font_name}-Bold" if font_name != "Times-Roman" else "Times-Bold",
         )
         
+        import xml.sax.saxutils
+
+        def _safe_xml(val: str) -> str:
+            if not val:
+                return ""
+            return xml.sax.saxutils.escape(str(val))
+
         story = []
         lines = text.splitlines()
         
@@ -5360,14 +5371,14 @@ class EditPage(QWidget):
             idx += 1
             
         if idx < len(lines):
-            story.append(Paragraph(lines[idx].strip().upper(), style_h1))
+            story.append(Paragraph(_safe_xml(lines[idx].strip().upper()), style_h1))
             idx += 1
             
         while idx < len(lines) and not lines[idx].strip():
             idx += 1
             
         if idx < len(lines):
-            story.append(Paragraph(lines[idx].strip(), style_h2))
+            story.append(Paragraph(_safe_xml(lines[idx].strip()), style_h2))
             idx += 1
             
         # Lines 3, 4, etc. (normal paragraphs)
@@ -5378,13 +5389,13 @@ class EditPage(QWidget):
                 story.append(Spacer(1, 10))
             else:
                 if is_first_paragraph:
-                    story.append(Paragraph(line, style_right))
+                    story.append(Paragraph(_safe_xml(line), style_right))
                     is_first_paragraph = False
                 elif "bewerbung um eine ausbildung" in line.lower() or "bewerbung als" in line.lower():
                     style_subj = ParagraphStyle("Subj", parent=style_bold, fontSize=13, spaceAfter=2)
-                    story.append(Paragraph(line, style_subj))
+                    story.append(Paragraph(_safe_xml(line), style_subj))
                 elif "freundlichen" in line.lower() and "gr" in line.lower():
-                    story.append(Paragraph(line, style_normal))
+                    story.append(Paragraph(_safe_xml(line), style_normal))
                     story.append(Spacer(1, 2*mm)) # reduced from 5mm
                     
                     identity_block = []
@@ -5423,12 +5434,8 @@ class EditPage(QWidget):
                                     img = Image(img_buffer, width=55*mm, height=20*mm, kind="proportional")
                                     img.hAlign = 'LEFT'
                                     identity_block.append(img)
-                            except Exception as e:
-                                identity_block.append(Paragraph(f"[Error processing signature image: {e}]", style_normal))
-                        else:
-                            identity_block.append(Paragraph(f"[Signature file not found: {sig_path}]", style_normal))
-                    else:
-                        identity_block.append(Paragraph("[No signature path saved in DB]", style_normal))
+                            except Exception:
+                                pass
                                 
                     sender_name = self._cached_sender_settings.get("name", "")
                     if not sender_name:
@@ -5445,16 +5452,33 @@ class EditPage(QWidget):
                     if sender_name:
                         style_name = ParagraphStyle("Name", parent=style_bold, fontSize=13)
                         identity_block.append(Spacer(1, 1*mm))
-                        identity_block.append(Paragraph(sender_name, style_name))
-                    else:
-                        identity_block.append(Paragraph("[No sender name set]", style_normal))
+                        identity_block.append(Paragraph(_safe_xml(sender_name), style_name))
                         
-                    story.append(KeepTogether(identity_block))
+                    if identity_block:
+                        story.append(KeepTogether(identity_block))
                 else:
-                    story.append(Paragraph(line, style_normal))
+                    story.append(Paragraph(_safe_xml(line), style_normal))
 
-        doc.build(story)
-        return buffer.getvalue()
+        try:
+            doc.build(story)
+            return buffer.getvalue()
+        except Exception as build_err:
+            print(f"Warning: ReportLab doc.build failed ({build_err}), falling back to canvas text rendering")
+            from reportlab.pdfgen import canvas
+            fallback_buf = io.BytesIO()
+            c = canvas.Canvas(fallback_buf, pagesize=A4)
+            width, height = A4
+            y = height - 20 * mm
+            c.setFont("Helvetica", 10)
+            for raw_line in text.splitlines():
+                if y < 15 * mm:
+                    c.showPage()
+                    c.setFont("Helvetica", 10)
+                    y = height - 20 * mm
+                c.drawString(15 * mm, y, str(raw_line)[:120])
+                y -= 14
+            c.save()
+            return fallback_buf.getvalue()
 
     def _export_bewerbungsmappe(self, record: LeadRecord, letter_text: str, output_dir: Path | None = None) -> list[Path]:
         """
@@ -5488,8 +5512,14 @@ class EditPage(QWidget):
         sender = self._load_sender_settings().get("name", "") or config_manager.settings.email_from_name or "Bewerber"
         firma = record.company_name or ""
 
+        def _clean_unicode(s: str) -> str:
+            if not s:
+                return ""
+            return str(s).replace('\xa0', ' ').replace('\u200b', '').replace('\ufeff', '').strip()
+
         def sanitize(v: str) -> str:
-            return re.sub(r'[<>:"/\\|?*]', '_', v)
+            v_clean = _clean_unicode(v)
+            return re.sub(r'[<>:"/\\|?*]', '_', v_clean).strip()
 
         b = sanitize(beruf)
         s = sanitize(sender)
@@ -5638,16 +5668,35 @@ class EditPage(QWidget):
                 self._progress_info_bar.set_message(progress_text)
                 QCoreApplication.processEvents()
                 
-                state = self._states.get(record.id)
-                letter_text = (state.letter_text if state else None) or self._assemble_letter(record)
+                if self._selected_record and self._selected_record.id == record.id:
+                    letter_text = self._editor.toPlainText().strip() or self._assemble_letter(record)
+                else:
+                    state = self._states.get(record.id)
+                    letter_text = (state.letter_text if state else None) or self._assemble_letter(record)
                 
                 if not letter_text:
-                    raise ValueError(f"Cover letter template generated an empty text for lead #{record.id} ('{record.company_name or record.email}').")
+                    letter_text = self._assemble_letter(record)
                     
                 try:
                     self._export_bewerbungsmappe(record, letter_text, out_dir)
                 except Exception as e:
-                    print(f"Failed to export {record.id}: {e}")
+                    print(f"Failed to export custom PDF for lead #{record.id}: {e}")
+                    # Ensure a fallback PDF exists in out_dir so email sending won't fail with FileNotFoundError
+                    try:
+                        import shutil
+                        b_san = re.sub(r'[<>:"/\\|?*]', '_', self._cached_sender_settings.get("beruf", "") or record.job_title or "Ausbildung").strip()
+                        s_san = re.sub(r'[<>:"/\\|?*]', '_', self._load_sender_settings().get("name", "") or config_manager.settings.email_from_name or "Bewerber").strip()
+                        f_san = re.sub(r'[<>:"/\\|?*]', '_', record.company_name or "").strip()
+                        bn = f"Bewerbung als {b_san} - {s_san}"
+                        if f_san:
+                            bn += f" @ {f_san}"
+                        if len(bn) > 150:
+                            bn = bn[:146].strip()
+                        target_fallback = (out_dir or get_exports_dir()) / f"{bn}.pdf"
+                        if not target_fallback.exists() and lv_path and Path(lv_path).exists():
+                            shutil.copy2(str(lv_path), str(target_fallback))
+                    except Exception:
+                        pass
             
             if self._progress_info_bar:
                 self._progress_info_bar.close_anim()

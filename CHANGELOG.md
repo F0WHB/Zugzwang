@@ -9,24 +9,31 @@ All notable changes and technical release notes for ZUGZWANG are documented in t
 ### UI
 - **Native Pro-Apple Attachments & Zeugnisse Dialog** — Re-architected certificate management with an interactive macOS card modal, featuring drag-and-drop reordering, fluid physics animations, instant PDF previewing, and inline document removal.
 - **Redesigned macOS Toast Notification System** — Introduced a floating native macOS card (`#2C2C2E`, 14px radius, 0.5px border, 400px fixed width, zero shadow) with role-colored badges, clean typography, smooth physics animations, and persistent top-right window anchoring.
+- **Edit Workspace Visual Polish & Signature Cleanliness** — Modernized the editor layout with refined typography and spacing, streamlined profile and sender credential cards, and ensured signature previews and rendered letter identities remain pristine without template message bleed.
 - **FilterMenu Scroll Area & Typography** — Integrated `QScrollArea` inside `FilterMenu` to enable fluid scrolling for large city/source lists, removed horizontal scrollbar clutter, and increased table font size by 2px for improved data density and readability.
 - **Settings Card Typography Polish** — Increased font size of settings cards titles from 10px to 12px, enforced PT Root UI font with uppercase transform for consistent card headers, and corrected button style factory references.
+
+### Sending Engine & Attachments
+- **Fail-Proof Lead PDF & Attachment Pipeline** — Overhauled email message construction with case-insensitive and wildcard recipient lead queries, fuzzy PDF candidate matching in the exports directory, and direct fallback to loaded Lebenslauf to completely eliminate `FileNotFoundError` during campaign dispatches.
+- **Non-Destructive Multi-Attachment Delivery** — Manual attachments added in the Send tab now safely complement dynamically generated lead cover letters and dossiers instead of suppressing them.
+- **Dynamic On-The-Fly Certificate Merging** — In `letter_cv_certs` mode, certificates are automatically compiled in-memory from saved settings if pre-rendered Zeugnisse files are not present on disk, ensuring certificates are never dropped.
+- **Safe Sent-PDF Lifecycle Management** — Rebuilt cleanup routines to prevent premature deletion of company files when multiple leads from the same organization exist in the sending queue.
+- **Unified Outreach Trial Quota** — Standardized trial limits across the platform to 20 Anschreiben cover letters and 20 email deliveries, eliminating quota discrepancies between exports and campaign outreach.
+- **Email Sender Toast Notification Integration** — Corrected `InfoBarPosition` import and anchor references in `email_sender_page.py` ensuring non-blocking delivery status popups.
+
+### PDF Generation & Reliability
+- **Safe XML Character Escaping in ReportLab** — Resolved ReportLab `Paragraph` parser crashes caused by unescaped XML/HTML entities (`&`, `<`, `>`, tags, and placeholders like `<br>`, `<Ansprechpartner>`, `GmbH & Co. KG`) via strict `_safe_xml()` escaping.
+- **Robust Canvas Fallback Renderer** — Integrated a resilient ReportLab Canvas fallback so document generation never crashes or swallows PDFs during batch export.
+- **Live In-Flight Editor State Synchronization** — Active in-flight editor text is automatically captured during batch exports for the currently selected lead, guaranteeing unsaved edits are never lost.
+- **Watchdog Memory Fault Resolution** — Eliminated unsafe cross-thread stack frame inspections (`sys._current_frames`) on Apple Silicon / macOS ARM64 to guarantee complete runtime stability.
+- **Zero-Lag Asyncio & SQLite Performance** — Removed runtime frame inspection overhead from release builds, restoring native C-speed execution and fluid responsiveness during high-throughput scraping runs.
+- **Smart Update Version Comparison Engine** — Re-engineered version comparator to strict SemVer standards, ensuring pre-release versions reliably detect and prompt for stable upgrade releases.
 
 ### Scraping Engine
 - **Headed CAPTCHA Solver Bridge** — Fixed event callback parameter handling so the real browser window launches immediately, focuses in front, and synchronizes cookies seamlessly when security challenges appear on Jobsuche or Google Maps.
 - **Jobsuche Scraper Re-Architecture** — Major extraction overhaul of `jobsuche_scraper.py` with multi-tier API/DOM fallback paths, enhanced deep detail extraction, and robust pagination handling.
 - **Google Maps Real-Time Scraper Streaming** — Re-architected lead extraction from blocking batches to concurrent streaming via `asyncio.as_completed`, displaying discovered leads in the UI instantly without freezing.
 - **Website Crawler Deep Enrichment** — Enhanced `website_crawler.py` with expanded heuristic discovery for careers, imprint, and direct contact endpoints.
-
-### Sending Engine
-- **Unified Outreach Trial Quota** — Standardized trial limits across the platform to 20 Anschreiben cover letters and 20 email deliveries, eliminating quota discrepancies between exports and campaign outreach.
-- **Seamless Zeugnisse Bundle Delivery** — Resolved export and email dispatch attachment issues to ensure Zeugnisse PDFs match dynamic file patterns and attach reliably alongside Cover Letters and CVs.
-- **Email Sender Toast Notification Integration** — Corrected `InfoBarPosition` import and anchor references in `email_sender_page.py` ensuring non-blocking delivery status popups.
-
-### Reliability & Storage
-- **Watchdog Memory Fault Resolution** — Eliminated unsafe cross-thread stack frame inspections (`sys._current_frames`) on Apple Silicon / macOS ARM64 to guarantee complete runtime stability.
-- **Zero-Lag Asyncio & SQLite Performance** — Removed runtime frame inspection overhead from release builds, restoring native C-speed execution and fluid responsiveness during high-throughput scraping runs.
-- **Smart Update Version Comparison Engine** — Re-engineered version comparator to strict SemVer standards, ensuring pre-release versions reliably detect and prompt for stable upgrade releases.
 
 ---
 

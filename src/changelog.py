@@ -1,9 +1,41 @@
 # ZUGZWANG Changelog Definitions
 # Contains version history and changes for the "What's New" dialog.
 
-APP_VERSION = "1.1.1"
+APP_VERSION = "1.1.2"
 
 CHANGELOG = [
+    {
+        "version": "1.1.2",
+        "date": "September 14, 2026",
+        "label": "STABLE",
+        "label_color": "#30D158",
+        "changes": [
+            {
+                "type": "fixed",
+                "text": "Fail-Proof PDF Generation & Safe XML Escaping — Resolved ReportLab Paragraph XML parsing crashes caused by unescaped ampersands, angle brackets, and placeholders (e.g. GmbH & Co. KG, <Ansprechpartner>) with automatic entity escaping and a robust Canvas-based fallback renderer."
+            },
+            {
+                "type": "fixed",
+                "text": "Intelligent Attachment & PDF Candidate Matching — Re-architected dynamic Bewerbung resolution in the email sender with fuzzy candidate lookup in exports, case-insensitive recipient querying, and direct fallback to loaded Lebenslauf to completely eliminate transmission FileNotFoundError."
+            },
+            {
+                "type": "improved",
+                "text": "Non-Destructive Multi-Attachment Pipeline — Manual attachments in the Send tab now safely coexist with dynamically generated company-specific Bewerbung letters without suppressing application packages."
+            },
+            {
+                "type": "fixed",
+                "text": "Dynamic On-The-Fly Certificate Merging — In letter_cv_certs mode, certificates are automatically compiled in-memory from saved settings if pre-rendered Zeugnisse files are not present on disk."
+            },
+            {
+                "type": "improved",
+                "text": "Safe Sent-PDF Lifecycle Management — Rebuilt cleanup routines to prevent premature deletion of company files when multiple leads from the same organization exist in the sending queue."
+            },
+            {
+                "type": "improved",
+                "text": "Edit Workspace Polish & Live Synchronized State — Live in-flight editor text is automatically captured during batch exports, signature image rendering is cleanly separated without artifacting, and email profile setup styling is fully modernized."
+            },
+        ],
+    },
     {
         "version": "1.1.1",
         "date": "September 10, 2026",

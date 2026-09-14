@@ -38,7 +38,7 @@ from qfluentwidgets import (
 )
 from PySide6.QtGui import QTextCharFormat, QColor, QTextCursor
 
-from ..core.events import event_bus
+from ..core.events import event_bus, EventBus
 from .theme import Theme
 from ..core.config import config_manager
 from ..core.i18n import get_language, tr
@@ -498,6 +498,12 @@ class EmailSenderPage(QWidget):
         self._restore_fields()
         self._connect_buttons()
         self._is_restoring = False
+
+        try:
+            event_bus.subscribe(EventBus.SETTINGS_CHANGED, self._on_signature_changed_event)
+            event_bus.subscribe("signature.changed", self._on_signature_changed_event)
+        except Exception:
+            pass
 
     def _history_file(self) -> Path:
         from ..core.config import get_app_data_dir
@@ -1548,6 +1554,14 @@ class EmailSenderPage(QWidget):
         if self._isPreview:
             self._render_preview_content()
 
+    def showEvent(self, event):
+        super().showEvent(event)
+        self._refresh_preview_if_open()
+
+    def _on_signature_changed_event(self, **kwargs):
+        from PySide6.QtCore import QTimer
+        QTimer.singleShot(0, self._refresh_preview_if_open)
+
     def _get_signature_image_path(self) -> str:
         import sqlite3
         import os
@@ -2539,27 +2553,33 @@ class EmailSenderPage(QWidget):
         try:
             from ..core.config import get_exports_dir, get_memory_db_path
             import sqlite3
+            import re
             
             exports_dir = get_exports_dir()
             if not exports_dir.exists():
                 return
 
             company = ""
+            rec_clean = str(recipient or "").lower().strip()
             try:
                 conn = sqlite3.connect(str(get_memory_db_path()), timeout=5.0)
-                row = conn.execute("SELECT company_name FROM leads WHERE email = ? LIMIT 1", (recipient,)).fetchone()
+                row = conn.execute("SELECT company_name FROM leads WHERE LOWER(TRIM(email)) = ? LIMIT 1", (rec_clean,)).fetchone()
+                if not row:
+                    row = conn.execute("SELECT company_name FROM leads WHERE email LIKE ? LIMIT 1", (f"%{rec_clean}%",)).fetchone()
                 if row and row[0]:
-                    company = row[0]
+                    company = str(row[0]).strip()
                 conn.close()
             except Exception:
                 pass
                 
-            if company:
-                for p in exports_dir.glob(f"*@{company}*.pdf"):
-                    try:
-                        p.unlink(missing_ok=True)
-                    except Exception:
-                        pass
+            if company and len(company) >= 3:
+                clean_comp = re.sub(r'[<>:"/\\|?*]', '_', company).strip()
+                for p in exports_dir.iterdir():
+                    if p.is_file() and p.suffix.lower() == ".pdf" and f"@{clean_comp}" in p.name:
+                        try:
+                            p.unlink(missing_ok=True)
+                        except Exception:
+                            pass
         except Exception:
             pass
 
@@ -2624,15 +2644,22 @@ class EmailSenderPage(QWidget):
         import os
         from ..core.config import get_memory_db_path, get_exports_dir, config_manager
 
-        company = "Firma"
+        company = ""
         job_title = "Ausbildung"
         sender_name = ""
         sender_beruf = ""
+        rec_clean = _clean_unicode(recipient).lower().strip()
         try:
             conn = sqlite3.connect(str(get_memory_db_path()), timeout=10.0)
-            row = conn.execute("SELECT contact_person, company_name, job_title FROM leads WHERE email = ? LIMIT 1", (recipient,)).fetchone()
+            row = conn.execute(
+                "SELECT contact_person, company_name, job_title FROM leads WHERE LOWER(TRIM(email)) = ? LIMIT 1",
+                (rec_clean,)
+            ).fetchone()
             if not row:
-                row = conn.execute("SELECT contact_person, company_name, job_title FROM leads WHERE company_name IS NOT NULL AND company_name != '' LIMIT 1").fetchone()
+                row = conn.execute(
+                    "SELECT contact_person, company_name, job_title FROM leads WHERE email LIKE ? LIMIT 1",
+                    (f"%{rec_clean}%",)
+                ).fetchone()
             if row:
                 if row[1]: company = _clean_unicode(row[1])
                 if row[2]: job_title = _clean_unicode(row[2])
@@ -2695,17 +2722,20 @@ class EmailSenderPage(QWidget):
             except Exception as e:
                 self._log(f"Failed to encode attachment {file_path}: {e}", "WARNING")
 
-        # 2. Attach dynamically generated lead PDF / Edit page Bewerbung ONLY if no manual attachments were added
-        # or if an exact company-specific generated cover letter exists for this specific recipient.
+        # 2. Attach dynamically generated lead PDF / Edit page Bewerbung
         def sanitize(v):
             v_clean = _clean_unicode(v)
-            return re.sub(r'[<>:"/\\|?*]', '_', v_clean)
+            return re.sub(r'[<>:"/\\|?*]', '_', v_clean).strip()
 
         beruf_san = sanitize(sender_beruf or job_title or "Ausbildung")
         firma_san = sanitize(company)
         sender_san = sanitize(sender_name)
 
-        base_filename = f"Bewerbung als {beruf_san} - {sender_san} @ {firma_san}"
+        if firma_san:
+            base_filename = f"Bewerbung als {beruf_san} - {sender_san} @ {firma_san}"
+        else:
+            base_filename = f"Bewerbung als {beruf_san} - {sender_san}"
+
         if len(base_filename) > 150:
             base_filename = base_filename[:146].strip()
         generic_base = f"Bewerbung als {beruf_san} - {sender_san}"
@@ -2716,33 +2746,62 @@ class EmailSenderPage(QWidget):
             pdf_filename = f"{base_filename}_Anschreiben.pdf"
             generic_pdf_filename = f"{generic_base}_Anschreiben.pdf"
             display_name = "Anschreiben.pdf"
+            file_suffix = "_Anschreiben.pdf"
         elif export_mode == "letter_cv_certs":
             pdf_filename = f"{base_filename}_AnschreibenLebenslauf.pdf"
             generic_pdf_filename = f"{generic_base}_AnschreibenLebenslauf.pdf"
             display_name = "Anschreiben_Lebenslauf.pdf"
+            file_suffix = "_AnschreibenLebenslauf.pdf"
         else:
             pdf_filename = f"{base_filename}.pdf"
             generic_pdf_filename = f"{generic_base}.pdf"
             display_name = generic_pdf_filename
+            file_suffix = ".pdf"
 
         dynamic_pdf_path = get_exports_dir() / pdf_filename
         generic_pdf_path = get_exports_dir() / generic_pdf_filename
         raw_pdf_path = get_exports_dir() / "Bewerbung_Raw_Uploaded.pdf"
+        lv_setting_str = getattr(config_manager.settings, "bewerbung_lebenslauf_path", "") or ""
+        lv_setting_path = Path(lv_setting_str) if lv_setting_str else None
 
         chosen_pdf_path = None
         chosen_display_name = display_name
 
-        if dynamic_pdf_path.exists() and not has_manual_attachments:
+        # Priority 1: Exact dynamic PDF match
+        if dynamic_pdf_path.exists():
             chosen_pdf_path = dynamic_pdf_path
             chosen_display_name = display_name
-        elif not has_manual_attachments:
-            # Fallback checks only when the user did not provide manual attachments
-            if generic_pdf_path.exists():
-                chosen_pdf_path = generic_pdf_path
-                chosen_display_name = generic_pdf_filename
-            elif raw_pdf_path.exists():
-                chosen_pdf_path = raw_pdf_path
-                chosen_display_name = generic_pdf_filename
+        else:
+            # Priority 2: Smart fuzzy candidate lookup in exports dir for this company
+            if firma_san and get_exports_dir().exists():
+                candidates = []
+                for p in get_exports_dir().glob("*.pdf"):
+                    p_name = p.name
+                    if export_mode in ("separate", "letter_cv_certs"):
+                        if file_suffix.lower() not in p_name.lower():
+                            continue
+                    elif "_Anschreiben" in p_name or "_Zeugnisse" in p_name:
+                        continue
+                    if firma_san.lower() in p_name.lower():
+                        candidates.append(p)
+                if candidates:
+                    chosen_pdf_path = candidates[0]
+                    chosen_display_name = display_name
+
+        # Priority 3: Generic base PDF match
+        if not chosen_pdf_path and generic_pdf_path.exists() and not has_manual_attachments:
+            chosen_pdf_path = generic_pdf_path
+            chosen_display_name = generic_pdf_filename
+
+        # Priority 4: Raw uploaded PDF fallback
+        if not chosen_pdf_path and raw_pdf_path.exists() and not has_manual_attachments:
+            chosen_pdf_path = raw_pdf_path
+            chosen_display_name = generic_pdf_filename
+
+        # Priority 5: User's loaded Lebenslauf from settings directly
+        if not chosen_pdf_path and not has_manual_attachments and lv_setting_path and lv_setting_path.exists():
+            chosen_pdf_path = lv_setting_path
+            chosen_display_name = "Lebenslauf.pdf"
 
         if chosen_pdf_path and chosen_pdf_path.exists():
             try:
@@ -2756,7 +2815,7 @@ class EmailSenderPage(QWidget):
                 raise RuntimeError(f"Failed to attach PDF {chosen_pdf_path}: {e}")
 
         # Multi-doc modes: attach Lebenslauf and/or Zeugnisse as extra files
-        if not has_manual_attachments:
+        if not has_manual_attachments or chosen_pdf_path:
             import json as _json
             export_mode = getattr(config_manager.settings, "bewerbung_export_mode", "full")
             lv_path = getattr(config_manager.settings, "bewerbung_lebenslauf_path", "") or ""
@@ -2808,15 +2867,46 @@ class EmailSenderPage(QWidget):
 
             elif export_mode == "letter_cv_certs":
                 # Lebenslauf is merged with Anschreiben in the first file (handled by export).
-                # Attach the Zeugnisse PDF separately if it was written.
+                # Attach the Zeugnisse PDF separately if it was written or dynamically merged.
                 if zeug_paths:
+                    attached_zeug = False
                     zeug_dest_dynamic = get_exports_dir() / f"{base_filename}_Zeugnisse.pdf"
                     zeug_dest_generic = get_exports_dir() / f"{generic_base}_Zeugnisse.pdf"
                     
                     if zeug_dest_dynamic.exists():
                         _attach_pdf_file(str(zeug_dest_dynamic), "Zeugnisse.pdf")
+                        attached_zeug = True
                     elif zeug_dest_generic.exists():
                         _attach_pdf_file(str(zeug_dest_generic), "Zeugnisse.pdf")
+                        attached_zeug = True
+                    else:
+                        if firma_san and get_exports_dir().exists():
+                            for p in get_exports_dir().glob("*_Zeugnisse.pdf"):
+                                if firma_san.lower() in p.name.lower():
+                                    _attach_pdf_file(str(p), "Zeugnisse.pdf")
+                                    attached_zeug = True
+                                    break
+
+                    if not attached_zeug:
+                        import io, pypdf as _pypdf
+                        w = _pypdf.PdfWriter()
+                        for zp in zeug_paths:
+                            try:
+                                r = _pypdf.PdfReader(zp)
+                                for pg in r.pages:
+                                    w.add_page(pg)
+                            except Exception:
+                                pass
+                        buf = io.BytesIO()
+                        w.write(buf)
+                        try:
+                            z_part = MIMEBase("application", "pdf")
+                            z_part.set_payload(buf.getvalue())
+                            encoders.encode_base64(z_part)
+                            _add_safe_filename_header(z_part, "attachment", "Zeugnisse.pdf")
+                            msg.attach(z_part)
+                        except Exception as e:
+                            self._log(f"Failed to attach Zeugnisse: {e}", "WARNING")
 
         if not has_manual_attachments and not chosen_pdf_path:
             raise FileNotFoundError("No attachment found. Please load your Lebenslauf in the Edit page or attach files manually in the Send tab.")
