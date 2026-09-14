@@ -133,4 +133,4 @@ Section "Uninstall"
   DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_GUID}"
 SectionEnd
 
-; 1.1.1
+; 1.1.2

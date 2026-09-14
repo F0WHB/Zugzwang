@@ -32,11 +32,12 @@ chmod +x dist/ZUGZWANG/ZUGZWANG.desktop
 # 4. Create distributable tar.gz archive
 echo "[3/3] Creating Linux distributable archive..."
 cd dist
-tar -czf "ZUGZWANG_Linux_1.1.1.tar.gz" ZUGZWANG/
+VERSION=$(python3 -c "import sys; sys.path.insert(0, '..'); from src.core.config import APP_VERSION; print(APP_VERSION)")
+tar -czf "ZUGZWANG_Linux_${VERSION}.tar.gz" ZUGZWANG/
 cd ..
 
 echo "=========================================================="
-echo "[SUCCESS] Built Linux package: dist/ZUGZWANG_Linux_1.1.1.tar.gz"
+echo "[SUCCESS] Built Linux package: dist/ZUGZWANG_Linux_${VERSION}.tar.gz"
 echo "=========================================================="
 
-# 1.1.1
+# 1.1.2

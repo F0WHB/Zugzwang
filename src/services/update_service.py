@@ -263,4 +263,4 @@ class UpdateService(QObject):
             
         sys.exit(0)
 
-# 1.1.1
+# 1.1.2

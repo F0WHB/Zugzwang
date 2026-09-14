@@ -39,12 +39,13 @@ else:
 # 4. Create distributable archive
 echo "[3/4] Creating macOS distributable archive..."
 cd dist
+VERSION=$(python3 -c "import sys; sys.path.insert(0, '..'); from src.core.config import APP_VERSION; print(APP_VERSION)")
 codesign --force --deep --sign - ZUGZWANG.app || true
-zip -r -y "ZUGZWANG_macOS_1.1.1.zip" ZUGZWANG.app
+zip -r -y "ZUGZWANG_macOS_${VERSION}.zip" ZUGZWANG.app
 cd ..
 
 echo "=========================================================="
-echo "[SUCCESS] Built macOS package: dist/ZUGZWANG_macOS_1.1.1.zip"
+echo "[SUCCESS] Built macOS package: dist/ZUGZWANG_macOS_${VERSION}.zip"
 echo "=========================================================="
 
-# 1.1.1
+# 1.1.2

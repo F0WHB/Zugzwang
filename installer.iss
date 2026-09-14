@@ -86,4 +86,4 @@ begin
   WizardForm.WelcomeLabel2.Height := ScaleY(170);
 end;
 
-; 1.1.1
+; 1.1.2

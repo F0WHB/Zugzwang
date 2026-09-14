@@ -84,3 +84,5 @@ All notable changes and technical release notes for ZUGZWANG are documented in t
 - **Internal App Build Tracking** — Independent build version tracking allowing hotfix deployments even when visible release strings remain identical.
 - **Telemetry Noise Reduction** — Aggressively filtered low-level PyPDF warning noise ('Ignoring wrong pointing object') and internal startup traces from user activity streams.
 - **Startup Resource Optimization** — Reduced startup and dashboard refresh pressure to improve Google Maps launch responsiveness and avoid false temporary freeze behavior.
+
+<!-- 1.1.2 -->

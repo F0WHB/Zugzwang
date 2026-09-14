@@ -150,4 +150,4 @@ class CaptchaDialog(QDialog):
             type="refresh"
         )
 
-# 1.1.1
+# 1.1.2

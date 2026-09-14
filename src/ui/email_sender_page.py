@@ -3146,4 +3146,4 @@ class EmailSenderPage(QWidget):
 
     # End of class
 
-# 1.1.1
+# 1.1.2

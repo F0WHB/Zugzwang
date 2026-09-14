@@ -449,4 +449,4 @@ class ConfigManager(QObject):
 # Global singleton access
 config_manager = ConfigManager()
 
-# 1.1.1
+# 1.1.2

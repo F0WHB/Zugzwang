@@ -188,5 +188,4 @@ if sys.platform == 'darwin':
         },
     )
 
-
-# 1.1.1
+# 1.1.2

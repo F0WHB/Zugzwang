@@ -62,6 +62,12 @@ add_changelog_feature.py
 expand_changelog.py
 update_changelog.py
 update_version.py
+bump_version.py
+scripts/bump_version.py
+export_macbook_data.py
+scripts/export_macbook_data.py
+fix_trial_limits.py
+scripts/fix_trial_limits.py
 test_*.py
 
 # Local Settings & Sensitive Data
