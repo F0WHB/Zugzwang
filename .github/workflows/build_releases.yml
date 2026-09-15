@@ -4,9 +4,12 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: 'Optional: Release Tag (NO SPACES ALLOWED, e.g. 1.1.2)'
+        description: 'Release Tag (leave empty to auto-detect from config.py)'
         required: false
         default: ''
+  push:
+    tags:
+      - '*'
 
 permissions:
   contents: write
@@ -24,6 +27,22 @@ jobs:
         with:
           python-version: '3.11'
           cache: 'pip'
+
+      - name: Determine Release Tag
+        id: tag
+        shell: bash
+        run: |
+          if [ -n "${{ github.event.inputs.release_tag }}" ]; then
+            TAG="${{ github.event.inputs.release_tag }}"
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+          else
+            VER=$(python -c "from src.core.config import APP_VERSION; print(APP_VERSION)")
+            BUILD=$(python -c "from src.core.config import APP_BUILD; print(APP_BUILD)")
+            TAG="${VER}_build${BUILD}"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "Using release tag: $TAG"
 
       - name: Install Dependencies
         run: |
@@ -45,10 +64,10 @@ jobs:
           makensis installer.nsi
 
       - name: Upload Windows Asset to Release
-        if: github.event.inputs.release_tag != ''
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event.inputs.release_tag }}
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: ${{ steps.tag.outputs.tag }}
           fail_on_unmatched_files: false
           files: |
             ZUGZWANG_Setup_*.exe
@@ -75,6 +94,22 @@ jobs:
         with:
           python-version: '3.11'
           cache: 'pip'
+
+      - name: Determine Release Tag
+        id: tag
+        shell: bash
+        run: |
+          if [ -n "${{ github.event.inputs.release_tag }}" ]; then
+            TAG="${{ github.event.inputs.release_tag }}"
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+          else
+            VER=$(python -c "from src.core.config import APP_VERSION; print(APP_VERSION)")
+            BUILD=$(python -c "from src.core.config import APP_BUILD; print(APP_BUILD)")
+            TAG="${VER}_build${BUILD}"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "Using release tag: $TAG"
 
       - name: Install Dependencies
         run: |
@@ -118,13 +153,14 @@ jobs:
         run: |
           cd dist
           codesign --force --deep --sign - ZUGZWANG.app || true
-          zip -r -y "ZUGZWANG_macOS_1.1.2.zip" ZUGZWANG.app
+          TAG="${{ steps.tag.outputs.tag }}"
+          zip -r -y "ZUGZWANG_macOS_${TAG}.zip" ZUGZWANG.app
 
       - name: Upload macOS Asset to Release
-        if: github.event.inputs.release_tag != ''
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event.inputs.release_tag }}
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: ${{ steps.tag.outputs.tag }}
           fail_on_unmatched_files: false
           files: dist/ZUGZWANG_macOS_*.zip
 
@@ -142,16 +178,32 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Install System Dependencies for Qt and WebKit
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgl1 libegl1 libxkbcommon-x11-0 libxcb-cursor0 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-xinerama0 libxcb-xfixes0 libxcb-shape0
-
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
+
+      - name: Determine Release Tag
+        id: tag
+        shell: bash
+        run: |
+          if [ -n "${{ github.event.inputs.release_tag }}" ]; then
+            TAG="${{ github.event.inputs.release_tag }}"
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+          else
+            VER=$(python -c "from src.core.config import APP_VERSION; print(APP_VERSION)")
+            BUILD=$(python -c "from src.core.config import APP_BUILD; print(APP_BUILD)")
+            TAG="${VER}_build${BUILD}"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "Using release tag: $TAG"
+
+      - name: Install System Dependencies for Qt and WebKit
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgl1 libegl1 libxkbcommon-x11-0 libxcb-cursor0 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-xinerama0 libxcb-xfixes0 libxcb-shape0
 
       - name: Install Dependencies
         run: |
@@ -169,13 +221,14 @@ jobs:
       - name: Package Linux Archive
         run: |
           cd dist
-          tar -czf "ZUGZWANG_Linux_1.1.2.tar.gz" ZUGZWANG/
+          TAG="${{ steps.tag.outputs.tag }}"
+          tar -czf "ZUGZWANG_Linux_${TAG}.tar.gz" ZUGZWANG/
 
       - name: Upload Linux Asset to Release
-        if: github.event.inputs.release_tag != ''
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event.inputs.release_tag }}
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: ${{ steps.tag.outputs.tag }}
           fail_on_unmatched_files: false
           files: dist/ZUGZWANG_Linux_*.tar.gz
 
@@ -185,5 +238,3 @@ jobs:
           name: ZUGZWANG-Linux-Package
           if-no-files-found: warn
           path: dist/ZUGZWANG_Linux_*.tar.gz
-
-# 1.1.2

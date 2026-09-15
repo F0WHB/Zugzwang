@@ -29,17 +29,31 @@ def _parse_version_parts(raw: str) -> tuple[tuple[int, ...], str]:
     return numeric, suffix
 
 
+def _is_build_suffix(s: str) -> bool:
+    return bool(re.match(r"^(?:build|b)\d*$", s.strip().lower()))
+
+
 def _compare_suffixes(current_suffix: str, latest_suffix: str) -> int:
     if current_suffix == latest_suffix:
         return 0
+
+    c_is_build = _is_build_suffix(current_suffix)
+    l_is_build = _is_build_suffix(latest_suffix)
+
+    # Build suffixes (e.g. build10, b10) represent a newer build than an un-suffixed base version
+    if not current_suffix and l_is_build:
+        return -1  # latest (build10) is newer than current (base stable)
+    if not latest_suffix and c_is_build:
+        return 1   # current (build10) is newer than latest (base stable)
+
     # A version without suffix is a final stable release.
-    # A version with a suffix (beta, alpha, rc) is a pre-release, which is older than stable.
+    # A version with a pre-release suffix (beta, alpha, rc) is older than stable.
     if current_suffix and not latest_suffix:
         return -1  # current (beta) is older than latest (stable)
     if latest_suffix and not current_suffix:
         return 1   # current (stable) is newer than latest (beta)
 
-    # Both have suffixes. Split into text and numeric parts (e.g. 'beta', 6)
+    # Both have suffixes. Split into text and numeric parts (e.g. 'beta', 6 or 'build', 10)
     def split_sub(s):
         match = re.match(r"^([a-zA-Z]+)(\d*)$", s)
         if match:
@@ -49,6 +63,10 @@ def _compare_suffixes(current_suffix: str, latest_suffix: str) -> int:
     c_tag, c_val = split_sub(current_suffix)
     l_tag, l_val = split_sub(latest_suffix)
     if c_tag != l_tag:
+        if c_is_build and not l_is_build:
+            return 1
+        if l_is_build and not c_is_build:
+            return -1
         return 1 if c_tag > l_tag else -1
     if c_val != l_val:
         return 1 if c_val > l_val else -1
