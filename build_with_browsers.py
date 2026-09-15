@@ -190,4 +190,4 @@ def _copy_playwright_driver():
 if __name__ == "__main__":
     main()
 
-# 1.1.2
+# 1.1.2 build 10

@@ -2289,4 +2289,4 @@ class ResultsPage(QWidget):
         if msg.exec():
             self._remove_all_records()
 
-# 1.1.2
+# 1.1.2 build 10

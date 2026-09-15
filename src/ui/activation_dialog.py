@@ -362,4 +362,4 @@ class ActivationDialog(QDialog):
             self.reject()
         super().keyPressEvent(event)
 
-# 1.1.2
+# 1.1.2 build 10

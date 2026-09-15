@@ -24,7 +24,7 @@ SetCompressor /SOLID lzma
 BrandingText "ZUGZWANG Installer"
 
 ; Metadata
-VIProductVersion "1.1.2.0"
+VIProductVersion "1.1.2.10"
 VIAddVersionKey "ProductName" "${APP_NAME}"
 VIAddVersionKey "ProductVersion" "${APP_VERSION}"
 VIAddVersionKey "CompanyName" "${APP_PUBLISHER}"
@@ -133,4 +133,4 @@ Section "Uninstall"
   DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APP_GUID}"
 SectionEnd
 
-; 1.1.2
+; 1.1.2 build 10

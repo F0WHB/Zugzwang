@@ -1277,4 +1277,4 @@ class SearchPage(QWidget):
 
         run_in_thread(_fetch_cities, on_result=_on_cities_fetched)
 
-# 1.1.2
+# 1.1.2 build 10

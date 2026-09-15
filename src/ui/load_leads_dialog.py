@@ -270,4 +270,4 @@ class LoadLeadsDialog(QDialog):
             self.move(event.globalPos() - self._drag_pos)
             event.accept()
 
-# 1.1.2
+# 1.1.2 build 10

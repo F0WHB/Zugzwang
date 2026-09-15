@@ -282,4 +282,4 @@ class UpdateService(QObject):
             
         sys.exit(0)
 
-# 1.1.2
+# 1.1.2 build 10

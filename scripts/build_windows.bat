@@ -40,4 +40,4 @@ echo ==========================================================
 echo [SUCCESS] Windows installer created successfully!
 echo ==========================================================
 
-REM 1.1.2
+REM 1.1.2 build 10

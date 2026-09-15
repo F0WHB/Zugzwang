@@ -5,10 +5,30 @@ APP_VERSION = "1.1.2"
 
 CHANGELOG = [
     {
+        "version": "1.1.2 build 10",
+        "date": "September 15, 2026",
+        "label": "LATEST",
+        "label_color": "#30D158",
+        "changes": [
+            {
+                "type": "new",
+                "text": "In-App Software Update Experience — Added interactive update dialog with release notes, live download progress, and direct installation launch."
+            },
+            {
+                "type": "fixed",
+                "text": "Manual Recipient Dialog Localization — Fixed AttributeError where ManualRecipientDialog lacked self._language attribute."
+            },
+            {
+                "type": "improved",
+                "text": "Resilient Update Downloader — Protected HTTP stream against missing Content-Length headers and optimized launch handoff."
+            },
+        ]
+    },
+    {
         "version": "1.1.2",
         "date": "September 15, 2026",
         "label": "STABLE",
-        "label_color": "#30D158",
+        "label_color": None,
         "changes": [
             {
                 "type": "new",
@@ -52,7 +72,7 @@ CHANGELOG = [
         "version": "1.1.1",
         "date": "September 10, 2026",
         "label": "STABLE",
-        "label_color": "#30D158",
+        "label_color": None,
         "changes": [
             {
                 "type": "fixed",
@@ -716,10 +736,36 @@ CHANGELOG = [
 
 CHANGELOG_AR = [
     {
+        "version": "1.1.2 build 10",
+        "date": "15 سبتمبر 2026",
+        "label": "الأحدث",
+        "label_color": "#30D158",
+        "type_labels": {
+            "new": "جديد",
+            "improved": "مُحسَّن",
+            "fixed": "مُصلَّح",
+            "removed": "مُزال"
+        },
+        "changes": [
+            {
+                "type": "new",
+                "text": "تجربة تحديث البرامج داخل التطبيق — نافذة تفاعلية بنمط ماك لعرض ملاحظات الإصدار ونسبة التحميل المباشرة والتثبيت بنقرة واحدة."
+            },
+            {
+                "type": "fixed",
+                "text": "تهيئة لغة نافذة إضافة المستقبل يدوياً — إصلاح خطأ عدم العثور على سمة _language عند فتح النافذة."
+            },
+            {
+                "type": "improved",
+                "text": "محرك تحميل التحديثات — حماية تدفق التنزيل من غياب ترويسة طول المحتوى وتحسين معالجة التشغيل."
+            },
+        ]
+    },
+    {
         "version": "1.1.1",
         "date": "10 سبتمبر 2026",
         "label": "مستقر",
-        "label_color": "#30D158",
+        "label_color": None,
         "type_labels": {
             "new": "جديد",
             "improved": "مُحسَّن",
@@ -1437,4 +1483,4 @@ CHANGELOG_AR = [
     }
 ]
 
-# 1.1.2
+# 1.1.2 build 10
