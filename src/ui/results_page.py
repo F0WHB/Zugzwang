@@ -1698,7 +1698,7 @@ class ResultsPage(QWidget):
                 if email or phone:
                     record_dict = {k: row_data.get(k) for k in EXPORT_COLUMNS if k in row_data}
                     from ..core.config import config_manager
-                    settings = config_manager.settings()
+                    settings = config_manager.settings
                     record_dict["source_type"] = SourceType.MANUAL.value
                     record_dict["search_query"] = settings.last_search_city if settings.last_search_city else "Excel Import"
                     record_dict["country"] = settings.last_search_country if settings.last_search_country else "Import"
@@ -1771,7 +1771,7 @@ class ResultsPage(QWidget):
                 
             if email or phone:
                 from ..core.config import config_manager
-                settings = config_manager.settings()
+                settings = config_manager.settings
                 record = LeadRecord(
                     source_type=SourceType.MANUAL,
                     search_query=settings.last_search_city if settings.last_search_city else "Imported",
@@ -2289,4 +2289,4 @@ class ResultsPage(QWidget):
         if msg.exec():
             self._remove_all_records()
 
-# 1.1.2 build 10
+# 1.1.2.2

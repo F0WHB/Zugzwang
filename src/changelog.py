@@ -1,14 +1,38 @@
 # ZUGZWANG Changelog Definitions
 # Contains version history and changes for the "What's New" dialog.
 
-APP_VERSION = "1.1.2"
+APP_VERSION = "1.1.2.2"
 
 CHANGELOG = [
     {
-        "version": "1.1.2 build 10",
+        "version": "1.1.2.2",
         "date": "September 15, 2026",
         "label": "LATEST",
         "label_color": "#30D158",
+        "changes": [
+            {
+                "type": "fixed",
+                "text": "Signal Signature Stability — Resolved update_available() argument mismatch crash when detecting updates."
+            },
+            {
+                "type": "fixed",
+                "text": "Lead Import Pipeline — Fixed TypeError in import service and results table when loading leads from CSV, Excel, Word, or clipboard."
+            },
+            {
+                "type": "fixed",
+                "text": "PIN Security Lock — Fixed missing QGridLayout import and language attribute in security overlay and settings PIN setup dialog."
+            },
+            {
+                "type": "improved",
+                "text": "Search & Editor Robustness — Cleaned up toast notification invocations and added missing type annotations and GUI references."
+            },
+        ]
+    },
+    {
+        "version": "1.1.2 build 10",
+        "date": "September 15, 2026",
+        "label": None,
+        "label_color": None,
         "changes": [
             {
                 "type": "new",
@@ -736,10 +760,40 @@ CHANGELOG = [
 
 CHANGELOG_AR = [
     {
-        "version": "1.1.2 build 10",
+        "version": "1.1.2.2",
         "date": "15 سبتمبر 2026",
         "label": "الأحدث",
         "label_color": "#30D158",
+        "type_labels": {
+            "new": "جديد",
+            "improved": "مُحسَّن",
+            "fixed": "مُصلَّح",
+            "removed": "مُزال"
+        },
+        "changes": [
+            {
+                "type": "fixed",
+                "text": "إصلاح خطأ إشارة التحديث — حل مشكلة عدم تطابق وسائط update_available() التي كانت تسبب خطأ فادحاً عند التحقق من التحديثات."
+            },
+            {
+                "type": "fixed",
+                "text": "استيراد العملاء المحتملين — إصلاح خطأ TypeError عند استيراد البيانات من ملفات CSV وExcel والنصوص المنسوخة."
+            },
+            {
+                "type": "fixed",
+                "text": "استقرار شاشة قفل PIN — إصلاح خطأ استيراد QGridLayout وسمة اللغة في واجهة الأمان وإعدادات رمز المرور."
+            },
+            {
+                "type": "improved",
+                "text": "تحسين استقرار البحث والمحرر — تنظيف استدعاءات إشعارات التوست وإكمال استيرادات الواجهة الرسومية."
+            },
+        ]
+    },
+    {
+        "version": "1.1.2 build 10",
+        "date": "15 سبتمبر 2026",
+        "label": None,
+        "label_color": None,
         "type_labels": {
             "new": "جديد",
             "improved": "مُحسَّن",
@@ -1483,4 +1537,4 @@ CHANGELOG_AR = [
     }
 ]
 
-# 1.1.2 build 10
+# 1.1.2.2

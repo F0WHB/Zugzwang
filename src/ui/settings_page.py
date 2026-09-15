@@ -911,8 +911,9 @@ class SettingsPage(QWidget):
         from .components import ZugzwangDialog
         # Use a more specialized dialog for PIN entry that matches ZUGZWANG style
         class ZugzwangPinDialog(QDialog):
-            def __init__(self, parent=None):
+            def __init__(self, parent=None, language="en"):
                 super().__init__(parent)
+                self._language = language
                 self.setWindowFlags(Qt.FramelessWindowHint | Qt.Dialog)
                 self.setAttribute(Qt.WA_TranslucentBackground)
                 self.setFixedSize(400, 280)
@@ -967,7 +968,7 @@ class SettingsPage(QWidget):
                 btn_row = QHBoxLayout()
                 btn_row.setSpacing(12)
                 
-                self.ok_btn = QPushButton(tr("Save PIN", self._language))
+                self.ok_btn = _QPBtn(tr("Save PIN", self._language))
                 self.ok_btn.setFixedSize(150, 44)
                 self.ok_btn.setCursor(Qt.PointingHandCursor)
                 self.ok_btn.setStyleSheet("""
@@ -985,7 +986,7 @@ class SettingsPage(QWidget):
                 """)
                 self.ok_btn.clicked.connect(self.accept)
                 
-                self.cancel_btn = QPushButton(tr("Cancel", self._language))
+                self.cancel_btn = _QPBtn(tr("Cancel", self._language))
                 self.cancel_btn.setFixedSize(150, 44)
                 self.cancel_btn.setCursor(Qt.PointingHandCursor)
                 self.cancel_btn.setStyleSheet("""
@@ -1016,7 +1017,7 @@ class SettingsPage(QWidget):
                     self.move(event.globalPos() - self._drag_pos)
                     event.accept()
 
-        dialog = ZugzwangPinDialog(self.window())
+        dialog = ZugzwangPinDialog(self.window(), self._language)
         if dialog.exec():
             pin = dialog.pin_input.text().strip()
             if len(pin) == 4 and pin.isdigit():
@@ -1476,4 +1477,4 @@ class SettingsPage(QWidget):
             duration=3000, parent=self.window()
         )
 
-# 1.1.2 build 10
+# 1.1.2.2

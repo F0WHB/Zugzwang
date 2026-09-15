@@ -1047,13 +1047,10 @@ class SearchPage(QWidget):
                 conn.execute("DELETE FROM jobs")
             self._load_covered_cities()
             
-            from src.ui.toast_system import ToastNotification as InfoBar
+            from src.ui.toast_system import ToastNotification
             ToastNotification.success(
                 title="Cleared",
                 content="Search fields and city coverage history have been reset.",
-                orient=Qt.Horizontal,
-                isClosable=True,
-                position=InfoBarPosition.TOP,
                 duration=3000,
                 parent=self
             )
@@ -1277,4 +1274,4 @@ class SearchPage(QWidget):
 
         run_in_thread(_fetch_cities, on_result=_on_cities_fetched)
 
-# 1.1.2 build 10
+# 1.1.2.2

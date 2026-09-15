@@ -21,4 +21,4 @@ __all__ = [
     "LogViewerPage",
 ]
 
-# 1.1.2 build 10
+# 1.1.2.2

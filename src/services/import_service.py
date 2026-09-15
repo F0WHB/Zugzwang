@@ -133,7 +133,7 @@ class ImportService:
                         break
             
             from ..core.config import config_manager
-            settings = config_manager.settings()
+            settings = config_manager.settings
             record = LeadRecord(
                 id=str(uuid.uuid4()),
                 source_type=SourceType.MANUAL,
@@ -150,7 +150,7 @@ class ImportService:
         for url in found_urls:
             if url not in matched_urls_set:
                 from ..core.config import config_manager
-                settings = config_manager.settings()
+                settings = config_manager.settings
                 records.append(LeadRecord(
                     id=str(uuid.uuid4()),
                     source_type=SourceType.MANUAL,
@@ -187,7 +187,7 @@ class ImportService:
 
     def _build_record_from_dict(self, data: dict[str, Any]) -> LeadRecord:
         from ..core.config import config_manager
-        settings = config_manager.settings()
+        settings = config_manager.settings
         record = LeadRecord(
             id=str(uuid.uuid4()), 
             source_type=SourceType.MANUAL,
@@ -223,4 +223,4 @@ class ImportService:
                 deduped.append(r)
         return deduped
 
-# 1.1.2 build 10
+# 1.1.2.2

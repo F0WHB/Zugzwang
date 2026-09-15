@@ -19,8 +19,8 @@ from .models import AppSettings
 logger = logging.getLogger(__name__)
 
 APP_NAME = "ZUGZWANG"
-APP_VERSION = "1.1.2"
-APP_BUILD = 10
+APP_VERSION = "1.1.2.2"
+APP_BUILD = 2
 APP_AUTHOR = "ZUGZWANG"
 
 
@@ -449,4 +449,4 @@ class ConfigManager(QObject):
 # Global singleton access
 config_manager = ConfigManager()
 
-# 1.1.2 build 10
+# 1.1.2.2

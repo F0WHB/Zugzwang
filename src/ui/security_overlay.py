@@ -6,7 +6,7 @@ Modern PIN-lock screen for local access protection.
 from PySide6.QtCore import Qt, Signal, QSize
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QWidget, QLabel, 
-    QLineEdit, QFrame, QGraphicsDropShadowEffect
+    QLineEdit, QFrame, QGraphicsDropShadowEffect, QGridLayout
 )
 from qfluentwidgets import (
     PushButton, PrimaryPushButton, TransparentPushButton, 
@@ -195,4 +195,4 @@ class SecurityOverlay(QDialog):
             self.reject()
         super().keyPressEvent(event)
 
-# 1.1.2 build 10
+# 1.1.2.2

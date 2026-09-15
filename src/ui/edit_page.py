@@ -65,6 +65,7 @@ from PySide6.QtGui import (
     QShortcut,
     QPalette,
     QDrag,
+    QTextDocument,
 )
 from PySide6.QtWidgets import (
     QDialog,
@@ -5970,4 +5971,4 @@ class EditPage(QWidget):
         except Exception as e:
             self._show_error("Batch Export & Send Failed", str(e))
 
-# 1.1.2 build 10
+# 1.1.2.2

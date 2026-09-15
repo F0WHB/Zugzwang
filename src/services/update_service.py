@@ -243,7 +243,7 @@ class UpdateWorker(QThread):
 
 class UpdateService(QObject):
     """Facade for update operations."""
-    update_available = Signal([str, str], [str, str, str]) # version, url, release_notes
+    update_available = Signal(str, str, str) # version, url, release_notes
     no_update_available = Signal()
 
     def __init__(self, parent=None):
@@ -264,11 +264,8 @@ class UpdateService(QObject):
         if available:
             self.latest_version = ver
             self.download_url = url
-            self.release_notes = notes
-            try:
-                self.update_available.emit(ver, url, notes)
-            except Exception:
-                self.update_available.emit(ver, url)
+            self.release_notes = notes or ""
+            self.update_available.emit(ver, url, self.release_notes)
         else:
             self.no_update_available.emit()
 
@@ -300,4 +297,4 @@ class UpdateService(QObject):
             
         sys.exit(0)
 
-# 1.1.2 build 10
+# 1.1.2.2

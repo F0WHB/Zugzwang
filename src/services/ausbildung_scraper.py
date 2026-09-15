@@ -9,7 +9,7 @@ HTML is parsed with BeautifulSoup in Python memory.
 from __future__ import annotations
 import asyncio
 import re
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Optional
 from urllib.parse import quote
 
 from bs4 import BeautifulSoup
@@ -444,4 +444,4 @@ class AusbildungScraper:
             publication_date=start_date,
         )
 
-# 1.1.2 build 10
+# 1.1.2.2
