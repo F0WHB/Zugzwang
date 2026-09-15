@@ -780,10 +780,10 @@ class MainWindow(FramelessWindow):
         if search_page and hasattr(search_page, "refresh_license_state"):
             search_page.refresh_license_state()
 
-    def _show_update_dialog(self, version: str, url: str):
+    def _show_update_dialog(self, version: str, url: str, release_notes: str = ""):
         """Show the macOS-style update notification."""
         from .update_dialog import UpdateDialog
-        self._update_dialog = UpdateDialog(version, url, self)
+        self._update_dialog = UpdateDialog(version, url, self, release_notes=release_notes)
         self._update_dialog.update_started.connect(self._on_update_started)
         self._update_dialog.show()
 
@@ -811,7 +811,10 @@ class MainWindow(FramelessWindow):
 
     def _on_update_downloaded(self, path: str):
         """Handle successful download."""
-        self.update_service.apply_update(path)
+        if hasattr(self, "_update_dialog") and self._update_dialog:
+            self._update_dialog.set_finished()
+        from PySide6.QtCore import QTimer
+        QTimer.singleShot(800, lambda: self.update_service.apply_update(path))
 
     def _restore_saved_results(self) -> None:
         """Load app_memory.db in a background thread via orchestrator."""

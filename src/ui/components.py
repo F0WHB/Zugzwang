@@ -362,7 +362,8 @@ class ZugzwangDialog(QDialog):
         # Cancel Button (Dark #2C2C2E)
         if not single_button:
             from ..core.i18n import get_language, tr
-            self.cancel_btn = QPushButton(tr("dialog.cancel", get_language(None)))
+            btn_cancel_txt = cancel_text if cancel_text and cancel_text != "CANCEL" else tr("dialog.cancel", get_language(None))
+            self.cancel_btn = QPushButton(btn_cancel_txt)
             self.cancel_btn.setFixedHeight(32)
             self.cancel_btn.setCursor(Qt.PointingHandCursor)
             self.cancel_btn.setStyleSheet("""
@@ -382,7 +383,8 @@ class ZugzwangDialog(QDialog):
             btn_layout.addWidget(self.cancel_btn)
             
         # OK/Confirm Button (Red #FF453A or #0A84FF)
-        self.ok_btn = QPushButton(tr("dialog.ok", get_language(None)))
+        btn_confirm_txt = confirm_text if confirm_text and confirm_text != "OK" else tr("dialog.ok", get_language(None))
+        self.ok_btn = QPushButton(btn_confirm_txt)
         self.ok_btn.setFixedHeight(32)
         self.ok_btn.setCursor(Qt.PointingHandCursor)
         # Choose color dynamically based on text or destructive flag

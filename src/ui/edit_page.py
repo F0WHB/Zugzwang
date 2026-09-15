@@ -5351,12 +5351,65 @@ class EditPage(QWidget):
             fontName=f"{font_name}-Bold" if font_name != "Times-Roman" else "Times-Bold",
         )
         
-        import xml.sax.saxutils
-
         def _safe_xml(val: str) -> str:
             if not val:
                 return ""
-            return xml.sax.saxutils.escape(str(val))
+            s = str(val)
+
+            # 1. Protect allowed formatting tags supported by ReportLab: b, i, u, strike, sub, sup, br
+            allowed_pattern = re.compile(r'<\s*(/?)\s*(b|i|u|strike|sub|sup|br)\s*(/?)>', re.IGNORECASE)
+            tokens = []
+            def save_tag(match):
+                is_closing = bool(match.group(1))
+                tag_name = match.group(2).lower()
+                is_self_closing = bool(match.group(3)) or tag_name == 'br'
+                idx = len(tokens)
+                if is_closing:
+                    tokens.append(f"</{tag_name}>")
+                elif is_self_closing:
+                    tokens.append(f"<{tag_name}/>")
+                else:
+                    tokens.append(f"<{tag_name}>")
+                return f"@@TAG_{idx}@@"
+
+            s_masked = allowed_pattern.sub(save_tag, s)
+
+            # 2. Escape XML special characters (&, <, >)
+            # Only escape & if not part of a standard XML entity
+            s_escaped = re.sub(r'&(?!(?:amp|lt|gt|quot|apos);)', '&amp;', s_masked)
+            s_escaped = s_escaped.replace('<', '&lt;').replace('>', '&gt;')
+
+            # 3. Restore protected tags
+            for i, tag in enumerate(tokens):
+                s_escaped = s_escaped.replace(f"@@TAG_{i}@@", tag)
+
+            # 4. Enforce proper tag nesting and closure so ReportLab expat parser never crashes
+            tag_stack = []
+            tag_regex = re.compile(r'<(/?)(b|i|u|strike|sub|sup|br)/?>')
+            cleaned_parts = []
+            last_idx = 0
+            for m in tag_regex.finditer(s_escaped):
+                cleaned_parts.append(s_escaped[last_idx:m.start()])
+                is_close = bool(m.group(1))
+                tag = m.group(2)
+                if tag == 'br':
+                    cleaned_parts.append('<br/>')
+                elif not is_close:
+                    tag_stack.append(tag)
+                    cleaned_parts.append(f"<{tag}>")
+                else:
+                    if tag in tag_stack:
+                        while tag_stack:
+                            popped = tag_stack.pop()
+                            cleaned_parts.append(f"</{popped}>")
+                            if popped == tag:
+                                break
+                last_idx = m.end()
+            cleaned_parts.append(s_escaped[last_idx:])
+            while tag_stack:
+                cleaned_parts.append(f"</{tag_stack.pop()}>")
+
+            return "".join(cleaned_parts)
 
         story = []
         lines = text.splitlines()
@@ -5475,7 +5528,8 @@ class EditPage(QWidget):
                     c.showPage()
                     c.setFont("Helvetica", 10)
                     y = height - 20 * mm
-                c.drawString(15 * mm, y, str(raw_line)[:120])
+                clean_text = re.sub(r"<[^>]+>", "", str(raw_line))
+                c.drawString(15 * mm, y, clean_text[:120])
                 y -= 14
             c.save()
             return fallback_buf.getvalue()

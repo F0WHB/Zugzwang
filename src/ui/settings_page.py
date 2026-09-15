@@ -856,12 +856,15 @@ class SettingsPage(QWidget):
         ub.setStyleSheet("color: #8E8E93; font-family: 'PT Root UI', sans-serif; font-size: 11px;")
         utxt.addWidget(uh); utxt.addWidget(ub)
         update_hl.addLayout(utxt, 1)
+        self._update_card_title = uh
+        self._update_card_desc = ub
+        self._pending_update = None
 
         class _Btn(_QPBtn): pass
         self._check_update_btn = _Btn(tr("settings.update.button", self._language).upper())
         self._check_update_btn.setMinimumSize(160, 40)
         self._check_update_btn.setCursor(Qt.PointingHandCursor)
-        self._check_update_btn.setStyleSheet("""
+        self._check_update_btn_default_style = """
             _Btn {
                 background-color: #0A2540;
                 border: none;
@@ -876,7 +879,8 @@ class SettingsPage(QWidget):
             }
             _Btn:hover { background-color: #0D3060; color: #4DA6FF; }
             _Btn:pressed { background-color: #0A2540; }
-        """)
+        """
+        self._check_update_btn.setStyleSheet(self._check_update_btn_default_style)
         self._check_update_btn.clicked.connect(self._trigger_update_check)
         from PySide6.QtWidgets import QStyleFactory
         self._check_update_btn.setStyle(QStyleFactory.create("Fusion"))
@@ -1377,8 +1381,17 @@ class SettingsPage(QWidget):
             InfoBar.error("Cleanup Failed", f"Could not clean cached AppData: {error}", parent=self.window())
 
     def _trigger_update_check(self):
+        if hasattr(self, "_pending_update") and self._pending_update:
+            version, url, notes = self._pending_update
+            self._show_app_update(version, url, notes)
+            return
+
         self._check_update_btn.setEnabled(False)
         self._check_update_btn.setText("CHECKING...")
+        if hasattr(self, "_update_card_desc"):
+            self._update_card_desc.setText("Checking GitHub for updates...")
+            self._update_card_desc.setStyleSheet("color: #8E8E93; font-family: 'PT Root UI', sans-serif; font-size: 11px;")
+
         try:
             from ..services.update_service import UpdateService
             self._update_svc = UpdateService(self)
@@ -1388,23 +1401,78 @@ class SettingsPage(QWidget):
         except Exception as e:
             InfoBar.warning("Check Failed", str(e), duration=3000, parent=self.window())
             self._check_update_btn.setEnabled(True)
-            self._check_update_btn.setText(tr("settings.update.button", self._language))
+            self._check_update_btn.setText(tr("settings.update.button", self._language).upper())
+            if hasattr(self, "_update_card_desc"):
+                self._update_card_desc.setText(tr("settings.update.desc", self._language))
 
-    def _on_update_available(self, version: str, url: str):
+    def _show_app_update(self, version: str, url: str, release_notes: str = ""):
+        win = self.window()
+        if win and hasattr(win, "_show_update_dialog"):
+            win._show_update_dialog(version, url, release_notes)
+        else:
+            self._show_local_update_dialog(version, url, release_notes)
+
+    def _on_update_available(self, version: str, url: str, release_notes: str = ""):
+        self._pending_update = (version, url, release_notes)
         self._check_update_btn.setEnabled(True)
-        self._check_update_btn.setText(tr("settings.update.button", self._language))
-        InfoBar.success(
-            "Update Available",
-            f"Version {version} is ready — download from GitHub.",
-            duration=5000, parent=self.window()
-        )
+        self._check_update_btn.setText("UPDATE NOW")
+        self._check_update_btn.setStyleSheet("""
+            _Btn {
+                background-color: #0A84FF;
+                border: none;
+                border-radius: 10px;
+                color: #FFFFFF;
+                font-family: 'PT Root UI', sans-serif;
+                font-size: 11px;
+                font-weight: 700;
+                letter-spacing: 1.4px;
+                text-transform: uppercase;
+                padding: 0 12px;
+            }
+            _Btn:hover { background-color: #409CFF; color: #FFFFFF; }
+            _Btn:pressed { background-color: #0071E3; }
+        """)
+        if hasattr(self, "_update_card_desc"):
+            self._update_card_desc.setText(f"Version {version} is available! Ready to install.")
+            self._update_card_desc.setStyleSheet("color: #30D158; font-family: 'PT Root UI', sans-serif; font-size: 11px; font-weight: 600;")
+
+        # Automatically show the update dialog in the app
+        self._show_app_update(version, url, release_notes)
+
+    def _show_local_update_dialog(self, version: str, url: str, release_notes: str = ""):
+        from .update_dialog import UpdateDialog
+        self._update_dialog = UpdateDialog(version, url, self.window() or self, release_notes=release_notes)
+        self._update_dialog.update_started.connect(self._on_local_update_started)
+        self._update_dialog.show()
+
+    def _on_local_update_started(self, url: str):
+        if hasattr(self, "_update_svc") and self._update_svc:
+            self._update_svc.start_download(
+                url,
+                progress_callback=self._update_dialog.set_progress,
+                finished_callback=self._on_local_update_downloaded,
+                error_callback=self._update_dialog.set_error
+            )
+
+    def _on_local_update_downloaded(self, path: str):
+        if hasattr(self, "_update_dialog") and self._update_dialog:
+            self._update_dialog.set_finished()
+        from PySide6.QtCore import QTimer
+        QTimer.singleShot(800, lambda: self._update_svc.apply_update(path))
 
     def _on_no_update(self):
+        from ..core.config import APP_VERSION, APP_BUILD
+        self._pending_update = None
         self._check_update_btn.setEnabled(True)
-        self._check_update_btn.setText(tr("settings.update.button", self._language))
+        self._check_update_btn.setText(tr("settings.update.button", self._language).upper())
+        if hasattr(self, "_check_update_btn_default_style"):
+            self._check_update_btn.setStyleSheet(self._check_update_btn_default_style)
+        if hasattr(self, "_update_card_desc"):
+            self._update_card_desc.setText(f"Zugzwang is up to date (v{APP_VERSION}, build {APP_BUILD}).")
+            self._update_card_desc.setStyleSheet("color: #8E8E93; font-family: 'PT Root UI', sans-serif; font-size: 11px;")
         InfoBar.info(
             "Up to Date",
-            "You are running the latest version.",
+            f"You are running the latest version of Zugzwang (v{APP_VERSION}).",
             duration=3000, parent=self.window()
         )
 

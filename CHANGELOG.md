@@ -4,9 +4,15 @@ All notable changes and technical release notes for ZUGZWANG are documented in t
 
 ---
 
-## 1.1.2
+## 1.1.2 (Build 10)
 
-### UI
+### In-App Update Engine
+- **Full In-App Software Update Workflow** — Integrated a complete in-app modal experience for discovering, previewing, and installing updates without forcing external browser redirects. Features live progress percentage, release notes viewer, and automated handoff to the platform updater.
+- **Dynamic Settings Card State** — The Settings update card automatically switches to a prominent "UPDATE NOW" call-to-action when updates are detected, and shows active verification details when running the latest build.
+- **Resilient HTTP Download Stream** — Hardened update asset streaming against non-standard or missing `Content-Length` headers, preventing unexpected download exceptions.
+
+### UI & Bug Fixes
+- **Manual Recipient Localization Resolution** — Fixed `AttributeError: 'ManualRecipientDialog' object has no attribute '_language'` when opening the manual recipient dialog in the Send tab.
 - **Native Pro-Apple Attachments & Zeugnisse Dialog** — Re-architected certificate management with an interactive macOS card modal, featuring drag-and-drop reordering, fluid physics animations, instant PDF previewing, and inline document removal.
 - **Redesigned macOS Toast Notification System** — Introduced a floating native macOS card (`#2C2C2E`, 14px radius, 0.5px border, 400px fixed width, zero shadow) with role-colored badges, clean typography, smooth physics animations, and persistent top-right window anchoring.
 - **Edit Workspace Visual Polish & Signature Cleanliness** — Modernized the editor layout with refined typography and spacing, streamlined profile and sender credential cards, and ensured signature previews and rendered letter identities remain pristine without template message bleed.

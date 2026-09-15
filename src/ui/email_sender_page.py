@@ -278,8 +278,9 @@ class RecipientListWidget(QListWidget):
 
 
 class ManualRecipientDialog(QDialog):
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, language: str | None = None):
         super().__init__(parent)
+        self._language = language or getattr(parent, "_language", None) or get_language(getattr(getattr(config_manager, "settings", None), "app_language", None))
         self.recipient_email = ""
 
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.Dialog)

@@ -6,10 +6,22 @@ APP_VERSION = "1.1.2"
 CHANGELOG = [
     {
         "version": "1.1.2",
-        "date": "September 14, 2026",
+        "date": "September 15, 2026",
         "label": "STABLE",
         "label_color": "#30D158",
         "changes": [
+            {
+                "type": "new",
+                "text": "In-App Software Update Experience — Introduced an interactive update dialog with release notes display, live download progress tracking, and seamless direct installation from within the app."
+            },
+            {
+                "type": "fixed",
+                "text": "Manual Recipient Dialog Language Initialization — Fixed AttributeError where ManualRecipientDialog lacked self._language during localization string rendering."
+            },
+            {
+                "type": "improved",
+                "text": "Resilient Update Downloader — Hardened HTTP stream download handler against variable or missing Content-Length response headers and improved launch handoff."
+            },
             {
                 "type": "fixed",
                 "text": "Fail-Proof PDF Generation & Safe XML Escaping — Resolved ReportLab Paragraph XML parsing crashes caused by unescaped ampersands, angle brackets, and placeholders (e.g. GmbH & Co. KG, <Ansprechpartner>) with automatic entity escaping and a robust Canvas-based fallback renderer."

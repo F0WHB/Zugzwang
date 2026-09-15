@@ -15,7 +15,7 @@ from ..core.config import config_manager
 logger = logging.getLogger(__name__)
 
 _VERSION_RE = re.compile(r"^\s*v?(\d+(?:\.\d+)*)(.*)$")
-_BUILD_RE = re.compile(r"build\s*[:#-]?\s*(\d+)", re.IGNORECASE)
+_BUILD_RE = re.compile(r"(?:build|\bb)[\s:#-]?\s*(\d+)", re.IGNORECASE)
 
 
 
@@ -91,7 +91,7 @@ def _extract_release_build(release_data: dict) -> int:
 
 class UpdateWorker(QThread):
     """Background worker for update checks and downloads."""
-    check_finished = Signal(bool, str, str)  # is_available, version, download_url
+    check_finished = Signal(bool, str, str, str)  # is_available, version, download_url, release_notes
     download_progress = Signal(int)
     download_finished = Signal(str)  # local_path
     error = Signal(str)
@@ -110,14 +110,14 @@ class UpdateWorker(QThread):
         except (httpx.HTTPError, socket.gaierror, OSError) as e:
             if self.mode == "check":
                 logger.info(f"Update check skipped: {e}")
-                self.check_finished.emit(False, "", "")
+                self.check_finished.emit(False, "", "", "")
                 return
             logger.error(f"Update download error: {str(e)}")
             self.error.emit(str(e))
         except Exception as e:
             logger.error(f"Update error: {str(e)}")
             if self.mode == "check":
-                self.check_finished.emit(False, "", "")
+                self.check_finished.emit(False, "", "", "")
             else:
                 self.error.emit(str(e))
 
@@ -126,13 +126,13 @@ class UpdateWorker(QThread):
         s = config_manager.settings
         repo_url = s.git_repo_url
         if not repo_url or "github.com/" not in repo_url:
-            self.check_finished.emit(False, "", "")
+            self.check_finished.emit(False, "", "", "")
             return
 
         # Extract user/repo from URL
         parts = repo_url.split("github.com/")[-1].split("/")
         if len(parts) < 2:
-            self.check_finished.emit(False, "", "")
+            self.check_finished.emit(False, "", "", "")
             return
             
         repo_path = f"{parts[0]}/{parts[1]}".replace(".git", "")
@@ -141,27 +141,28 @@ class UpdateWorker(QThread):
         with httpx.Client(timeout=10.0) as client:
             response = client.get(api_url)
             if response.status_code != 200:
-                self.check_finished.emit(False, "", "")
+                self.check_finished.emit(False, "", "", "")
                 return
                 
             data = response.json()
             latest_version = data.get("tag_name", "").lstrip("vV").strip()
             latest_build = _extract_release_build(data)
+            release_notes = str(data.get("body", "") or "").strip()
             current_version = APP_VERSION.lstrip("vV").strip()
             current_build = APP_BUILD
 
             # Only notify when GitHub has a version strictly newer than what is installed.
             # Same version + same/older build → silent, no popup.
             if not latest_version:
-                self.check_finished.emit(False, "", "")
+                self.check_finished.emit(False, "", "", "")
                 return
 
             version_cmp = _compare_versions(current_version, latest_version)
             if version_cmp > 0:
-                self.check_finished.emit(False, "", "")
+                self.check_finished.emit(False, "", "", "")
                 return
             if version_cmp == 0 and latest_build <= current_build:
-                self.check_finished.emit(False, "", "")
+                self.check_finished.emit(False, "", "", "")
                 return
 
             # Find the platform-specific asset
@@ -193,10 +194,10 @@ class UpdateWorker(QThread):
                 display_version = latest_version
                 if latest_build > 0:
                     display_version = f"{latest_version} (build {latest_build})"
-                self.check_finished.emit(True, display_version, download_url)
+                self.check_finished.emit(True, display_version, download_url, release_notes)
                 return
         
-        self.check_finished.emit(False, "", "")
+        self.check_finished.emit(False, "", "", "")
 
     def _download_update(self):
         from ..core.config import get_app_data_dir
@@ -206,24 +207,33 @@ class UpdateWorker(QThread):
         
         with httpx.Client(timeout=60.0, follow_redirects=True) as client:
             with client.stream("GET", self.url) as response:
-                total = int(response.headers.get("Content-Length", 100))
+                content_len = response.headers.get("Content-Length")
+                total = int(content_len) if content_len and content_len.isdigit() else 0
                 downloaded = 0
                 with open(local_path, "wb") as f:
                     for chunk in response.iter_bytes():
                         f.write(chunk)
                         downloaded += len(chunk)
-                        self.download_progress.emit(int((downloaded / total) * 100))
+                        if total > 0:
+                            pct = min(100, int((downloaded / total) * 100))
+                            self.download_progress.emit(pct)
+                        else:
+                            approx = min(95, int(downloaded / (30 * 1024 * 1024) * 100))
+                            self.download_progress.emit(approx)
         
         self.download_finished.emit(local_path)
 
 class UpdateService(QObject):
     """Facade for update operations."""
-    update_available = Signal(str, str) # version, url
+    update_available = Signal([str, str], [str, str, str]) # version, url, release_notes
     no_update_available = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.worker = None
+        self.latest_version = ""
+        self.download_url = ""
+        self.release_notes = ""
 
     def check(self):
         if self.worker and self.worker.isRunning():
@@ -232,9 +242,15 @@ class UpdateService(QObject):
         self.worker.check_finished.connect(self._on_check_finished)
         self.worker.start()
 
-    def _on_check_finished(self, available, ver, url):
+    def _on_check_finished(self, available, ver, url, notes=""):
         if available:
-            self.update_available.emit(ver, url)
+            self.latest_version = ver
+            self.download_url = url
+            self.release_notes = notes
+            try:
+                self.update_available.emit(ver, url, notes)
+            except Exception:
+                self.update_available.emit(ver, url)
         else:
             self.no_update_available.emit()
 
@@ -255,9 +271,12 @@ class UpdateService(QObject):
             if system == "windows":
                 os.startfile(path)
             elif system == "darwin":
-                subprocess.Popen(["open", "-R", path])
+                if path.endswith(".zip") or path.endswith(".dmg"):
+                    subprocess.Popen(["open", path])
+                else:
+                    subprocess.Popen(["open", path])
             else:
-                subprocess.Popen(["xdg-open", os.path.dirname(path)])
+                subprocess.Popen(["xdg-open", path])
         except Exception as e:
             logger.error(f"Failed to open update file: {e}")
             

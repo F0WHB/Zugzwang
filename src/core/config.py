@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 APP_NAME = "ZUGZWANG"
 APP_VERSION = "1.1.2"
-APP_BUILD = 9
+APP_BUILD = 10
 APP_AUTHOR = "ZUGZWANG"
 
 
