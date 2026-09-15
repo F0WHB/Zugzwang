@@ -37,9 +37,7 @@ jobs:
           elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
             TAG="${GITHUB_REF#refs/tags/}"
           else
-            VER=$(python -c "from src.core.config import APP_VERSION; print(APP_VERSION)")
-            BUILD=$(python -c "from src.core.config import APP_BUILD; print(APP_BUILD)")
-            TAG="${VER}_build${BUILD}"
+            TAG=$(python -c "import re; c=open('src/core/config.py').read(); v=re.search(r'APP_VERSION\s*=\s*\"([^\"]+)\"', c).group(1); b=re.search(r'APP_BUILD\s*=\s*(\d+)', c).group(1); print(f'{v}_build{b}')")
           fi
           echo "tag=$TAG" >> $GITHUB_OUTPUT
           echo "Using release tag: $TAG"
@@ -104,9 +102,7 @@ jobs:
           elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
             TAG="${GITHUB_REF#refs/tags/}"
           else
-            VER=$(python -c "from src.core.config import APP_VERSION; print(APP_VERSION)")
-            BUILD=$(python -c "from src.core.config import APP_BUILD; print(APP_BUILD)")
-            TAG="${VER}_build${BUILD}"
+            TAG=$(python -c "import re; c=open('src/core/config.py').read(); v=re.search(r'APP_VERSION\s*=\s*\"([^\"]+)\"', c).group(1); b=re.search(r'APP_BUILD\s*=\s*(\d+)', c).group(1); print(f'{v}_build{b}')")
           fi
           echo "tag=$TAG" >> $GITHUB_OUTPUT
           echo "Using release tag: $TAG"
@@ -193,9 +189,7 @@ jobs:
           elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
             TAG="${GITHUB_REF#refs/tags/}"
           else
-            VER=$(python -c "from src.core.config import APP_VERSION; print(APP_VERSION)")
-            BUILD=$(python -c "from src.core.config import APP_BUILD; print(APP_BUILD)")
-            TAG="${VER}_build${BUILD}"
+            TAG=$(python -c "import re; c=open('src/core/config.py').read(); v=re.search(r'APP_VERSION\s*=\s*\"([^\"]+)\"', c).group(1); b=re.search(r'APP_BUILD\s*=\s*(\d+)', c).group(1); print(f'{v}_build{b}')")
           fi
           echo "tag=$TAG" >> $GITHUB_OUTPUT
           echo "Using release tag: $TAG"
