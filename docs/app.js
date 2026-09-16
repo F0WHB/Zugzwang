@@ -143,27 +143,27 @@
     const heroScreenshots = {
       'hero-img-search': {
         src: 'images/screenshot_search_clean.png',
-        title: 'ZUGZWANG — Search Configuration & Radial Filtering'
+        title: 'ZUGZWANG — Search Ausbildung & Jobs by City and Radius'
       },
       'hero-img-monitor': {
         src: 'images/screenshot_monitor_clean.png',
-        title: 'ZUGZWANG — Live Web Scraping & Multi-Threaded Monitor'
+        title: 'ZUGZWANG — Live Search Across All German Portals'
       },
       'hero-img-dashboard': {
         src: 'images/screenshot_dashboard_clean.png',
-        title: 'ZUGZWANG — Executive Discovery Dashboard'
+        title: 'ZUGZWANG — Your Search Overview & Discovered Openings'
       },
       'hero-img-results': {
         src: 'images/screenshot_results_clean.png',
-        title: 'ZUGZWANG — Enriched Hiring Manager Results Grid'
+        title: 'ZUGZWANG — Direct Recruiter Contacts & Phone Numbers'
       },
       'hero-img-letter': {
         src: 'images/screenshot_edit_clean.png',
-        title: 'ZUGZWANG — German Motivation Letter Studio (DIN 5008)'
+        title: 'ZUGZWANG — Automatic German Cover Letter Creator (DIN 5008)'
       },
       'hero-img-send': {
         src: 'images/screenshot_send_clean.png',
-        title: 'ZUGZWANG — Safe Rate-Limited Email Broadcast Console'
+        title: 'ZUGZWANG — Send Applications Directly from Your Own Email'
       }
     };
 
