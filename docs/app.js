@@ -145,6 +145,10 @@
         src: 'images/screenshot_search_clean.png',
         title: 'ZUGZWANG — Search Configuration & Radial Filtering'
       },
+      'hero-img-monitor': {
+        src: 'images/screenshot_monitor_clean.png',
+        title: 'ZUGZWANG — Live Web Scraping & Multi-Threaded Monitor'
+      },
       'hero-img-dashboard': {
         src: 'images/screenshot_dashboard_clean.png',
         title: 'ZUGZWANG — Executive Discovery Dashboard'
@@ -156,6 +160,18 @@
       'hero-img-letter': {
         src: 'images/screenshot_edit_clean.png',
         title: 'ZUGZWANG — German Motivation Letter Studio (DIN 5008)'
+      },
+      'hero-img-send': {
+        src: 'images/screenshot_send_clean.png',
+        title: 'ZUGZWANG — Safe Rate-Limited Email Broadcast Console'
+      },
+      'hero-img-logs': {
+        src: 'images/screenshot_logs_clean.png',
+        title: 'ZUGZWANG — Real-Time Diagnostics & HTTP Log Stream'
+      },
+      'hero-img-settings': {
+        src: 'images/screenshot_settings_clean.png',
+        title: 'ZUGZWANG — Local Hardware PIN Lock & Preferences'
       }
     };
 
