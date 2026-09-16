@@ -271,10 +271,19 @@ a {
   justify-content: center;
   color: var(--text-secondary);
   transition: color 150ms ease;
+  padding: 6px !important;
 }
 
 .nav-github-link:hover {
   color: var(--text-primary);
+}
+
+.btn-nav-cta {
+  height: 32px !important;
+  min-height: 32px !important;
+  padding: 0 16px !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
 }
 
 /* ==========================================================================
@@ -462,6 +471,178 @@ a {
   color: var(--accent);
   stroke: var(--accent);
   flex-shrink: 0;
+}
+
+/* ==========================================================================
+   How It Works (4-Step Horizontal Strip)
+   ========================================================================== */
+
+.steps-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+@media (max-width: 860px) {
+  .steps-strip {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-3);
+  }
+}
+
+@media (max-width: 480px) {
+  .steps-strip {
+    grid-template-columns: 1fr;
+  }
+}
+
+.step-item {
+  background: var(--bg-card);
+  border: 0.5px solid var(--border-hairline);
+  border-radius: var(--radius-card);
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  transition: border-color 150ms ease, background 150ms ease;
+}
+
+.step-item:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: var(--bg-card-hover);
+}
+
+.step-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-bottom: var(--space-2);
+}
+
+.step-badge {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.step-icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  background: var(--accent-subtle);
+  border-radius: 8px;
+}
+
+.step-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.step-caption {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+/* Benefit Line above Feature Lists */
+.benefit-line {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--space-3);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.benefit-line svg {
+  width: 16px;
+  height: 16px;
+  color: var(--accent);
+  stroke: var(--accent);
+  flex-shrink: 0;
+}
+
+/* Numbered Callout Marker */
+.marker-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  margin-right: 6px;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+/* Screenshot Captions */
+.screenshot-caption {
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: #202022;
+  border-top: 0.5px solid var(--border-hairline-subtle);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.screenshot-caption .caption-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+
+/* Download Card Highlight & Badges */
+.download-card.card-recommended {
+  border: 1px solid var(--accent) !important;
+  background: linear-gradient(180deg, rgba(10, 132, 255, 0.08) 0%, var(--bg-card) 40%);
+  position: relative;
+}
+
+.recommended-tag {
+  position: absolute;
+  top: -11px;
+  right: 16px;
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  letter-spacing: 0.02em;
+}
+
+.platform-badge {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-tertiary);
+  margin-left: auto;
 }
 
 /* ==========================================================================

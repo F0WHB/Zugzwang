@@ -2,6 +2,7 @@
  * ZUGZWANG - Apple Design Interactive Controller
  * - Restrained Apple-style Scroll Reveal (IntersectionObserver)
  * - Pure Vanilla Lightbox Gallery Modal with keyboard & gesture navigation
+ * - Client Platform/OS Auto-Detection for Recommended Download Card
  */
 
 (function () {
@@ -99,5 +100,41 @@
       if (e.key === 'ArrowLeft') step(-1);
       if (e.key === 'ArrowRight') step(1);
     });
+  }
+
+  // 3. Platform / OS Auto-Detection for Downloads
+  function highlightRecommendedDownload() {
+    try {
+      const userAgent = window.navigator.userAgent || '';
+      const platform = window.navigator.platform || '';
+      let targetId = null;
+
+      if (/Macintosh|MacIntel|MacPPC|Mac68K/i.test(platform) || /Mac OS X/i.test(userAgent)) {
+        targetId = 'download-macos';
+      } else if (/Win32|Win64|Windows|WinCE/i.test(platform) || /Windows NT/i.test(userAgent)) {
+        targetId = 'download-windows';
+      } else if (/Linux/i.test(platform) || /Linux/i.test(userAgent)) {
+        targetId = 'download-linux';
+      }
+
+      if (targetId) {
+        const card = document.getElementById(targetId);
+        if (card && !card.querySelector('.recommended-tag')) {
+          card.classList.add('card-recommended');
+          const tag = document.createElement('span');
+          tag.className = 'recommended-tag';
+          tag.textContent = 'Recommended for you';
+          card.prepend(tag);
+        }
+      }
+    } catch (err) {
+      // Fallback silently if platform info is restricted
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', highlightRecommendedDownload);
+  } else {
+    highlightRecommendedDownload();
   }
 })();
