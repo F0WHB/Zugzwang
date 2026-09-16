@@ -22,7 +22,7 @@
 
   <meta name="theme-color" content="#1C1C1E" />
 
-  <link rel="stylesheet" href="styles.css?v=1.1.2.7" />
+  <link rel="stylesheet" href="styles.css?v=1.1.2.8" />
   <link rel="icon" href="images/logo-mark.png" type="image/png" />
 </head>
 <body>
@@ -98,6 +98,32 @@
           <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
           Your Personal Data Stays on Your Computer
         </span>
+      </div>
+
+      <!-- Popular Ausbildung & Job Quick Selector -->
+      <div class="search-teaser-bar">
+        <span class="teaser-label">Try popular searches:</span>
+        <div class="teaser-pills" role="region" aria-label="Sample Ausbildung searches">
+          <button type="button" class="teaser-pill active" data-role="Fachinformatiker" data-city="Berlin" data-count="48" data-tab="hero-img-search">
+            💻 Fachinformatiker · Berlin
+          </button>
+          <button type="button" class="teaser-pill" data-role="Büromanagement" data-city="München" data-count="37" data-tab="hero-img-results">
+            🏢 Büromanagement · München
+          </button>
+          <button type="button" class="teaser-pill" data-role="Mechatroniker" data-city="Stuttgart" data-count="29" data-tab="hero-img-monitor">
+            ⚙️ Mechatroniker · Stuttgart
+          </button>
+          <button type="button" class="teaser-pill" data-role="Pflegefachkraft" data-city="Hamburg" data-count="52" data-tab="hero-img-dashboard">
+            🏥 Pflegefachkraft · Hamburg
+          </button>
+          <button type="button" class="teaser-pill" data-role="Duales Studium" data-city="Frankfurt" data-count="24" data-tab="hero-img-letter">
+            🎓 Duales Studium · Frankfurt
+          </button>
+        </div>
+        <div class="teaser-feedback" id="teaser-feedback">
+          <span class="teaser-pulse" aria-hidden="true"></span>
+          <span id="teaser-feedback-text"><strong>48 direct employer contacts</strong> discovered in Berlin &bull; Ready to generate German Anschreiben</span>
+        </div>
       </div>
 
       <!-- Interactive Hero App Window Preview with Apple Ambient Spotlight -->
@@ -299,6 +325,10 @@
               <span><strong>Auto-Fill German Letters:</strong> Generate company-specific German Anschreiben with names and dates already filled in.</span>
             </li>
           </ul>
+          <div class="comparison-footer-pill">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>Save 10 to 15 hours every week &bull; 100% Free Desktop App</span>
+          </div>
         </div>
       </div>
     </section>
@@ -635,10 +665,16 @@
             </svg>
             macOS (Mac)
           </div>
-          <p class="caption-text">Works on all Macs (M1/M2/M3/M4 &amp; Intel)</p>
+          <div class="download-spec-row">
+            <span class="download-spec-pill">Apple Silicon (M1–M4)</span>
+            <span class="download-spec-pill">Intel 64-bit</span>
+            <span class="download-spec-pill">~85 MB</span>
+          </div>
+          <p class="caption-text">macOS 12 Monterey or later. Ready to run directly from Applications.</p>
           <a class="btn-primary" href="https://github.com/F0WHB/Zugzwang/releases/latest">
             Download for Mac (.dmg)
           </a>
+          <span class="download-note">No installer wizard &mdash; just drag to Applications</span>
         </div>
 
         <!-- Windows -->
@@ -649,10 +685,16 @@
             </svg>
             Windows
           </div>
-          <p class="caption-text">Windows 10 &amp; Windows 11 (64-bit installer)</p>
+          <div class="download-spec-row">
+            <span class="download-spec-pill">Windows 11 &amp; 10</span>
+            <span class="download-spec-pill">64-bit Architecture</span>
+            <span class="download-spec-pill">~92 MB</span>
+          </div>
+          <p class="caption-text">Windows 10 / 11 (64-bit). Standalone executable with offline database.</p>
           <a class="btn-primary" href="https://github.com/F0WHB/Zugzwang/releases/latest">
             Download for Windows (.exe)
           </a>
+          <span class="download-note">Standard installer &bull; Zero configuration required</span>
         </div>
 
         <!-- Linux / Python -->
@@ -664,10 +706,15 @@
             Linux &amp; Source Code
             <span class="platform-badge">Open Source</span>
           </div>
-          <p class="caption-text">Ubuntu, Fedora &amp; Python 3.11+ source</p>
+          <div class="download-spec-row">
+            <span class="download-spec-pill">Ubuntu / Debian / Fedora</span>
+            <span class="download-spec-pill">Python 3.11+</span>
+          </div>
+          <p class="caption-text">Ubuntu, Fedora &amp; Arch Linux or clone repository from GitHub.</p>
           <a class="btn-ghost" href="https://github.com/F0WHB/Zugzwang" target="_blank" rel="noopener">
             View on GitHub
           </a>
+          <span class="download-note">MIT Licensed &bull; Inspect and audit every line of code</span>
         </div>
       </div>
     </section>
@@ -836,6 +883,17 @@
     </div>
   </footer>
 
-  <script src="app.js?v=1.1.2.7"></script>
+  <!-- Floating Apple Quick Actions Dock Pill (Fixed on Scroll) -->
+  <aside id="floating-bar" class="floating-bar hidden" aria-label="Quick Actions">
+    <a href="#downloads" class="floating-btn-download">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+      Download Free
+    </a>
+    <button type="button" id="btn-back-to-top" class="floating-btn-top" aria-label="Back to Top">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"></polyline></svg>
+    </button>
+  </aside>
+
+  <script src="app.js?v=1.1.2.8"></script>
 </body>
 </html>

@@ -219,16 +219,82 @@
     });
   }
 
+  // 6. Popular Ausbildung Search Teaser Controller
+  function initTeaserPills() {
+    const pills = document.querySelectorAll('.teaser-pill');
+    const feedbackText = document.getElementById('teaser-feedback-text');
+
+    pills.forEach(pill => {
+      pill.addEventListener('click', () => {
+        pills.forEach(p => p.classList.remove('active'));
+        pill.classList.add('active');
+
+        const role = pill.getAttribute('data-role') || '';
+        const city = pill.getAttribute('data-city') || '';
+        const count = pill.getAttribute('data-count') || '30+';
+        const tabTarget = pill.getAttribute('data-tab');
+
+        if (feedbackText) {
+          feedbackText.style.opacity = '0';
+          setTimeout(() => {
+            feedbackText.innerHTML = `<strong>${count} direct employer contacts</strong> discovered for ${role} in ${city} &bull; Ready to generate German Anschreiben`;
+            feedbackText.style.opacity = '1';
+          }, 120);
+        }
+
+        // Switch to the matching hero screenshot tab if present
+        if (tabTarget) {
+          const matchingTab = document.querySelector(`.hero-tab[data-target="${tabTarget}"]`);
+          if (matchingTab && !matchingTab.classList.contains('active')) {
+            matchingTab.click();
+          }
+        }
+      });
+    });
+  }
+
+  // 7. Floating Apple Quick Action Dock Pill Controller
+  function initFloatingBar() {
+    const bar = document.getElementById('floating-bar');
+    const topBtn = document.getElementById('btn-back-to-top');
+    if (!bar) return;
+
+    let ticking = false;
+    window.addEventListener('scroll', () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          if (window.scrollY > 420) {
+            bar.classList.remove('hidden');
+          } else {
+            bar.classList.add('hidden');
+          }
+          ticking = false;
+        });
+        ticking = true;
+      }
+    }, { passive: true });
+
+    if (topBtn) {
+      topBtn.addEventListener('click', () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+    }
+  }
+
   // Initialize on load
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
       highlightRecommendedDownload();
       initHeroTabs();
       initFaq();
+      initTeaserPills();
+      initFloatingBar();
     });
   } else {
     highlightRecommendedDownload();
     initHeroTabs();
     initFaq();
+    initTeaserPills();
+    initFloatingBar();
   }
 })();
