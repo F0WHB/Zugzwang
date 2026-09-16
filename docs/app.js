@@ -164,14 +164,6 @@
       'hero-img-send': {
         src: 'images/screenshot_send_clean.png',
         title: 'ZUGZWANG — Safe Rate-Limited Email Broadcast Console'
-      },
-      'hero-img-logs': {
-        src: 'images/screenshot_logs_clean.png',
-        title: 'ZUGZWANG — Real-Time Diagnostics & HTTP Log Stream'
-      },
-      'hero-img-settings': {
-        src: 'images/screenshot_settings_clean.png',
-        title: 'ZUGZWANG — Local Hardware PIN Lock & Preferences'
       }
     };
 
