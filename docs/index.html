@@ -22,12 +22,12 @@
 
   <meta name="theme-color" content="#1C1C1E" />
 
-  <link rel="stylesheet" href="styles.css?v=1.1.2.3" />
+  <link rel="stylesheet" href="styles.css?v=1.1.2.4" />
   <link rel="icon" href="images/logo-mark.png" type="image/png" />
 </head>
 <body>
 
-  <!-- Top Navigation Bar (Clean 3-Item Apple Frosted Glass) -->
+  <!-- Top Navigation Bar (Apple Frosted Glass) -->
   <header class="nav-wrap">
     <div class="container-x">
       <nav class="nav" aria-label="Main Navigation">
@@ -40,6 +40,7 @@
         <div class="nav-links">
           <a href="#how-it-works">How it works</a>
           <a href="#screenshots">Screenshots</a>
+          <a href="#faq">FAQ</a>
           <a href="https://github.com/F0WHB/Zugzwang" target="_blank" rel="noopener" class="nav-github-link" aria-label="GitHub Repository">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
               <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
@@ -53,7 +54,7 @@
 
   <main class="container-x">
     
-    <!-- Hero Section (Audience-First Single Claim) -->
+    <!-- Hero Section (Audience-First Single Claim + Interactive Product Showcase) -->
     <section id="hero" class="hero-section apple-reveal">
       <p class="eyebrow">Desktop Workstation &middot; v1.1.2.2</p>
       <h1 class="display-hero">
@@ -95,9 +96,45 @@
           Your Data Never Leaves Your Computer
         </span>
       </div>
+
+      <!-- Interactive Hero App Window Preview (Instant Visual Proof) -->
+      <div class="hero-preview-wrapper apple-reveal">
+        <div class="hero-tabs" role="tablist">
+          <button class="hero-tab active" data-target="hero-img-search" type="button">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            1. Search Jobs
+          </button>
+          <button class="hero-tab" data-target="hero-img-dashboard" type="button">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect></svg>
+            2. Dashboard Overview
+          </button>
+          <button class="hero-tab" data-target="hero-img-results" type="button">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
+            3. Direct HR Contacts
+          </button>
+          <button class="hero-tab" data-target="hero-img-letter" type="button">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+            4. German Letter Studio
+          </button>
+        </div>
+
+        <div class="macos-window hero-window">
+          <div class="window-header">
+            <div class="traffic-lights">
+              <span class="traffic-dot dot-close"></span>
+              <span class="traffic-dot dot-min"></span>
+              <span class="traffic-dot dot-zoom"></span>
+            </div>
+            <div class="window-title" id="hero-window-title">ZUGZWANG &mdash; Search Configuration &amp; Radial Filtering</div>
+          </div>
+          <div class="window-body">
+            <img id="hero-preview-img" src="images/screenshot_search_clean.png" alt="ZUGZWANG Desktop App Interface" />
+          </div>
+        </div>
+      </div>
     </section>
 
-    <!-- NEW SECTION: How It Works (Search -> Monitor -> Results -> Send) -->
+    <!-- How It Works (Search -> Monitor -> Results -> Send) -->
     <section id="how-it-works" class="section-spacing">
       <div class="section-header apple-reveal">
         <p class="eyebrow">Workflow</p>
@@ -169,18 +206,17 @@
       </div>
     </section>
 
-    <!-- Section 1: Multi-Source Discovery (Screenshots Anchor) -->
+    <!-- Section 1: Multi-Source Discovery -->
     <section id="screenshots" class="section-spacing">
       <article class="glass-card apple-reveal">
         <div class="grid-2col">
           <div class="card-content">
-            <span class="eyebrow-pill">Multi-Source Discovery</span>
+            <span class="eyebrow-pill">Step 1: Discover Direct Employers</span>
             <h2 class="display-section">Direct Employer Intelligence</h2>
             <p class="lede">
               Scrape real-time job openings from Germany&rsquo;s most authoritative portals &mdash; Ausbildung.de, Azubiyo, AUBI-plus, Das &Ouml;rtliche, Google Maps, and the Bundesagentur f&uuml;r Arbeit API.
             </p>
 
-            <!-- Plain-language benefit line -->
             <p class="benefit-line">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
               Search without getting blocked or CAPTCHA&rsquo;d.
@@ -217,7 +253,7 @@
             </div>
           </div>
 
-          <!-- Product Window Mockup & Gallery with Numbered Callouts & Captions -->
+          <!-- Product Window Mockup & Gallery -->
           <div class="gallery-grid" data-gallery="discovery">
             <div class="macos-window">
               <div class="window-header">
@@ -299,13 +335,12 @@
           </div>
 
           <div class="card-content">
-            <span class="eyebrow-pill">Contact Enrichment</span>
+            <span class="eyebrow-pill">Step 2: Get Hiring Manager Contacts</span>
             <h2 class="display-section">Deep Impressum &amp; HR Hunter</h2>
             <p class="lede">
               Crawl company web pages down to three levels deep to find actual hiring managers, direct telephone lines, and verified email mailboxes instead of generic info@ addresses.
             </p>
 
-            <!-- Plain-language benefit line -->
             <p class="benefit-line">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
               Reach actual decision-makers directly on their personal desk lines.
@@ -348,13 +383,12 @@
       <article class="glass-card apple-reveal">
         <div class="grid-2col">
           <div class="card-content">
-            <span class="eyebrow-pill">Bewerbung &amp; Outreach</span>
+            <span class="eyebrow-pill">Step 3: Auto-Generate Cover Letters</span>
             <h2 class="display-section">Personalized Anschreiben &amp; Broadcast</h2>
             <p class="lede">
               Generate company-specific German motivation letters (Anschreiben) adhering to DIN 5008 standards. Pair dynamically with your Lebenslauf and dispatch via custom SMTP.
             </p>
 
-            <!-- Plain-language benefit line -->
             <p class="benefit-line">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
               Apply to dozens of companies in minutes with tailored German letters.
@@ -475,7 +509,7 @@
       </div>
     </section>
 
-    <!-- Section 5: Downloads Section (OS Auto-Detection Active) -->
+    <!-- Section 5: Downloads Section with Quick Setup Guide -->
     <section id="downloads" class="section-spacing">
       <div class="section-header apple-reveal">
         <p class="eyebrow">Releases</p>
@@ -483,6 +517,31 @@
         <p class="lede">
           Available for all major desktop platforms with automatic in-app update checks.
         </p>
+      </div>
+
+      <!-- Quick 3-Step Setup Guide -->
+      <div class="setup-strip apple-reveal">
+        <div class="setup-card">
+          <span class="setup-num">1</span>
+          <div>
+            <h4>Download Installer</h4>
+            <p>Click the button below for your Mac or Windows PC.</p>
+          </div>
+        </div>
+        <div class="setup-card">
+          <span class="setup-num">2</span>
+          <div>
+            <h4>Zero Sign-Up Needed</h4>
+            <p>Open the app immediately &mdash; no accounts or credit card.</p>
+          </div>
+        </div>
+        <div class="setup-card">
+          <span class="setup-num">3</span>
+          <div>
+            <h4>Type Role &amp; Search</h4>
+            <p>Enter your target position &amp; city to find verified contacts.</p>
+          </div>
+        </div>
       </div>
 
       <div class="grid-3col apple-reveal">
@@ -531,7 +590,68 @@
       </div>
     </section>
 
-    <!-- Section 6: Contact & Community -->
+    <!-- NEW SECTION: Frequently Asked Questions (FAQ) -->
+    <section id="faq" class="section-spacing">
+      <div class="section-header apple-reveal">
+        <p class="eyebrow">Clarity &amp; Answers</p>
+        <h2 class="display-section">Frequently Asked Questions</h2>
+        <p class="lede">Everything you need to know before getting started with ZUGZWANG.</p>
+      </div>
+
+      <div class="faq-list apple-reveal">
+        <div class="faq-item open">
+          <button class="faq-trigger" type="button">
+            <span>Do I need technical skills to use ZUGZWANG?</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="faq-body">
+            No technical skills are required. ZUGZWANG is a standalone desktop application with a clean, visual interface just like any regular Mac or Windows program. You simply enter the job title and city you want to target, click Start, and watch direct employer contacts appear.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-trigger" type="button">
+            <span>Is ZUGZWANG really 100% free?</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="faq-body">
+            Yes, completely free and open-source under the MIT License. There are zero subscriptions, no paywalls, no trial limits, and no credit card required ever.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-trigger" type="button">
+            <span>Where is my personal data and search history stored?</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="faq-body">
+            100% on your local machine. All discovered job listings, direct contact numbers, and customized cover letters are saved in an encrypted local database on your hard drive. No data is ever transmitted to cloud servers or third parties.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-trigger" type="button">
+            <span>How does it find hiring managers instead of generic info@ emails?</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="faq-body">
+            ZUGZWANG analyzes official German legal company documentation (Impressum), commercial registers, and team directories to discover managing directors, HR leaders, and direct departmental telephone numbers and personal email addresses.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-trigger" type="button">
+            <span>Which email providers can I use to send applications?</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="faq-body">
+            You can use your existing Gmail, Outlook, Web.de, GMX, or custom domain email via standard secure SMTP. ZUGZWANG includes humanized dispatch intervals to ensure your sender reputation is protected and your emails arrive safely in recipient inboxes.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 7: Contact & Community -->
     <section id="contact" class="section-spacing">
       <article class="glass-card contact-card apple-reveal">
         <span class="eyebrow-pill">Community &amp; Source</span>
@@ -624,6 +744,6 @@
     </div>
   </footer>
 
-  <script src="app.js?v=1.1.2.3"></script>
+  <script src="app.js?v=1.1.2.4"></script>
 </body>
 </html>

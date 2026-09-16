@@ -474,6 +474,189 @@ a {
 }
 
 /* ==========================================================================
+   Interactive Hero App Window Preview & Tabs
+   ========================================================================== */
+
+.hero-preview-wrapper {
+  margin-top: var(--space-8);
+  max-width: 64rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.hero-tabs {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-bottom: var(--space-3);
+}
+
+.hero-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: var(--radius-pill);
+  border: 0.5px solid var(--border-hairline);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 180ms ease;
+  user-select: none;
+}
+
+.hero-tab:hover {
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.hero-tab.active {
+  background: var(--accent-subtle);
+  color: var(--accent);
+  border-color: rgba(10, 132, 255, 0.4);
+}
+
+.hero-window {
+  border: 0.5px solid rgba(255, 255, 255, 0.15) !important;
+}
+
+.hero-window .window-body img {
+  aspect-ratio: 16 / 9.8;
+  transition: opacity 200ms ease;
+}
+
+/* ==========================================================================
+   Quick Setup 3-Step Strip
+   ========================================================================== */
+
+.setup-strip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-3);
+  margin-bottom: var(--space-6);
+}
+
+@media (max-width: 768px) {
+  .setup-strip {
+    grid-template-columns: 1fr;
+    gap: var(--space-2);
+  }
+}
+
+.setup-card {
+  background: var(--bg-card);
+  border: 0.5px solid var(--border-hairline);
+  border-radius: var(--radius-card);
+  padding: var(--space-3);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.setup-num {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent-subtle);
+  color: var(--accent);
+  border: 0.5px solid rgba(10, 132, 255, 0.3);
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.setup-card h4 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.setup-card p {
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+
+/* ==========================================================================
+   FAQ Accordion
+   ========================================================================== */
+
+.faq-list {
+  max-width: 50rem;
+  margin-left: auto;
+  margin-right: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.faq-item {
+  background: var(--bg-card);
+  border: 0.5px solid var(--border-hairline);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  transition: border-color 150ms ease;
+}
+
+.faq-item:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.faq-trigger {
+  width: 100%;
+  text-align: left;
+  padding: var(--space-3) var(--space-4);
+  background: transparent;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  cursor: pointer;
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 600;
+  font-family: inherit;
+}
+
+.faq-trigger svg {
+  width: 18px;
+  height: 18px;
+  color: var(--accent);
+  transition: transform 200ms ease;
+  flex-shrink: 0;
+}
+
+.faq-item.open .faq-trigger svg {
+  transform: rotate(180deg);
+}
+
+.faq-body {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 250ms ease, padding 250ms ease;
+  padding: 0 var(--space-4);
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.faq-item.open .faq-body {
+  max-height: 250px;
+  padding: 0 var(--space-4) var(--space-3) var(--space-4);
+}
+
+/* ==========================================================================
    How It Works (4-Step Horizontal Strip)
    ========================================================================== */
 

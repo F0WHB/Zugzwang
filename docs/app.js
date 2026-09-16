@@ -3,6 +3,8 @@
  * - Restrained Apple-style Scroll Reveal (IntersectionObserver)
  * - Pure Vanilla Lightbox Gallery Modal with keyboard & gesture navigation
  * - Client Platform/OS Auto-Detection for Recommended Download Card
+ * - Interactive Hero Showcase Tab Switcher
+ * - Smooth Accessible FAQ Accordion
  */
 
 (function () {
@@ -132,9 +134,73 @@
     }
   }
 
+  // 4. Hero Showcase Window Tab Switcher
+  function initHeroTabs() {
+    const heroTabs = document.querySelectorAll('.hero-tab');
+    const heroImg = document.getElementById('hero-preview-img');
+    const heroTitle = document.getElementById('hero-window-title');
+
+    const heroScreenshots = {
+      'hero-img-search': {
+        src: 'images/screenshot_search_clean.png',
+        title: 'ZUGZWANG — Search Configuration & Radial Filtering'
+      },
+      'hero-img-dashboard': {
+        src: 'images/screenshot_dashboard_clean.png',
+        title: 'ZUGZWANG — Executive Discovery Dashboard'
+      },
+      'hero-img-results': {
+        src: 'images/screenshot_results_clean.png',
+        title: 'ZUGZWANG — Enriched Hiring Manager Results Grid'
+      },
+      'hero-img-letter': {
+        src: 'images/screenshot_edit_clean.png',
+        title: 'ZUGZWANG — German Motivation Letter Studio (DIN 5008)'
+      }
+    };
+
+    heroTabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        heroTabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        const targetKey = tab.getAttribute('data-target');
+        const data = heroScreenshots[targetKey];
+        if (data && heroImg) {
+          heroImg.style.opacity = '0.35';
+          setTimeout(() => {
+            heroImg.src = data.src;
+            if (heroTitle) heroTitle.textContent = data.title;
+            heroImg.style.opacity = '1';
+          }, 120);
+        }
+      });
+    });
+  }
+
+  // 5. FAQ Accordion
+  function initFaq() {
+    document.querySelectorAll('.faq-trigger').forEach(trigger => {
+      trigger.addEventListener('click', () => {
+        const item = trigger.closest('.faq-item');
+        const isOpen = item.classList.contains('open');
+        document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('open'));
+        if (!isOpen) {
+          item.classList.add('open');
+        }
+      });
+    });
+  }
+
+  // Initialize on load
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', highlightRecommendedDownload);
+    document.addEventListener('DOMContentLoaded', () => {
+      highlightRecommendedDownload();
+      initHeroTabs();
+      initFaq();
+    });
   } else {
     highlightRecommendedDownload();
+    initHeroTabs();
+    initFaq();
   }
 })();
