@@ -169,31 +169,51 @@
 
     heroTabs.forEach(tab => {
       tab.addEventListener('click', () => {
-        heroTabs.forEach(t => t.classList.remove('active'));
+        heroTabs.forEach(t => {
+          t.classList.remove('active');
+          t.setAttribute('aria-selected', 'false');
+        });
         tab.classList.add('active');
+        tab.setAttribute('aria-selected', 'true');
+
         const targetKey = tab.getAttribute('data-target');
         const data = heroScreenshots[targetKey];
         if (data && heroImg) {
-          heroImg.style.opacity = '0.35';
-          setTimeout(() => {
+          heroImg.style.opacity = '0';
+          heroImg.style.transform = 'scale(0.995)';
+
+          const temp = new Image();
+          temp.onload = () => {
             heroImg.src = data.src;
             if (heroTitle) heroTitle.textContent = data.title;
-            heroImg.style.opacity = '1';
-          }, 120);
+            requestAnimationFrame(() => {
+              heroImg.style.opacity = '1';
+              heroImg.style.transform = 'scale(1)';
+            });
+          };
+          temp.src = data.src;
         }
       });
     });
   }
 
-  // 5. FAQ Accordion
+  // 5. Accessible FAQ Accordion
   function initFaq() {
-    document.querySelectorAll('.faq-trigger').forEach(trigger => {
+    const items = document.querySelectorAll('.faq-item');
+    items.forEach(item => {
+      const trigger = item.querySelector('.faq-trigger');
+      if (!trigger) return;
+
       trigger.addEventListener('click', () => {
-        const item = trigger.closest('.faq-item');
         const isOpen = item.classList.contains('open');
-        document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('open'));
+        items.forEach(i => {
+          i.classList.remove('open');
+          const btn = i.querySelector('.faq-trigger');
+          if (btn) btn.setAttribute('aria-expanded', 'false');
+        });
         if (!isOpen) {
           item.classList.add('open');
+          trigger.setAttribute('aria-expanded', 'true');
         }
       });
     });

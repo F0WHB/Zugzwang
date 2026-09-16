@@ -22,7 +22,7 @@
 
   <meta name="theme-color" content="#1C1C1E" />
 
-  <link rel="stylesheet" href="styles.css?v=1.1.2.6" />
+  <link rel="stylesheet" href="styles.css?v=1.1.2.7" />
   <link rel="icon" href="images/logo-mark.png" type="image/png" />
 </head>
 <body>
@@ -101,30 +101,30 @@
       <div class="hero-preview-wrapper apple-reveal">
         <div class="hero-spotlight"></div>
         <div class="segmented-control-wrapper">
-          <div class="hero-tabs" role="tablist">
-            <button class="hero-tab active" data-target="hero-img-search" type="button">
+          <div class="hero-tabs" role="tablist" aria-label="Workstation workflow features">
+            <button class="hero-tab active" data-target="hero-img-search" type="button" role="tab" aria-selected="true" aria-controls="hero-preview-img" id="tab-search">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-              1. Search Jobs
+              Search Jobs
             </button>
-            <button class="hero-tab" data-target="hero-img-monitor" type="button">
+            <button class="hero-tab" data-target="hero-img-monitor" type="button" role="tab" aria-selected="false" aria-controls="hero-preview-img" id="tab-monitor">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
-              2. Live Monitor
+              Live Monitor
             </button>
-            <button class="hero-tab" data-target="hero-img-dashboard" type="button">
+            <button class="hero-tab" data-target="hero-img-dashboard" type="button" role="tab" aria-selected="false" aria-controls="hero-preview-img" id="tab-dashboard">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect></svg>
-              3. Dashboard
+              Dashboard
             </button>
-            <button class="hero-tab" data-target="hero-img-results" type="button">
+            <button class="hero-tab" data-target="hero-img-results" type="button" role="tab" aria-selected="false" aria-controls="hero-preview-img" id="tab-results">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
-              4. Direct HR Contacts
+              Direct Contacts
             </button>
-            <button class="hero-tab" data-target="hero-img-letter" type="button">
+            <button class="hero-tab" data-target="hero-img-letter" type="button" role="tab" aria-selected="false" aria-controls="hero-preview-img" id="tab-letter">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-              5. Letter Studio
+              Letter Studio
             </button>
-            <button class="hero-tab" data-target="hero-img-send" type="button">
+            <button class="hero-tab" data-target="hero-img-send" type="button" role="tab" aria-selected="false" aria-controls="hero-preview-img" id="tab-send">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-              6. Email Dispatch
+              Email Dispatch
             </button>
           </div>
         </div>
@@ -319,15 +319,15 @@
             <ul class="feature-checklist">
               <li>
                 <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                <span><strong><span class="marker-badge">1</span>Coverage Heatmap:</strong> Real-time tracker monitors explored German postal codes &amp; metropolitan clusters.</span>
+                <span><strong>Coverage Heatmap:</strong> Real-time tracker monitors explored German postal codes &amp; metropolitan clusters.</span>
               </li>
               <li>
                 <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                <span><strong><span class="marker-badge">2</span>Stealth Automation:</strong> Fingerprint randomized user agents, realistic mouse trajectories, and automated CAPTCHA bypass.</span>
+                <span><strong>Stealth Automation:</strong> Fingerprint randomized user agents, realistic mouse trajectories, and automated CAPTCHA bypass.</span>
               </li>
               <li>
                 <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                <span><strong><span class="marker-badge">3</span>Dual Extraction Mode:</strong> Lightweight background HTTP fetch backed by headed interactive fallback when challenges occur.</span>
+                <span><strong>Dual Extraction Mode:</strong> Lightweight background HTTP fetch backed by headed interactive fallback when challenges occur.</span>
               </li>
             </ul>
 
@@ -361,7 +361,6 @@
               <div class="window-body">
                 <img src="images/screenshot_search_clean.png" alt="ZUGZWANG Search Configuration Page" loading="lazy" />
                 <div class="screenshot-caption">
-                  <span class="marker-badge">1</span>
                   Search Configuration &amp; Radial Filtering
                 </div>
               </div>
@@ -370,14 +369,12 @@
               <div class="thumbnail-frame">
                 <img src="images/screenshot_monitor_clean.png" alt="ZUGZWANG Live Scraping Monitor" loading="lazy" />
                 <div class="screenshot-caption">
-                  <span class="marker-badge">2</span>
                   Live Scraping Monitor
                 </div>
               </div>
               <div class="thumbnail-frame">
                 <img src="images/screenshot_dashboard_clean.png" alt="ZUGZWANG Executive Dashboard" loading="lazy" />
                 <div class="screenshot-caption">
-                  <span class="marker-badge">3</span>
                   Executive Dashboard
                 </div>
               </div>
@@ -405,24 +402,15 @@
               <div class="window-body">
                 <img src="images/screenshot_results_clean.png" alt="ZUGZWANG Enriched Results Grid" loading="lazy" />
                 <div class="screenshot-caption">
-                  <span class="marker-badge">1</span>
                   Enriched Lead Results Grid
                 </div>
               </div>
             </div>
             <div class="gallery-thumbnails">
-              <div class="thumbnail-frame">
-                <img src="images/screenshot_logs_clean.png" alt="ZUGZWANG Diagnostics Log Stream" loading="lazy" />
+              <div class="thumbnail-frame" style="width: 100%;">
+                <img src="images/screenshot_dashboard_clean.png" alt="ZUGZWANG Candidate Discovery Overview" loading="lazy" />
                 <div class="screenshot-caption">
-                  <span class="marker-badge">2</span>
-                  Diagnostics Log Stream
-                </div>
-              </div>
-              <div class="thumbnail-frame">
-                <img src="images/screenshot_settings_clean.png" alt="ZUGZWANG System Preferences" loading="lazy" />
-                <div class="screenshot-caption">
-                  <span class="marker-badge">3</span>
-                  Local System Preferences
+                  Candidate Pipeline &amp; Employer Metrics
                 </div>
               </div>
             </div>
@@ -443,15 +431,15 @@
             <ul class="feature-checklist">
               <li>
                 <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                <span><strong><span class="marker-badge">1</span>Impressum &amp; HR Parsing:</strong> Strictly extracts German legal Impressum entity details, registered trade registers, and direct HR manager contacts.</span>
+                <span><strong>Impressum &amp; HR Parsing:</strong> Strictly extracts German legal Impressum entity details, registered trade registers, and direct HR manager contacts.</span>
               </li>
               <li>
                 <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                <span><strong><span class="marker-badge">2</span>Diagnostics &amp; Log Stream:</strong> Real-time streaming console tracks HTTP network codes, active workers, and data throughput.</span>
+                <span><strong>Direct Contact Verification:</strong> Automatically surfaces personal work emails, direct telephone extensions, and postal address validation so your application never lands in a generic inbox.</span>
               </li>
               <li>
                 <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                <span><strong><span class="marker-badge">3</span>Multi-Format Exports:</strong> One-click export to Excel (.xlsx), CSV, JSON, or Plain Text with custom column mapping.</span>
+                <span><strong>Multi-Format Exports:</strong> One-click export to Excel (.xlsx), CSV, JSON, or Plain Text with custom column mapping.</span>
               </li>
             </ul>
 
@@ -491,11 +479,11 @@
             <ul class="feature-checklist">
               <li>
                 <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                <span><strong><span class="marker-badge">1</span>Dynamic Placeholders:</strong> Injects contact person, position title, company name, address, and current date automatically.</span>
+                <span><strong>Dynamic Placeholders:</strong> Injects contact person, position title, company name, address, and current date automatically.</span>
               </li>
               <li>
                 <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                <span><strong><span class="marker-badge">2</span>Safe Rate-Limited SMTP:</strong> Humanized dispatch pacing (configurable intervals) protects your sender domain reputation.</span>
+                <span><strong>Safe Rate-Limited SMTP:</strong> Humanized dispatch pacing (configurable intervals) protects your sender domain reputation.</span>
               </li>
               <li>
                 <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
@@ -527,7 +515,6 @@
               <div class="window-body">
                 <img src="images/screenshot_edit_clean.png" alt="ZUGZWANG Motivation Letter Editor Workspace" loading="lazy" />
                 <div class="screenshot-caption">
-                  <span class="marker-badge">1</span>
                   Motivation Letter Studio &amp; DIN 5008 Editor
                 </div>
               </div>
@@ -535,7 +522,6 @@
             <div class="thumbnail-frame" style="width: 100%;">
               <img src="images/screenshot_send_clean.png" alt="ZUGZWANG Email Broadcast Console" loading="lazy" />
               <div class="screenshot-caption">
-                <span class="marker-badge">2</span>
                 Email Broadcast Console &amp; Rate-Limiter
               </div>
             </div>
@@ -694,51 +680,51 @@
 
       <div class="faq-list apple-reveal">
         <div class="faq-item open">
-          <button class="faq-trigger" type="button">
+          <button class="faq-trigger" type="button" aria-expanded="true" aria-controls="faq-ans-1" id="faq-btn-1">
             <span>Do I need technical skills to use ZUGZWANG?</span>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
-          <div class="faq-body">
+          <div class="faq-body" id="faq-ans-1" role="region" aria-labelledby="faq-btn-1">
             No technical skills are required. ZUGZWANG is a standalone desktop application with a clean, visual interface just like any regular Mac or Windows program. You simply enter the job title and city you want to target, click Start, and watch direct employer contacts appear.
           </div>
         </div>
 
         <div class="faq-item">
-          <button class="faq-trigger" type="button">
+          <button class="faq-trigger" type="button" aria-expanded="false" aria-controls="faq-ans-2" id="faq-btn-2">
             <span>Is ZUGZWANG really 100% free?</span>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
-          <div class="faq-body">
+          <div class="faq-body" id="faq-ans-2" role="region" aria-labelledby="faq-btn-2">
             Yes, completely free and open-source under the MIT License. There are zero subscriptions, no paywalls, no trial limits, and no credit card required ever.
           </div>
         </div>
 
         <div class="faq-item">
-          <button class="faq-trigger" type="button">
+          <button class="faq-trigger" type="button" aria-expanded="false" aria-controls="faq-ans-3" id="faq-btn-3">
             <span>Where is my personal data and search history stored?</span>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
-          <div class="faq-body">
+          <div class="faq-body" id="faq-ans-3" role="region" aria-labelledby="faq-btn-3">
             100% on your local machine. All discovered job listings, direct contact numbers, and customized cover letters are saved in an encrypted local database on your hard drive. No data is ever transmitted to cloud servers or third parties.
           </div>
         </div>
 
         <div class="faq-item">
-          <button class="faq-trigger" type="button">
+          <button class="faq-trigger" type="button" aria-expanded="false" aria-controls="faq-ans-4" id="faq-btn-4">
             <span>How does it find hiring managers instead of generic info@ emails?</span>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
-          <div class="faq-body">
+          <div class="faq-body" id="faq-ans-4" role="region" aria-labelledby="faq-btn-4">
             ZUGZWANG analyzes official German legal company documentation (Impressum), commercial registers, and team directories to discover managing directors, HR leaders, and direct departmental telephone numbers and personal email addresses.
           </div>
         </div>
 
         <div class="faq-item">
-          <button class="faq-trigger" type="button">
+          <button class="faq-trigger" type="button" aria-expanded="false" aria-controls="faq-ans-5" id="faq-btn-5">
             <span>Which email providers can I use to send applications?</span>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
-          <div class="faq-body">
+          <div class="faq-body" id="faq-ans-5" role="region" aria-labelledby="faq-btn-5">
             You can use your existing Gmail, Outlook, Web.de, GMX, or custom domain email via standard secure SMTP. ZUGZWANG includes humanized dispatch intervals to ensure your sender reputation is protected and your emails arrive safely in recipient inboxes.
           </div>
         </div>
@@ -838,6 +824,6 @@
     </div>
   </footer>
 
-  <script src="app.js?v=1.1.2.6"></script>
+  <script src="app.js?v=1.1.2.7"></script>
 </body>
 </html>
