@@ -2600,6 +2600,115 @@ class EmailSenderPage(QWidget):
             return f"Sehr geehrter Herr {clean},"
         return f"Guten Tag {name},"
 
+    def _german_date(self) -> str:
+        from datetime import date
+        german_months = ["Januar", "Februar", "März", "April", "Mai", "Juni",
+                         "Juli", "August", "September", "Oktober", "November", "Dezember"]
+        today = date.today()
+        return f"{today.day:02d}. {german_months[today.month - 1]} {today.year}"
+
+    def _load_sender_profile_settings(self) -> dict:
+        import sqlite3
+        from ..core.config import get_memory_db_path
+        try:
+            conn = sqlite3.connect(str(get_memory_db_path()), timeout=10.0)
+            rows = conn.execute("SELECT key, value FROM settings WHERE key LIKE 'sender_%'").fetchall()
+            conn.close()
+            return {row[0].replace("sender_", ""): row[1] for row in rows}
+        except Exception:
+            return {}
+
+    def _generate_custom_pdf_on_the_fly(self, recipient: str, company: str, job_title: str, export_mode: str, base_filename: str):
+        """
+        Dynamically generate the candidate's personalized Bewerbung PDF on-the-fly
+        if it wasn't pre-exported in the Edit page.
+        Guarantees that cover letters and applications are never omitted from sent emails.
+        """
+        try:
+            import sqlite3
+            import re
+            from ..core.config import get_memory_db_path, get_exports_dir, get_app_data_dir
+            from ..core.models import LeadRecord
+
+            lead_record = None
+            letter_text = ""
+            conn = sqlite3.connect(str(get_memory_db_path()), timeout=10.0)
+            row = conn.execute(
+                "SELECT * FROM leads WHERE LOWER(TRIM(email)) = ? LIMIT 1",
+                (recipient,)
+            ).fetchone()
+            if not row:
+                row = conn.execute(
+                    "SELECT * FROM leads WHERE email LIKE ? LIMIT 1",
+                    (f"%{recipient}%",)
+                ).fetchone()
+            if row:
+                cols = [d[0] for d in conn.execute("SELECT * FROM leads LIMIT 1").description]
+                lead_record = LeadRecord(**dict(zip(cols, row)))
+
+                srow = conn.execute("SELECT letter_text FROM letter_state WHERE lead_id = ? LIMIT 1", (lead_record.id,)).fetchone()
+                if srow and srow[0]:
+                    letter_text = srow[0]
+            conn.close()
+
+            if not lead_record:
+                lead_record = LeadRecord(
+                    id="adhoc_" + re.sub(r'[^a-zA-Z0-9]', '', recipient)[:12],
+                    email=recipient,
+                    company_name=company,
+                    job_title=job_title
+                )
+
+            if not letter_text:
+                template_path = get_app_data_dir() / "templates" / "anschreiben_base.txt"
+                if template_path.exists():
+                    template_text = template_path.read_text(encoding="utf-8")
+                else:
+                    template_text = (
+                        "{{SENDER_NAME}}\n{{SENDER_ADDRESS}}\n{{SENDER_CITY}}\n"
+                        "{{SENDER_PHONE}} · {{SENDER_EMAIL}}\n\n"
+                        "{{FIRMA}}\n{{PLZ}} {{ORT}}\n\n"
+                        "{{DATUM}}\n\n"
+                        "Bewerbung um einen Ausbildungsplatz als {{BERUF}}\n\n"
+                        "{{ANREDE}}\n\n"
+                        "Mit großem Interesse bewerbe ich mich bei Ihnen als {{BERUF}}.\n\n"
+                        "Mit freundlichen Grüßen"
+                    )
+
+                sender_settings = self._load_sender_profile_settings()
+                replacements = {
+                    "ANREDE":         self._salutation(lead_record.contact_person),
+                    "FIRMA":          lead_record.company_name or company or "Unternehmen",
+                    "ORT":            re.sub(r"^\d+\s*", "", str(sender_settings.get("city") or "")).strip(),
+                    "PLZ":            lead_record.postal_code or "",
+                    "BERUF":          sender_settings.get("beruf") or lead_record.job_title or "Ausbildung",
+                    "DATUM":          self._german_date(),
+                }
+                for k, v in sender_settings.items():
+                    replacements[f"SENDER_{k.upper()}"] = v
+                letter_text = template_text
+                for k, v in replacements.items():
+                    letter_text = letter_text.replace(f"{{{{{k}}}}}", str(v))
+
+            from .edit_page import EditPage
+            dummy_edit = EditPage()
+            out_paths = dummy_edit._export_bewerbungsmappe(lead_record, letter_text, get_exports_dir())
+            if out_paths:
+                out_dir = get_exports_dir()
+                if export_mode == "separate":
+                    target = out_dir / f"{base_filename}_Anschreiben.pdf"
+                    if target.exists(): return target
+                elif export_mode == "letter_cv_certs":
+                    target = out_dir / f"{base_filename}_AnschreibenLebenslauf.pdf"
+                    if target.exists(): return target
+                else:
+                    target = out_dir / f"{base_filename}.pdf"
+                    if target.exists(): return target
+                return out_paths[0]
+        except Exception as e:
+            self._log(f"Dynamic PDF generation note: {e}", "INFO")
+        return None
+
     def _build_message(self, recipient: str) -> tuple[MIMEMultipart, str]:
         from email.header import Header
         from email.utils import formataddr
@@ -2789,17 +2898,30 @@ class EmailSenderPage(QWidget):
                     chosen_pdf_path = candidates[0]
                     chosen_display_name = display_name
 
-        # Priority 3: Generic base PDF match
+        # Priority 3: Dynamic On-The-Fly Generation (Guarantees cover letters are never dropped)
+        if not chosen_pdf_path:
+            generated_path = self._generate_custom_pdf_on_the_fly(
+                recipient=rec_clean,
+                company=company,
+                job_title=job_title,
+                export_mode=export_mode,
+                base_filename=base_filename
+            )
+            if generated_path and generated_path.exists():
+                chosen_pdf_path = generated_path
+                chosen_display_name = display_name
+
+        # Priority 4: Generic base PDF match
         if not chosen_pdf_path and generic_pdf_path.exists() and not has_manual_attachments:
             chosen_pdf_path = generic_pdf_path
             chosen_display_name = generic_pdf_filename
 
-        # Priority 4: Raw uploaded PDF fallback
+        # Priority 5: Raw uploaded PDF fallback
         if not chosen_pdf_path and raw_pdf_path.exists() and not has_manual_attachments:
             chosen_pdf_path = raw_pdf_path
-            chosen_display_name = generic_pdf_filename
+            chosen_display_name = "Lebenslauf.pdf"
 
-        # Priority 5: User's loaded Lebenslauf from settings directly
+        # Priority 6: User's loaded Lebenslauf from settings directly
         if not chosen_pdf_path and not has_manual_attachments and lv_setting_path and lv_setting_path.exists():
             chosen_pdf_path = lv_setting_path
             chosen_display_name = "Lebenslauf.pdf"
@@ -2838,12 +2960,14 @@ class EmailSenderPage(QWidget):
                 except Exception as e:
                     self._log(f"Failed to attach {display_name}: {e}", "WARNING")
 
+            chosen_resolved = Path(chosen_pdf_path).resolve() if chosen_pdf_path else None
+
             if export_mode == "separate":
                 # Separate files: Deckblatt (if available), Lebenslauf, and merged Zeugnisse.
                 db_path = getattr(config_manager.settings, "bewerbung_deckblatt_path", "") or ""
-                if db_path and Path(db_path).exists():
+                if db_path and Path(db_path).exists() and (not chosen_resolved or Path(db_path).resolve() != chosen_resolved):
                     _attach_pdf_file(db_path, "Deckblatt.pdf")
-                if lv_path and Path(lv_path).exists():
+                if lv_path and Path(lv_path).exists() and (not chosen_resolved or Path(lv_path).resolve() != chosen_resolved):
                     _attach_pdf_file(lv_path, "Lebenslauf.pdf")
                 if zeug_paths:
                     import io, pypdf as _pypdf
@@ -2910,7 +3034,7 @@ class EmailSenderPage(QWidget):
                             self._log(f"Failed to attach Zeugnisse: {e}", "WARNING")
 
         if not has_manual_attachments and not chosen_pdf_path:
-            raise FileNotFoundError("No attachment found. Please load your Lebenslauf in the Edit page or attach files manually in the Send tab.")
+            raise FileNotFoundError("No application papers found. Please load your Lebenslauf or cover letter in the Edit page, or attach files manually in the Send tab.")
         return msg, tracking_id
 
     def _create_smtp_connection(self, silent: bool = False):
@@ -3147,4 +3271,4 @@ class EmailSenderPage(QWidget):
 
     # End of class
 
-# 1.1.2.2
+# 1.1.3

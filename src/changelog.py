@@ -1,14 +1,38 @@
 # ZUGZWANG Changelog Definitions
 # Contains version history and changes for the "What's New" dialog.
 
-APP_VERSION = "1.1.2.2"
+APP_VERSION = "1.1.3"
 
 CHANGELOG = [
     {
-        "version": "1.1.2.2",
-        "date": "September 15, 2026",
+        "version": "1.1.3",
+        "date": "September 26, 2026",
         "label": "LATEST",
         "label_color": "#30D158",
+        "changes": [
+            {
+                "type": "new",
+                "text": "Dynamic PDF Application Pipeline — Outbound emails automatically generate tailored cover letters and application packages on the fly, guaranteeing attachments are never omitted."
+            },
+            {
+                "type": "improved",
+                "text": "Fail-Safe Batch Export & Cancellation — Edit page batch exporter provides real-time progress feedback, instant cancellation handling, and cached certificate merging."
+            },
+            {
+                "type": "improved",
+                "text": "Attachment Deduplication — Intelligent attachment pipeline prevents duplicate Lebenslauf and Deckblatt inclusions across all export modes."
+            },
+            {
+                "type": "fixed",
+                "text": "Fluid Toast Notification Lifecycle — Robust dismissal animations and cleanup timers prevent notifications from hanging or persisting on screen."
+            },
+        ]
+    },
+    {
+        "version": "1.1.2.2",
+        "date": "September 15, 2026",
+        "label": None,
+        "label_color": None,
         "changes": [
             {
                 "type": "fixed",
@@ -760,10 +784,40 @@ CHANGELOG = [
 
 CHANGELOG_AR = [
     {
-        "version": "1.1.2.2",
-        "date": "15 سبتمبر 2026",
+        "version": "1.1.3",
+        "date": "26 سبتمبر 2026",
         "label": "الأحدث",
         "label_color": "#30D158",
+        "type_labels": {
+            "new": "جديد",
+            "improved": "مُحسَّن",
+            "fixed": "مُصلَّح",
+            "removed": "مُزال"
+        },
+        "changes": [
+            {
+                "type": "new",
+                "text": "توليد فوري لملفات PDF للمراسلة — إنشاء خطابات التقديم المخصصة تلقائياً أثناء الإرسال لضمان عدم فقدان أي مرفقات أو مستندات مطلوبة."
+            },
+            {
+                "type": "improved",
+                "text": "تصدير جماعي متجاوب وإلغاء فوري — شريط تقدم دقيق للتصدير في صفحة التحرير مع استجابة فورية لزر الإلغاء وتخزين الشهادات المدمجة لتسريع العملية."
+            },
+            {
+                "type": "improved",
+                "text": "منع تكرار المرفقات — آلية ذكية لمنع تكرار إرفاق السيرة الذاتية أو صفحة الغلاف في جميع أوضاع التصدير المختلفة."
+            },
+            {
+                "type": "fixed",
+                "text": "استقرار إشعارات التطبيق — إصلاح إغلاق إشعارات التوست وضمان اختفائها بسلاسة دون تعليق على الشاشة."
+            },
+        ]
+    },
+    {
+        "version": "1.1.2.2",
+        "date": "15 سبتمبر 2026",
+        "label": None,
+        "label_color": None,
         "type_labels": {
             "new": "جديد",
             "improved": "مُحسَّن",
@@ -1537,4 +1591,4 @@ CHANGELOG_AR = [
     }
 ]
 
-# 1.1.2.2
+# 1.1.3

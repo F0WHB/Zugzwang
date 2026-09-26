@@ -14,7 +14,7 @@
 
 <p align="center">
   <a href="https://github.com/whbexc"><img alt="Crafted by WAHB" src="https://img.shields.io/badge/crafted%20by-WAHB-FF2D55?style=for-the-badge&logo=github&logoColor=white"></a>
-  <a href="https://github.com/whbexc/Zugzwang/releases/latest"><img alt="Version" src="https://img.shields.io/badge/version-1.1.2-30D158?style=for-the-badge&logo=github&logoColor=white"></a>
+  <a href="https://github.com/whbexc/Zugzwang/releases/latest"><img alt="Version" src="https://img.shields.io/badge/version-1.1.3-30D158?style=for-the-badge&logo=github&logoColor=white"></a>
   <img alt="Platform" src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-0A84FF?style=for-the-badge">
   <img alt="Python" src="https://img.shields.io/badge/python-3.11+-5AC8FA?style=for-the-badge&logo=python&logoColor=white">
   <img alt="UI" src="https://img.shields.io/badge/UI-PySide6%20%7C%20Fluent-BF5AF2?style=for-the-badge&logo=qt&logoColor=white">
@@ -22,7 +22,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/whbexc/Zugzwang/releases/latest"><b>📥 Download Pre-built v1.1.2</b></a> &nbsp;&bull;&nbsp;
+  <a href="https://github.com/whbexc/Zugzwang/releases/latest"><b>📥 Download Pre-built v1.1.3</b></a> &nbsp;&bull;&nbsp;
   <a href="#quick-start"><b>⚡ Quick Start</b></a> &nbsp;&bull;&nbsp;
   <a href="#email--smtp-configuration"><b>📧 Email Setup</b></a> &nbsp;&bull;&nbsp;
   <a href="#the-mission"><b>✊ The Mission</b></a> &nbsp;&bull;&nbsp;
@@ -61,7 +61,7 @@
 
 | 🚀 Getting Started | ⚡ Features & Workflow | 🛠️ Reference & Project |
 |:---|:---|:---|
-| • [Overview](#overview)<br>• [The Mission](#the-mission)<br>• [Why ZUGZWANG](#why-zugzwang)<br>• [Quick Start](#quick-start)<br>• [Email & SMTP Setup](#email--smtp-configuration)<br>• [Build Commands](#build) | • [What It Does](#features)<br>• [Product Flow](#product-flow)<br>• [Core Screens](#screenshots)<br>• [Feature Snapshot](#feature-snapshot)<br>• [Keyboard Shortcuts](#keyboard-shortcuts) | • [Current Version (1.1.2)](#current-version)<br>• [Tech Stack](#tech-stack)<br>• [Project Structure](#project-structure)<br>• [Frequently Asked Questions](#frequently-asked-questions)<br>• [Roadmap Direction](#roadmap) |
+| • [Overview](#overview)<br>• [The Mission](#the-mission)<br>• [Why ZUGZWANG](#why-zugzwang)<br>• [Quick Start](#quick-start)<br>• [Email & SMTP Setup](#email--smtp-configuration)<br>• [Build Commands](#build) | • [What It Does](#features)<br>• [Product Flow](#product-flow)<br>• [Core Screens](#screenshots)<br>• [Feature Snapshot](#feature-snapshot)<br>• [Keyboard Shortcuts](#keyboard-shortcuts) | • [Current Version (1.1.3)](#current-version)<br>• [Tech Stack](#tech-stack)<br>• [Project Structure](#project-structure)<br>• [Frequently Asked Questions](#frequently-asked-questions)<br>• [Roadmap Direction](#roadmap) |
 | • [License (MIT)](#license)<br>• [Contributing](#contributing) | • [Data & Privacy](#data--privacy)<br>• [Development Notes](#development-notes) | • [Meet the Creator](#meet-the-creator)<br>• [Legal Disclaimer](#disclaimer) |
 
 ---
@@ -447,13 +447,12 @@ makensis installer.nsi
 
 ## Current Version
 
-**1.1.2**
+**1.1.3**
 
-- Added an interactive CAPTCHA solver window that appears automatically when security challenges occur on Jobsuche or Google Maps so jobs never stall.
-- Added a native certificate (*Zeugnisse*) management dialog to easily preview, reorder, and bundle your references into application packages.
-- Upgraded Jobsuche and Google Maps scrapers to stream discovered leads into your results table in real time with higher reliability.
-- Resolved background application stability issues on macOS Apple Silicon and Windows to ensure smooth long-duration scraping sessions.
-- Redesigned status alerts with modern, floating macOS-style toast cards that keep you informed without interrupting your workflow.
+- Added dynamic on-the-fly PDF cover letter generation during outreach sending to guarantee attachments are never omitted.
+- Implemented smart attachment deduplication across separate files and merged dossier application modes.
+- Enhanced the Edit workspace batch exporter with responsive one-click cancellation and live progress tracking.
+- Hardened toast notification lifecycles with robust animations and automatic cleanup to eliminate ghost popups.
 
 See [CHANGELOG.md](CHANGELOG.md) for full release history.
 
@@ -594,4 +593,4 @@ Users are responsible for complying with:
   Cross-platform desktop scraping and outreach, built for speed.
 </p>
 
-<!-- 1.1.2.2 -->
+<!-- 1.1.3 -->

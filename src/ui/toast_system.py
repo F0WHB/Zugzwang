@@ -383,13 +383,25 @@ class ToastNotification(QFrame):
         self.anim.setStartValue(self.opacity_effect.opacity())
         self.anim.setEndValue(0.0)
 
+        _finished_called = False
         def _on_finished():
-            self.closed.emit(self)
-            self.close()
-            self.deleteLater()
+            nonlocal _finished_called
+            if _finished_called:
+                return
+            _finished_called = True
+            try:
+                self.closed.emit(self)
+                self.close()
+                self.deleteLater()
+            except Exception:
+                pass
 
-        self.anim.finished.connect(_on_finished)
-        self.anim.start()
+        try:
+            self.anim.finished.connect(_on_finished)
+            self.anim.start()
+            QTimer.singleShot(250, _on_finished)
+        except Exception:
+            _on_finished()
 
         # Trigger reposition for other active toasts immediately so they slide up smoothly
         ToastNotificationManager.instance()._reposition()
@@ -432,4 +444,4 @@ class ToastNotification(QFrame):
         toast.raise_()
         return toast
 
-# 1.1.2.2
+# 1.1.3

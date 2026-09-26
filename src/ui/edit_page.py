@@ -5031,12 +5031,13 @@ class EditPage(QWidget):
         self._refresh_bewerbung_export_btn()
 
     def _refresh_bewerbung_export_btn(self) -> None:
-        """Enable export only when Lebenslauf is loaded (required for all modes)."""
+        """Enable export when documents (Lebenslauf, Anschreiben, etc.) are available."""
         if not hasattr(self, "_btn_export"):
             return
         lv_path = getattr(config_manager.settings, "bewerbung_lebenslauf_path", "") or ""
         has_lv = bool(lv_path and Path(lv_path).exists())
-        self._btn_export.setEnabled(has_lv)
+        has_letter = bool(hasattr(self, "_editor") and self._editor.toPlainText().strip()) or bool(getattr(self, "_records", None))
+        self._btn_export.setEnabled(has_lv or has_letter)
 
     def _on_deckblatt_browse(self) -> None:
         from PySide6.QtCore import QStandardPaths
@@ -5548,9 +5549,11 @@ class EditPage(QWidget):
         has_db = bool(db_path_str and Path(db_path_str).exists())
 
         lv_path_str = getattr(config_manager.settings, "bewerbung_lebenslauf_path", "") or ""
-        if not lv_path_str or not Path(lv_path_str).exists():
-            raise ValueError("Lebenslauf PDF not loaded. Please load it via LOAD LEBENSLAUF.")
-        has_lv = True
+        has_lv = bool(lv_path_str and Path(lv_path_str).exists())
+
+        has_letter = bool(letter_text and letter_text.strip())
+        if not has_lv and not has_letter and not has_db:
+            raise ValueError("No documents to export. Please load your Lebenslauf or enter cover letter text.")
 
         zeug_paths_raw = getattr(config_manager.settings, "bewerbung_zeugnisse_paths", "[]") or "[]"
         try:
@@ -5590,7 +5593,7 @@ class EditPage(QWidget):
 
 
         # ── PDF building helpers ─────────────────────────────────────────────
-        letter_bytes = self._render_letter_as_pdf_page(letter_text)
+        letter_bytes = self._render_letter_as_pdf_page(letter_text) if has_letter else None
 
         def _append_pdf_from_bytes(writer: pypdf.PdfWriter, data: bytes):
             try:
@@ -5620,65 +5623,93 @@ class EditPage(QWidget):
         if mode == "full":
             # Single PDF: All available documents ordered according to user's doc_order
             w = pypdf.PdfWriter()
+            has_pages = False
             for doc_key in doc_order:
                 if doc_key == "deckblatt" and has_db:
                     _append_pdf(w, db_path_str)
-                elif doc_key == "anschreiben":
+                    has_pages = True
+                elif doc_key == "anschreiben" and letter_bytes:
                     _append_pdf_from_bytes(w, letter_bytes)
+                    has_pages = True
                 elif doc_key == "lebenslauf" and has_lv:
                     _append_pdf(w, lv_path_str)
+                    has_pages = True
                 elif doc_key == "zeugnisse":
                     for zp in zeug_paths:
                         _append_pdf(w, zp)
-            dest = out_dir / f"{base_name}.pdf"
-            return [_write(w, dest)]
+                        has_pages = True
+            if has_pages:
+                dest = out_dir / f"{base_name}.pdf"
+                return [_write(w, dest)]
+            return []
 
         elif mode == "letter_cv_certs":
             # File 1: Dossier (Deckblatt, Anschreiben, Lebenslauf in user's doc_order)
             w1 = pypdf.PdfWriter()
+            has_p1 = False
             for doc_key in doc_order:
                 if doc_key == "deckblatt" and has_db:
                     _append_pdf(w1, db_path_str)
-                elif doc_key == "anschreiben":
+                    has_p1 = True
+                elif doc_key == "anschreiben" and letter_bytes:
                     _append_pdf_from_bytes(w1, letter_bytes)
+                    has_p1 = True
                 elif doc_key == "lebenslauf" and has_lv:
                     _append_pdf(w1, lv_path_str)
-            dest1 = out_dir / f"{base_name}_AnschreibenLebenslauf.pdf"
-            _write(w1, dest1)
-            result = [dest1]
+                    has_p1 = True
+            result = []
+            if has_p1:
+                dest1 = out_dir / f"{base_name}_AnschreibenLebenslauf.pdf"
+                _write(w1, dest1)
+                result.append(dest1)
             # File 2: all Zeugnisse merged (if any)
             if zeug_paths:
-                w2 = pypdf.PdfWriter()
-                for zp in zeug_paths:
-                    _append_pdf(w2, zp)
                 dest2 = out_dir / f"{base_name}_Zeugnisse.pdf"
-                result.append(_write(w2, dest2))
+                if not dest2.exists():
+                    w2 = pypdf.PdfWriter()
+                    for zp in zeug_paths:
+                        _append_pdf(w2, zp)
+                    _write(w2, dest2)
+                result.append(dest2)
             return result
 
         else:  # "separate"
             result = []
+            import shutil
             for doc_key in doc_order:
                 if doc_key == "deckblatt" and has_db:
-                    w_d = pypdf.PdfWriter()
-                    _append_pdf(w_d, db_path_str)
                     dest_d = out_dir / f"{base_name}_Deckblatt.pdf"
-                    result.append(_write(w_d, dest_d))
-                elif doc_key == "anschreiben":
+                    if not dest_d.exists():
+                        try:
+                            shutil.copy2(db_path_str, str(dest_d))
+                        except Exception:
+                            w_d = pypdf.PdfWriter()
+                            _append_pdf(w_d, db_path_str)
+                            _write(w_d, dest_d)
+                    result.append(dest_d)
+                elif doc_key == "anschreiben" and letter_bytes:
                     w_a = pypdf.PdfWriter()
                     _append_pdf_from_bytes(w_a, letter_bytes)
                     dest_a = out_dir / f"{base_name}_Anschreiben.pdf"
                     result.append(_write(w_a, dest_a))
                 elif doc_key == "lebenslauf" and has_lv:
-                    w_l = pypdf.PdfWriter()
-                    _append_pdf(w_l, lv_path_str)
                     dest_l = out_dir / f"{base_name}_Lebenslauf.pdf"
-                    result.append(_write(w_l, dest_l))
+                    if not dest_l.exists():
+                        try:
+                            shutil.copy2(lv_path_str, str(dest_l))
+                        except Exception:
+                            w_l = pypdf.PdfWriter()
+                            _append_pdf(w_l, lv_path_str)
+                            _write(w_l, dest_l)
+                    result.append(dest_l)
                 elif doc_key == "zeugnisse" and zeug_paths:
-                    w_z = pypdf.PdfWriter()
-                    for zp in zeug_paths:
-                        _append_pdf(w_z, zp)
                     dest_z = out_dir / f"{base_name}_Zeugnisse.pdf"
-                    result.append(_write(w_z, dest_z))
+                    if not dest_z.exists():
+                        w_z = pypdf.PdfWriter()
+                        for zp in zeug_paths:
+                            _append_pdf(w_z, zp)
+                        _write(w_z, dest_z)
+                    result.append(dest_z)
             return result
 
 
@@ -5690,53 +5721,68 @@ class EditPage(QWidget):
         finally:
             WakeLock.release("Batch PDF Export")
 
-    def _do_export_bewerbungsmappe_batch(self, out_dir: Path | None = None, records: list = None) -> None:
+    def _do_export_bewerbungsmappe_batch(self, out_dir: Path | None = None, records: list = None) -> bool:
         lv_path = getattr(config_manager.settings, "bewerbung_lebenslauf_path", "") or ""
-        if not lv_path or not Path(lv_path).exists():
-            raise ValueError("Lebenslauf PDF not loaded. Please load it via LOAD LEBENSLAUF.")
+        has_lv = bool(lv_path and Path(lv_path).exists())
 
         records = records if records is not None else self._pending_lead_records
         total = len(records)
-        
+        if total == 0:
+            return True
+
         self._progress_info_bar = None
         self._batch_export_cancelled = False
-        
+
         self._progress_info_bar = ToastNotification.custom(
             self,
             title="Batch Export",
-            message="Starting export...",
+            message=f"Starting export (1 / {total})...",
             cancel_text=tr("Cancel", get_language(config_manager.settings.app_language))
         )
-        self._progress_info_bar.show()
-        
+
+        def _is_cancelling():
+            return getattr(self, "_batch_export_cancelled", False) or (
+                self._progress_info_bar is not None and getattr(self._progress_info_bar, "is_cancelled", False)
+            )
+
+        def _handle_cancel(idx: int):
+            self._batch_export_cancelled = True
+            if self._progress_info_bar:
+                try:
+                    self._progress_info_bar.close_anim()
+                except Exception:
+                    pass
+                self._progress_info_bar = None
+            ToastNotification.warning("Batch Export Cancelled", f"Export stopped after {idx} PDFs.", duration=3000, parent=self)
+            return False
+
         try:
             for idx, record in enumerate(records):
-                if getattr(self._progress_info_bar, "is_cancelled", False):
-                    self._batch_export_cancelled = True
-                    if self._progress_info_bar:
-                        self._progress_info_bar.close_anim()
-                        self._progress_info_bar = None
-                    ToastNotification.warning("Batch Export Cancelled", f"Export stopped after {idx} PDFs.", duration=3000, parent=self)
-                    return False
-                    
-                progress_text = f"Exporting {idx + 1} / {total}…"
-                self._progress_info_bar.set_message(progress_text)
                 QCoreApplication.processEvents()
-                
+                if _is_cancelling():
+                    return _handle_cancel(idx)
+
+                progress_text = f"Exporting {idx + 1} / {total}…"
+                if self._progress_info_bar:
+                    self._progress_info_bar.set_message(progress_text)
+                QCoreApplication.processEvents()
+
+                if _is_cancelling():
+                    return _handle_cancel(idx)
+
                 if self._selected_record and self._selected_record.id == record.id:
                     letter_text = self._editor.toPlainText().strip() or self._assemble_letter(record)
                 else:
                     state = self._states.get(record.id)
                     letter_text = (state.letter_text if state else None) or self._assemble_letter(record)
-                
+
                 if not letter_text:
                     letter_text = self._assemble_letter(record)
-                    
+
                 try:
                     self._export_bewerbungsmappe(record, letter_text, out_dir)
                 except Exception as e:
                     print(f"Failed to export custom PDF for lead #{record.id}: {e}")
-                    # Ensure a fallback PDF exists in out_dir so email sending won't fail with FileNotFoundError
                     try:
                         import shutil
                         b_san = re.sub(r'[<>:"/\\|?*]', '_', self._cached_sender_settings.get("beruf", "") or record.job_title or "Ausbildung").strip()
@@ -5752,17 +5798,27 @@ class EditPage(QWidget):
                             shutil.copy2(str(lv_path), str(target_fallback))
                     except Exception:
                         pass
-            
+
+                QCoreApplication.processEvents()
+                if _is_cancelling():
+                    return _handle_cancel(idx + 1)
+
             if self._progress_info_bar:
-                self._progress_info_bar.close_anim()
+                try:
+                    self._progress_info_bar.close_anim()
+                except Exception:
+                    pass
                 self._progress_info_bar = None
-                
+
             self._show_success("Batch Export Completed", f"Successfully exported {total} PDFs.")
             return True
-            
+
         except Exception as e:
             if self._progress_info_bar:
-                self._progress_info_bar.close_anim()
+                try:
+                    self._progress_info_bar.close_anim()
+                except Exception:
+                    pass
                 self._progress_info_bar = None
             raise e
 
@@ -5772,8 +5828,10 @@ class EditPage(QWidget):
             return
 
         lv_path = getattr(config_manager.settings, "bewerbung_lebenslauf_path", "") or ""
-        if not lv_path or not Path(lv_path).exists():
-            self._show_error("Export Failed", "Load your Lebenslauf PDF first (BEWERBUNG → Load Lebenslauf).")
+        has_lv = bool(lv_path and Path(lv_path).exists())
+        has_letter = bool(hasattr(self, "_editor") and self._editor.toPlainText().strip())
+        if not has_lv and not has_letter:
+            self._show_error("Export Failed", "Please load your Lebenslauf PDF or write an Anschreiben first.")
             return
 
         from ..core.security import LicenseManager
@@ -5827,8 +5885,10 @@ class EditPage(QWidget):
             return
             
         lv_path = getattr(config_manager.settings, "bewerbung_lebenslauf_path", "") or ""
-        if not lv_path or not Path(lv_path).exists():
-            self._show_error("Export Failed", "Load your Lebenslauf PDF first (BEWERBUNG → Load Lebenslauf).")
+        has_lv = bool(lv_path and Path(lv_path).exists())
+        has_records = bool(self._pending_lead_records)
+        if not has_lv and not has_records:
+            self._show_error("Export Failed", "Load your Lebenslauf PDF or select leads to export.")
             return
             
         from ..core.security import LicenseManager
@@ -5901,8 +5961,10 @@ class EditPage(QWidget):
             return
             
         lv_path = getattr(config_manager.settings, "bewerbung_lebenslauf_path", "") or ""
-        if not lv_path or not Path(lv_path).exists():
-            self._show_error("Export Failed", "Load your Lebenslauf PDF first (BEWERBUNG → Load Lebenslauf).")
+        has_lv = bool(lv_path and Path(lv_path).exists())
+        has_records = bool(self._pending_lead_records)
+        if not has_lv and not has_records:
+            self._show_error("Export Failed", "Load your Lebenslauf PDF or select leads to export.")
             return
             
         from ..core.security import LicenseManager
@@ -5971,4 +6033,4 @@ class EditPage(QWidget):
         except Exception as e:
             self._show_error("Batch Export & Send Failed", str(e))
 
-# 1.1.2.2
+# 1.1.3
