@@ -307,4 +307,4 @@ def install_diagnostics(app: QCoreApplication):
 
     _log("INFO", "INIT", "ZUGZWANG Diagnostics installed successfully.")
 
-# 1.1.3
+# 1.2.0

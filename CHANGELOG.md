@@ -4,6 +4,17 @@ All notable changes and technical release notes for ZUGZWANG are documented in t
 
 ---
 
+## 1.2.0
+
+### Editor & Outreach Polish
+- **Company Address Placeholder (`{{ADRESSE}}`)** — Introduced full support for company address and street insertion across the Edit workspace placeholders sidebar, automated letter generation, and DIN 5008 default templates, complete with intelligent empty-line trimming.
+- **Dynamic On-The-Fly PDF Application Pipeline** — Outbound email dispatches automatically compile tailored application packages and personalized cover letters on the fly if pre-exported PDFs are not present, ensuring candidates never deliver empty outreach emails.
+- **Attachment Deduplication Engine** — Clean separation and file deduping guarantees that `Deckblatt`, `Lebenslauf`, and `Zeugnisse` are never attached redundantly across separate and bundled export modes.
+- **Fail-Safe Batch Export & Cancellation** — Upgraded the Edit workspace batch exporter with responsive single-click cancellation, real-time index progress notifications, and cached certificate merging.
+- **Fluid Toast Notification Lifecycle** — Robust dismissal animations and cleanup timers prevent notifications from hanging or persisting on screen.
+
+---
+
 ## 1.1.3
 
 ### PDF Generation & Sending Pipeline
@@ -101,4 +112,4 @@ All notable changes and technical release notes for ZUGZWANG are documented in t
 - **Telemetry Noise Reduction** — Aggressively filtered low-level PyPDF warning noise ('Ignoring wrong pointing object') and internal startup traces from user activity streams.
 - **Startup Resource Optimization** — Reduced startup and dashboard refresh pressure to improve Google Maps launch responsiveness and avoid false temporary freeze behavior.
 
-<!-- 1.1.3 -->
+<!-- 1.2.0 -->

@@ -232,12 +232,13 @@ GERMAN_MONTHS = [
 ]
 
 PLACEHOLDER_REFERENCE = [
-    ("{{ANREDE}}",  "Sehr geehrte Frau Müller, / Sehr geehrter Herr …"),
-    ("{{FIRMA}}",   "Unternehmensname"),
-    ("{{ORT}}",     "Stadt"),
-    ("{{PLZ}}",     "Postleitzahl"),
-    ("{{BERUF}}",   "Ausbildungsberuf / Stelle"),
-    ("{{DATUM}}",   "04. Juni 2026"),
+    ("{{ANREDE}}",         "Sehr geehrte Frau Müller, / Sehr geehrter Herr …"),
+    ("{{FIRMA}}",          "Unternehmensname"),
+    ("{{ADRESSE}}",        "Straße + Hausnummer der Firma"),
+    ("{{ORT}}",            "Stadt"),
+    ("{{PLZ}}",            "Postleitzahl"),
+    ("{{BERUF}}",          "Ausbildungsberuf / Stelle"),
+    ("{{DATUM}}",          "04. Juni 2026"),
     ("{{SENDER_NAME}}",    "Ihr Name (aus Einstellungen)"),
     ("{{SENDER_ADDRESS}}", "Ihre Straße + Hausnummer"),
     ("{{SENDER_CITY}}",    "Ihre PLZ + Stadt"),
@@ -3100,10 +3101,25 @@ class EditPage(QWidget):
     def _assemble_letter(self, record: LeadRecord) -> str:
         template = self._template_text or self._load_template()
         sender   = self._load_sender_settings()
+
+        firma_addr = (record.address or "").strip()
+        lines = [line.strip() for line in firma_addr.splitlines() if line.strip()]
+        if len(lines) > 1 and re.search(r"\b\d{5}\b", lines[-1]):
+            firma_addr = lines[0]
+        street_match = re.match(r"^(.*?)(?:,\s*\d{5}|\s+\d{5}\b)", firma_addr)
+        clean_street = street_match.group(1).strip().rstrip(",") if (street_match and street_match.group(1).strip()) else firma_addr
+        addr_val = clean_street or firma_addr
+
         replacements = {
             "ANREDE":         self._salutation(record.contact_person),
             "FIRMA":          record.company_name        or "Unternehmen",
-            "ORT":            __import__("re").sub(r"^\d+\s*", "", str(sender.get("city") or "")).strip(),
+            "ADRESSE":        addr_val,
+            "STRASSE":        addr_val,
+            "FIRMA_ADRESSE":  addr_val,
+            "FIRMA_STRASSE":  addr_val,
+            "ADDRESS":        addr_val,
+            "COMPANY_ADDRESS":addr_val,
+            "ORT":            record.city or __import__("re").sub(r"^\d+\s*", "", str(sender.get("city") or "")).strip(),
             "PLZ":            record.postal_code         or "",
             "BERUF":          sender.get("beruf") or record.job_title or record.category or "Ausbildung",
             "DATUM":          self._german_date(),
@@ -3112,6 +3128,8 @@ class EditPage(QWidget):
             replacements[f"SENDER_{k.upper()}"] = v
             
         text = template
+        if not addr_val:
+            text = re.sub(r"\n[ \t]*\{\{(?:ADRESSE|STRASSE|FIRMA_ADRESSE|FIRMA_STRASSE|ADDRESS|COMPANY_ADDRESS)\}\}[ \t]*\n", "\n", text, flags=re.IGNORECASE)
         for key, value in replacements.items():
             text = text.replace(f"{{{{{key}}}}}", value)
         return self._polish_letter(text, replacements)
@@ -4180,7 +4198,7 @@ class EditPage(QWidget):
         return (
             "{{SENDER_NAME}}\n{{SENDER_ADDRESS}}\n{{SENDER_CITY}}\n"
             "{{SENDER_PHONE}} · {{SENDER_EMAIL}}\n\n"
-            "{{FIRMA}}\n{{PLZ}} {{ORT}}\n\n"
+            "{{FIRMA}}\n{{ADRESSE}}\n{{PLZ}} {{ORT}}\n\n"
             "{{DATUM}}\n\n"
             "Bewerbung um einen Ausbildungsplatz als {{BERUF}}\n\n"
             "{{ANREDE}}\n\n"
@@ -6033,4 +6051,4 @@ class EditPage(QWidget):
         except Exception as e:
             self._show_error("Batch Export & Send Failed", str(e))
 
-# 1.1.3
+# 1.2.0

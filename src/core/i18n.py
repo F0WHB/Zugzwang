@@ -1530,4 +1530,4 @@ def tr(key: str, language: str | None) -> str:
 def is_rtl(language: str | None) -> bool:
     return get_language(language) in RTL_LANGUAGES
 
-# 1.1.3
+# 1.2.0

@@ -472,7 +472,7 @@ class AppSettings:
     auto_backup: bool = True
     backup_dir: str = ""
 
-    app_version: str = "1.1.3"
+    app_version: str = "1.2.0"
     app_build: int = 0
 
 
@@ -484,4 +484,4 @@ class AppSettings:
     trial_email_count: int = 0
     trial_email_last_reset_date: str = ""
 
-# 1.1.3
+# 1.2.0

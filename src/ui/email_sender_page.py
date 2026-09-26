@@ -1598,17 +1598,18 @@ class EmailSenderPage(QWidget):
         sender_city = ""
         sender_email = self._smtp_user.text().strip()
         
+        firma_address = ""
         try:
             conn = sqlite3.connect(str(get_memory_db_path()), timeout=10.0)
             row = None
             if recipient:
                 row = conn.execute(
-                    "SELECT contact_person, company_name, job_title, city, postal_code FROM leads WHERE email = ? LIMIT 1",
+                    "SELECT contact_person, company_name, job_title, city, postal_code, address FROM leads WHERE email = ? LIMIT 1",
                     (recipient,)
                 ).fetchone()
             if not row:
                 row = conn.execute(
-                    "SELECT contact_person, company_name, job_title, city, postal_code FROM leads WHERE company_name IS NOT NULL AND company_name != '' LIMIT 1"
+                    "SELECT contact_person, company_name, job_title, city, postal_code, address FROM leads WHERE company_name IS NOT NULL AND company_name != '' LIMIT 1"
                 ).fetchone()
             if row:
                 anrede = self._salutation(row[0])
@@ -1616,6 +1617,13 @@ class EmailSenderPage(QWidget):
                 if row[2] and row[2].strip(): job_title = row[2].strip()
                 if row[3] and row[3].strip(): ort = row[3].strip()
                 if row[4] and row[4].strip(): plz = row[4].strip()
+                if len(row) > 5 and row[5] and row[5].strip():
+                    raw_addr = row[5].strip()
+                    lines = [line.strip() for line in raw_addr.splitlines() if line.strip()]
+                    if len(lines) > 1 and re.search(r"\b\d{5}\b", lines[-1]):
+                        raw_addr = lines[0]
+                    sm = re.match(r"^(.*?)(?:,\s*\d{5}|\s+\d{5}\b)", raw_addr)
+                    firma_address = sm.group(1).strip().rstrip(",") if (sm and sm.group(1).strip()) else raw_addr
             
             def get_setting(key, default=""):
                 res = conn.execute("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()
@@ -1658,6 +1666,11 @@ class EmailSenderPage(QWidget):
         text = text.replace("{{DATUM}}", datetime.now().strftime("%d.%m.%Y"))
         text = text.replace("{{ORT}}", __import__("re").sub(r"^\d+\s*", "", str(sender_city or "")).strip())
         text = text.replace("{{PLZ}}", plz or "")
+
+        if not firma_address:
+            text = re.sub(r"\n[ \t]*\{\{(?:ADRESSE|STRASSE|FIRMA_ADRESSE|FIRMA_STRASSE|ADDRESS|COMPANY_ADDRESS)\}\}[ \t]*\n", "\n", text, flags=re.IGNORECASE)
+        for ph in ("{{ADRESSE}}", "{{STRASSE}}", "{{FIRMA_ADRESSE}}", "{{FIRMA_STRASSE}}", "{{ADDRESS}}", "{{COMPANY_ADDRESS}}"):
+            text = text.replace(ph, firma_address)
         
         return text
 
@@ -2667,7 +2680,7 @@ class EmailSenderPage(QWidget):
                     template_text = (
                         "{{SENDER_NAME}}\n{{SENDER_ADDRESS}}\n{{SENDER_CITY}}\n"
                         "{{SENDER_PHONE}} · {{SENDER_EMAIL}}\n\n"
-                        "{{FIRMA}}\n{{PLZ}} {{ORT}}\n\n"
+                        "{{FIRMA}}\n{{ADRESSE}}\n{{PLZ}} {{ORT}}\n\n"
                         "{{DATUM}}\n\n"
                         "Bewerbung um einen Ausbildungsplatz als {{BERUF}}\n\n"
                         "{{ANREDE}}\n\n"
@@ -2676,10 +2689,24 @@ class EmailSenderPage(QWidget):
                     )
 
                 sender_settings = self._load_sender_profile_settings()
+                firma_addr = (lead_record.address or "").strip()
+                lines = [line.strip() for line in firma_addr.splitlines() if line.strip()]
+                if len(lines) > 1 and re.search(r"\b\d{5}\b", lines[-1]):
+                    firma_addr = lines[0]
+                street_match = re.match(r"^(.*?)(?:,\s*\d{5}|\s+\d{5}\b)", firma_addr)
+                clean_street = street_match.group(1).strip().rstrip(",") if (street_match and street_match.group(1).strip()) else firma_addr
+                addr_val = clean_street or firma_addr
+
                 replacements = {
                     "ANREDE":         self._salutation(lead_record.contact_person),
                     "FIRMA":          lead_record.company_name or company or "Unternehmen",
-                    "ORT":            re.sub(r"^\d+\s*", "", str(sender_settings.get("city") or "")).strip(),
+                    "ADRESSE":        addr_val,
+                    "STRASSE":        addr_val,
+                    "FIRMA_ADRESSE":  addr_val,
+                    "FIRMA_STRASSE":  addr_val,
+                    "ADDRESS":        addr_val,
+                    "COMPANY_ADDRESS":addr_val,
+                    "ORT":            lead_record.city or re.sub(r"^\d+\s*", "", str(sender_settings.get("city") or "")).strip(),
                     "PLZ":            lead_record.postal_code or "",
                     "BERUF":          sender_settings.get("beruf") or lead_record.job_title or "Ausbildung",
                     "DATUM":          self._german_date(),
@@ -2687,6 +2714,8 @@ class EmailSenderPage(QWidget):
                 for k, v in sender_settings.items():
                     replacements[f"SENDER_{k.upper()}"] = v
                 letter_text = template_text
+                if not addr_val:
+                    letter_text = re.sub(r"\n[ \t]*\{\{(?:ADRESSE|STRASSE|FIRMA_ADRESSE|FIRMA_STRASSE|ADDRESS|COMPANY_ADDRESS)\}\}[ \t]*\n", "\n", letter_text, flags=re.IGNORECASE)
                 for k, v in replacements.items():
                     letter_text = letter_text.replace(f"{{{{{k}}}}}", str(v))
 
@@ -3271,4 +3300,4 @@ class EmailSenderPage(QWidget):
 
     # End of class
 
-# 1.1.3
+# 1.2.0
