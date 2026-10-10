@@ -2,6 +2,14 @@
 
 All notable changes and technical release notes for ZUGZWANG are documented in this file.
 
+## 1.2.2
+
+### Scraper Reliability & Outreach Performance
+- **Google Maps Locale & Multilingual Consent Bypass** — Added explicit `?hl=de` binding to prevent IP-based geolocation mismatch, alongside multi-lingual consent modal auto-dismissal (German, English, Arabic, French, Spanish) and nested iframe traversal.
+- **Maps Detail Panel Navigation** — Enhanced extraction for authoritative headers, website links, addresses, and phone numbers with automated back-navigation to ensure subsequent search result cards remain active and clickable.
+- **Responsive Email Broadcast Stop** — Decoupled active SMTP socket teardown into a background daemon thread, eliminating UI freezes when aborting email broadcasts.
+- **Fast Lead Loading Counter** — Switched preview counter to a lightweight `COUNT(*)` SQL query, preventing main-thread lag when opening the Load Leads dialog.
+
 ---
 
 ## 1.2.0

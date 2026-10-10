@@ -195,4 +195,4 @@ class SecurityOverlay(QDialog):
             self.reject()
         super().keyPressEvent(event)
 
-# 1.2.0
+# 1.2.2

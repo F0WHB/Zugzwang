@@ -1942,12 +1942,18 @@ class EmailSenderPage(QWidget):
     def _on_stop(self):
         self._stop_requested = True
         self._on_log("Stop requested by user...", "WARNING")
-        # Aggressive Stop: Force close the connection if it exists
-        if self._active_server:
-            try:
-                self._active_server.close()
-                self._on_log("Active connection forced to close.", "WARNING")
-            except: pass
+        # Aggressive Stop: Force close the connection in background to avoid freezing UI
+        srv = self._active_server
+        self._active_server = None
+        if srv:
+            import threading
+            def _close_socket():
+                try:
+                    srv.close()
+                except Exception:
+                    pass
+            threading.Thread(target=_close_socket, daemon=True).start()
+            self._on_log("Active connection forced to close.", "WARNING")
 
     def _on_purge_sent(self):
         sent_emails = {email.strip().lower() for email in self._successful_history.keys() if email.strip()}
@@ -3300,4 +3306,4 @@ class EmailSenderPage(QWidget):
 
     # End of class
 
-# 1.2.0
+# 1.2.2

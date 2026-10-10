@@ -664,4 +664,4 @@ class ScrapingOrchestrator:
 # Global orchestrator instance
 orchestrator = ScrapingOrchestrator()
 
-# 1.2.0
+# 1.2.2

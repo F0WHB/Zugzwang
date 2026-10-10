@@ -302,7 +302,7 @@ def main():
             super().polish(widget)
     
     app.setApplicationName("ZUGZWANG")
-    app.setApplicationVersion("1.0.4")
+    app.setApplicationVersion("1.2.2")
     app.setOrganizationName("ZUGZWANG")
 
     # Load and register PT Root UI font family
@@ -381,4 +381,4 @@ def main():
 if __name__ == "__main__":
     main()
 
-# 1.2.0
+# 1.2.2

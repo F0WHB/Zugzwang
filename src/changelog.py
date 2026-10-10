@@ -1,14 +1,38 @@
 # ZUGZWANG Changelog Definitions
 # Contains version history and changes for the "What's New" dialog.
 
-APP_VERSION = "1.2.0"
+APP_VERSION = "1.2.2"
 
 CHANGELOG = [
     {
-        "version": "1.2.0",
-        "date": "September 26, 2026",
+        "version": "1.2.2",
+        "date": "October 10, 2026",
         "label": "LATEST",
         "label_color": "#30D158",
+        "changes": [
+            {
+                "type": "fixed",
+                "text": "Google Maps Locale & Multi-Language Consent — Added explicit German locale binding (?hl=de), multi-lingual consent popup bypass (Arabic, French, Spanish, German, English), and iframe handling."
+            },
+            {
+                "type": "improved",
+                "text": "Maps Detail Panel Navigation — Enhanced place detail extraction (header, website, address, phone) with automatic back-button navigation to keep subsequent search cards clickable."
+            },
+            {
+                "type": "fixed",
+                "text": "Responsive Email Broadcast Stop — Decoupled active SMTP socket closing into a background thread, preventing UI freezing when aborting broadcasts."
+            },
+            {
+                "type": "improved",
+                "text": "Fast Lead Loading Counter — Optimized lead count preview with lightweight COUNT(*) queries, eliminating main-thread SQLite stalls."
+            },
+        ]
+    },
+    {
+        "version": "1.2.0",
+        "date": "September 26, 2026",
+        "label": None,
+        "label_color": None,
         "changes": [
             {
                 "type": "new",
@@ -812,10 +836,40 @@ CHANGELOG = [
 
 CHANGELOG_AR = [
     {
-        "version": "1.2.0",
-        "date": "26 سبتمبر 2026",
+        "version": "1.2.2",
+        "date": "10 أكتوبر 2026",
         "label": "الأحدث",
         "label_color": "#30D158",
+        "type_labels": {
+            "new": "جديد",
+            "improved": "مُحسَّن",
+            "fixed": "مُصلَّح",
+            "removed": "مُزال"
+        },
+        "changes": [
+            {
+                "type": "fixed",
+                "text": "توافق خرائط جوجل وتخطي نافذة الموافقة متعددة اللغات — ضبط لغة الواجهة إلى الألمانية تلقائياً وتجاوز نوافذ الموافقة بمختلف اللغات وتخطي الإطارات الفرعية (iframes)."
+            },
+            {
+                "type": "improved",
+                "text": "تحسين استخراج تفاصيل خرائط جوجل — دعم قراءة الموقع الإلكتروني والهاتف والعنوان مع الرجوع التلقائي لقائمة النتائج لضمان النقر على كافة البطاقات."
+            },
+            {
+                "type": "fixed",
+                "text": "إيقاف فوري وسلس للإرسال — فصل إغلاق اتصال خادم البريد في خيط خلفي لمنع تجميد واجهة المستخدم عند الضغط على إيقاف."
+            },
+            {
+                "type": "improved",
+                "text": "تسريع عداد تحميل جهات الاتصال — استعلام سريع وخفيف لحساب جهات الاتصال دون تحميل البيانات كاملة إلى الذاكرة الرئيسية."
+            },
+        ]
+    },
+    {
+        "version": "1.2.0",
+        "date": "26 سبتمبر 2026",
+        "label": None,
+        "label_color": None,
         "type_labels": {
             "new": "جديد",
             "improved": "مُحسَّن",
@@ -1653,4 +1707,4 @@ CHANGELOG_AR = [
     }
 ]
 
-# 1.2.0
+# 1.2.2

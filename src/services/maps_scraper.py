@@ -86,7 +86,7 @@ logger = get_logger(__name__)
 
 
 
-MAPS_HOME = "https://www.google.com/maps"
+MAPS_HOME = "https://www.google.com/maps?hl=de"
 
 LISTING_XPATH = '//a[contains(@href, "/maps/place")]'
 
@@ -814,7 +814,7 @@ class GoogleMapsScraper:
 
                     if label:
 
-                        clean = re.sub(r"^(?:Phone|Telefon)\s*:\s*", "", label, flags=re.IGNORECASE)
+                        clean = re.sub(r"^(?:Phone|Telefon|Téléphone|Teléfono|الهاتف)\s*:\s*", "", label, flags=re.IGNORECASE)
 
                         if clean:
 
@@ -868,7 +868,21 @@ class GoogleMapsScraper:
 
             self._parse_address(record)
 
-
+        # Return to results list if in detail view so next card can be clicked cleanly
+        try:
+            back_btn = page.locator(
+                'button[jsaction*="pane.back"], '
+                'button[aria-label="Back"], '
+                'button[aria-label="Zurück"], '
+                'button[aria-label*="Back" i], '
+                'button[aria-label*="Zurück" i], '
+                'button[aria-label="رجوع"]'
+            ).first
+            if await back_btn.is_visible(timeout=350):
+                await back_btn.click(timeout=800, force=True)
+                await asyncio.sleep(0.1)
+        except Exception:
+            pass
 
         return record.normalize() if record.company_name else None
 
@@ -1275,71 +1289,80 @@ class GoogleMapsScraper:
 
 
     async def _wait_for_detail_panel(self, page: Page) -> None:
-
         """Wait for the detail panel to load after clicking a listing."""
-
         try:
-
-            # Wait for the address or phone button — indicates detail loaded
-
+            # Wait for header, website button, address or phone — indicates detail panel loaded
             await page.wait_for_selector(
-
-                '//button[@data-item-id="address"], '
-
+                '//h1[contains(@class, "fontHeadlineLarge")] | '
+                '//h1[contains(@class, "DUwDvf")] | '
+                '//a[@data-item-id="authority"] | '
+                '//button[@data-item-id="address"] | '
                 '//button[contains(@data-item-id, "phone:tel:")]',
-
-                state="attached", timeout=2_000,
-
+                state="attached", timeout=2_500,
             )
-
         except Exception:
-
             # Fallback: short sleep if detail panel takes a different form
-
-            await asyncio.sleep(0.25)
-
-
+            await asyncio.sleep(0.3)
 
     async def _dismiss_consent_banner(self, page: Page) -> None:
-
         """Dismiss Google's GDPR / consent banner if present."""
-
         consent_selectors = [
-
-            # Google consent dialog buttons
-            '//button[contains(., "Accept all")]',
+            # German
             '//button[contains(., "Alle akzeptieren")]',
             '//button[contains(., "Zustimmen")]',
-            '//button[contains(., "Reject all")]',
             '//button[contains(., "Alle ablehnen")]',
-            'button[aria-label="Accept all"]',
             'button[aria-label="Alle akzeptieren"]',
+            # English
+            '//button[contains(., "Accept all")]',
+            '//button[contains(., "Reject all")]',
+            'button[aria-label="Accept all"]',
+            # Arabic
+            '//button[contains(., "قبول الكل")]',
+            '//button[contains(., "الموافقة على الكل")]',
+            '//button[contains(., "موافق")]',
+            # French & Spanish
+            '//button[contains(., "Tout accepter")]',
+            '//button[contains(., "J\'accepte")]',
+            '//button[contains(., "Aceptar todo")]',
+            # Stable JS attributes
             'button[jsname="j6xaVd"]',
             'button[jsname="b3VIl"]',
-            # Generic consent form
+            'button[jsname="tPlbpb"]',
+            # Generic consent dialogs / forms
             'form[action*="consent"] button',
-
+            'div[role="dialog"] button:has-text("Accept")',
+            'div[role="dialog"] button:has-text("akzeptieren")',
         ]
 
+        # Check top-level page
         for sel in consent_selectors:
-
             try:
-
                 btn = page.locator(sel).first
-
-                if await btn.is_visible(timeout=350):
-
+                if await btn.is_visible(timeout=250):
                     await btn.click(timeout=1000, force=True)
-
-                    await asyncio.sleep(0.15)
-
+                    await asyncio.sleep(0.2)
                     logger.info(f"[{self.job_id}] Dismissed consent banner")
-
                     return
-
             except Exception:
-
                 continue
+
+        # Check if consent modal is nested in an iframe
+        try:
+            for frame in page.frames:
+                if frame == page.main_frame:
+                    continue
+                for sel in consent_selectors:
+                    try:
+                        fbtn = frame.locator(sel).first
+                        if await fbtn.is_visible(timeout=200):
+                            await fbtn.click(timeout=1000, force=True)
+                            await asyncio.sleep(0.2)
+                            logger.info(f"[{self.job_id}] Dismissed consent banner in iframe")
+                            return
+                    except Exception:
+                        continue
+        except Exception:
+            pass
 
 
 
@@ -1903,4 +1926,4 @@ class GoogleMapsScraper:
 
                 record.city = city_m
 
-# 1.2.0
+# 1.2.2

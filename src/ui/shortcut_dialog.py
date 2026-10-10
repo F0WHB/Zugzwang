@@ -155,4 +155,4 @@ class ShortcutHelpDialog(QDialog):
             self.move(event.globalPos() - self._drag_pos)
             event.accept()
 
-# 1.2.0
+# 1.2.2

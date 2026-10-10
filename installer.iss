@@ -3,7 +3,7 @@
 ;   iscc installer.iss
 
 #define AppName "ZUGZWANG"
-#define AppVersion "1.2.0"
+#define AppVersion "1.2.2"
 #define AppPublisher "ZUGZWANG"
 #define AppExeName "ZUGZWANG.exe"
 #define AppId "{{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}"

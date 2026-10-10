@@ -114,4 +114,4 @@ def run_in_thread(
     QThreadPool.globalInstance().start(worker)
     return worker
 
-# 1.2.0
+# 1.2.2

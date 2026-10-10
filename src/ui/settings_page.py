@@ -1477,4 +1477,4 @@ class SettingsPage(QWidget):
             duration=3000, parent=self.window()
         )
 
-# 1.2.0
+# 1.2.2

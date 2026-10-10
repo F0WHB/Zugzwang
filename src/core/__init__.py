@@ -14,4 +14,4 @@ __all__ = [
     "EventBus", "event_bus", "WakeLock",
 ]
 
-# 1.2.0
+# 1.2.2

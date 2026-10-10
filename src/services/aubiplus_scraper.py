@@ -860,4 +860,4 @@ class AubiPlusScraper:
             self._total_errors += 1
             return None
 
-# 1.2.0
+# 1.2.2

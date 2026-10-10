@@ -227,7 +227,10 @@ class LoadLeadsDialog(QDialog):
         db_path = str(get_memory_db_path())
         conn = sqlite3.connect(db_path)
         try:
-            query = "SELECT email FROM leads WHERE 1=1"
+            if count_only:
+                query = "SELECT COUNT(*) FROM leads WHERE 1=1"
+            else:
+                query = "SELECT email FROM leads WHERE 1=1"
             params = []
             if email_only:
                 query += " AND email IS NOT NULL AND email != ''"
@@ -247,6 +250,9 @@ class LoadLeadsDialog(QDialog):
                 query += " AND city LIKE ?"
                 params.append(f"%{city_filter}%")
             cursor = conn.execute(query, params)
+            if count_only:
+                total = cursor.fetchone()[0] or 0
+                return [], total
             rows = cursor.fetchall()
             emails = [r[0] for r in rows if r[0]]
             return emails, len(emails)
@@ -270,4 +276,4 @@ class LoadLeadsDialog(QDialog):
             self.move(event.globalPos() - self._drag_pos)
             event.accept()
 
-# 1.2.0
+# 1.2.2

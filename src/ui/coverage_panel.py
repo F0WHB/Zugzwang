@@ -435,4 +435,4 @@ class CoverageTrackerPanel(QFrame):
             tr("coverage.summary", self._language).format(covered=covered_count, total=total)
         )
 
-# 1.2.0
+# 1.2.2
