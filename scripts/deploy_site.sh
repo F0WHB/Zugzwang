@@ -42,4 +42,4 @@ echo ">>> Successfully deployed!"
 echo ">>> Your website is live at: https://zugzwang49.github.io/"
 echo "---------------------------------------------------------"
 
-# 1.2.0
+# 1.2.2

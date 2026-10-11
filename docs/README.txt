@@ -1,4 +1,4 @@
-ZUGZWANG 1.1.1
+ZUGZWANG 1.2.2
 Professional Cross-Platform Lead Generation, Enrichment & Outreach Suite
 
 OVERVIEW:
@@ -16,18 +16,18 @@ When downloading the standalone macOS release (.zip) from GitHub, macOS Gatekeep
     xattr -cr ~/Downloads/ZUGZWANG.app
 (If placed in Applications, run: xattr -cr /Applications/ZUGZWANG.app)
 
-KEY FEATURES (1.1.1):
+KEY FEATURES (1.2.2):
 1. Multi-Engine Lead Harvesting:
    - Bundesagentur für Arbeit (Jobsuche API & Web Scraper)
-   - Google Maps Business Lead Extractor
+   - Google Maps Business Lead Extractor (with multilingual consent bypass)
    - AubiPlus, Azubiyo, Ausbildung.de & Das Örtliche Scrapers
 2. Integrated Email Campaign Sender:
-   - Direct SMTP outreach with live progress tracking
-   - Personalized template variables ({{FIRMA}}, {{ANSPRECHPARTNER}}, {{ANREDE}})
-   - Multi-format letter template previewing (PDF, DOCX, XLSX, CSV, HTML, TXT)
+   - Direct SMTP outreach with non-blocking live control
+   - Personalized template variables ({{FIRMA}}, {{ANSPRECHPARTNER}}, {{ANREDE}}, {{ADRESSE}})
+   - Dynamic on-the-fly DIN 5008 PDF cover letter generation & attachment deduplication
 3. Smart Automation:
    - Automatic background updates & version checks
-   - SQLite WAL-mode caching & deduplication
+   - SQLite WAL-mode caching & deduplication with fast preview queries
    - Excel / CSV / JSON high-speed export
 
 QUICK START (STANDALONE DESKTOP):
@@ -42,4 +42,4 @@ SUPPORT & LICENSE:
 Licensed under the MIT License. Copyright (c) 2024-2026 ZUGZWANG.
 For technical assistance, documentation, or feature requests, visit https://github.com/whbexc/Zugzwang
 
-# 1.2.0
+# 1.2.2

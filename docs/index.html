@@ -22,7 +22,7 @@
 
   <meta name="theme-color" content="#1C1C1E" />
 
-  <link rel="stylesheet" href="styles.css?v=1.2.0" />
+  <link rel="stylesheet" href="styles.css?v=1.2.2" />
   <link rel="icon" href="images/logo-mark.png" type="image/png" />
 </head>
 <body>
@@ -40,6 +40,7 @@
         <div class="nav-links">
           <a href="#how-it-works">How it works</a>
           <a href="#screenshots">Features</a>
+          <a href="#simulator">Live Letter Demo</a>
           <a href="#faq">FAQ</a>
           <a href="https://github.com/F0WHB/Zugzwang" target="_blank" rel="noopener" class="nav-github-link" aria-label="GitHub Repository">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
@@ -56,7 +57,12 @@
     
     <!-- Hero Section (Applicant-First Friendly & Clear Copy) -->
     <section id="hero" class="hero-section apple-reveal">
-      <p class="eyebrow">Free App for Job &amp; Ausbildung Seekers in Germany</p>
+      <div class="version-banner">
+        <span class="version-tag">v1.2.2</span>
+        <span class="version-text">Now with Google Maps precision scraping, DIN 5008 address formatting &amp; dynamic PDF pipeline</span>
+        <a href="#changelog" class="version-link open-changelog-trigger">What's new &rarr;</a>
+      </div>
+      <p class="eyebrow">Free Desktop App for Job &amp; Ausbildung Seekers in Germany</p>
       <h1 class="display-hero">
         Find your Ausbildung or job in Germany, reach the real hiring manager, and apply with ease.
       </h1>
@@ -65,7 +71,7 @@
       </p>
 
       <div class="hero-actions">
-        <a class="btn-primary" href="#downloads">
+        <a class="btn-primary" id="hero-download-btn" href="#downloads">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
             <polyline points="7 10 12 15 17 10"></polyline>
@@ -563,6 +569,77 @@
       </article>
     </section>
 
+    <!-- Interactive DIN 5008 Cover Letter Live Simulator -->
+    <section id="simulator" class="section-spacing" style="padding-top: 0;">
+      <div class="section-header apple-reveal">
+        <p class="eyebrow">Interactive Live Demo</p>
+        <h2 class="display-section">Try the German Cover Letter Generator Live.</h2>
+        <p class="lede">Type any company and see how ZUGZWANG formats DIN 5008 standard German Anschreiben in real time.</p>
+      </div>
+
+      <div class="simulator-card apple-reveal">
+        <div class="sim-header-row">
+          <span class="sim-badge">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+            DIN 5008 Live Playground &bull; Real-time Output
+          </span>
+          <span style="font-size: 12px; color: var(--text-tertiary);">Edit fields below to see instant letter preview</span>
+        </div>
+        <div class="sim-layout">
+          <div class="sim-inputs">
+            <div class="sim-input-group">
+              <label for="sim-input-company">Company Name (Firma)</label>
+              <input type="text" id="sim-input-company" class="sim-input" value="SAP SE" autocomplete="off" />
+            </div>
+            <div class="sim-input-group">
+              <label for="sim-input-address">Address &bull; Street (New in v1.2.2)</label>
+              <input type="text" id="sim-input-address" class="sim-input" value="Dietmar-Hopp-Allee 16" autocomplete="off" />
+            </div>
+            <div class="sim-input-group">
+              <label for="sim-input-city">Postal Code &amp; City (PLZ &amp; Ort)</label>
+              <input type="text" id="sim-input-city" class="sim-input" value="69190 Walldorf" autocomplete="off" />
+            </div>
+            <div class="sim-input-group">
+              <label for="sim-input-role">Desired Position / Ausbildung</label>
+              <input type="text" id="sim-input-role" class="sim-input" value="Fachinformatiker für Anwendungsentwicklung" autocomplete="off" />
+            </div>
+            <div class="sim-input-group">
+              <label for="sim-input-contact">Contact Person (Ansprechpartner)</label>
+              <input type="text" id="sim-input-contact" class="sim-input" value="Herr Dr. Michael Weber" autocomplete="off" />
+            </div>
+          </div>
+          <div class="sim-paper">
+            <div class="sim-paper-top">
+              <span>Max Mustermann &bull; Musterstraße 1 &bull; 10115 Berlin</span>
+              <span>Berlin, den 11. Oktober 2026</span>
+            </div>
+            <div class="sim-address-block">
+              <div id="sim-preview-company" class="highlight-token">SAP SE</div>
+              <div id="sim-preview-address">Dietmar-Hopp-Allee 16</div>
+              <div id="sim-preview-city">69190 Walldorf</div>
+            </div>
+            <div class="sim-subject-line" id="sim-preview-subject">
+              Bewerbung um einen Ausbildungsplatz als Fachinformatiker für Anwendungsentwicklung
+            </div>
+            <div class="sim-body-text" id="sim-paper-content">
+              <p id="sim-preview-salutation" style="margin-bottom: 12px; font-weight: 600;">Sehr geehrte(r) Herr Dr. Michael Weber,</p>
+              <p style="margin-bottom: 10px;">mit großem Interesse bewerbe ich mich bei Ihrem Unternehmen um die ausgeschriebene Position als <span id="sim-preview-role-body" style="color: #30D158; font-weight: 500;">Fachinformatiker für Anwendungsentwicklung</span>.</p>
+              <p style="margin-bottom: 10px;">Durch meine bisherigen praktischen Erfahrungen und mein hohes Engagement bin ich überzeugt, Ihr Team optimal zu ergänzen und meine Fähigkeiten zielgerichtet einzubringen.</p>
+              <p style="margin-bottom: 14px;">Über die Gelegenheit, mich Ihnen in einem persönlichen Gespräch vorzustellen, freue ich mich sehr.</p>
+              <p>Mit freundlichen Grüßen,<br><strong>Max Mustermann</strong></p>
+            </div>
+            <div class="sim-actions-bar">
+              <span style="font-size: 11px; color: var(--text-tertiary);">DIN 5008 standard formatting with automatic line balancing</span>
+              <button type="button" id="sim-copy-btn" class="sim-copy-btn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                Text kopieren
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- Section 4: Why You Can Trust ZUGZWANG -->
     <section id="values" class="section-spacing">
       <div class="section-header apple-reveal">
@@ -666,6 +743,7 @@
             macOS (Mac)
           </div>
           <div class="download-spec-row">
+            <span class="download-spec-pill" style="color: #30D158; border-color: rgba(48, 209, 88, 0.4); font-weight: 600;">v1.2.2 Latest</span>
             <span class="download-spec-pill">Apple Silicon (M1–M4)</span>
             <span class="download-spec-pill">Intel 64-bit</span>
             <span class="download-spec-pill">~85 MB</span>
@@ -686,6 +764,7 @@
             Windows
           </div>
           <div class="download-spec-row">
+            <span class="download-spec-pill" style="color: #30D158; border-color: rgba(48, 209, 88, 0.4); font-weight: 600;">v1.2.2 Latest</span>
             <span class="download-spec-pill">Windows 11 &amp; 10</span>
             <span class="download-spec-pill">64-bit Architecture</span>
             <span class="download-spec-pill">~92 MB</span>
@@ -707,6 +786,7 @@
             <span class="platform-badge">Open Source</span>
           </div>
           <div class="download-spec-row">
+            <span class="download-spec-pill" style="color: #30D158; border-color: rgba(48, 209, 88, 0.4); font-weight: 600;">v1.2.2 Latest</span>
             <span class="download-spec-pill">Ubuntu / Debian / Fedora</span>
             <span class="download-spec-pill">Python 3.11+</span>
           </div>
@@ -894,6 +974,56 @@
     </button>
   </aside>
 
-  <script src="app.js?v=1.2.0"></script>
+  <!-- Changelog Modal (v1.2.2) -->
+  <div id="changelog-modal" class="changelog-modal-backdrop" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="changelog-modal-card">
+      <div class="modal-title-row">
+        <div>
+          <span class="version-tag">v1.2.2 Release</span>
+          <h3 style="font-size: 18px; font-weight: 700; color: #fff; margin-top: 6px;">What's New in ZUGZWANG</h3>
+        </div>
+        <button type="button" id="changelog-modal-close" class="modal-close-btn" aria-label="Close modal">&times;</button>
+      </div>
+      <div class="changelog-list">
+        <div class="changelog-entry">
+          <span class="change-item-pill change-fixed">Fixed</span>
+          <div>
+            <strong>Google Maps Multilingual Consent Bypass:</strong> Automatically detects and dismisses cookie consent dialogs across English, German, Arabic, French, and Spanish, including nested Google iframes.
+          </div>
+        </div>
+        <div class="changelog-entry">
+          <span class="change-item-pill change-improved">Improved</span>
+          <div>
+            <strong>Seamless Listing Navigation:</strong> Automatically navigates back from detail panels so all consecutive cards remain active and clickable without timeouts.
+          </div>
+        </div>
+        <div class="changelog-entry">
+          <span class="change-item-pill change-fixed">Fixed</span>
+          <div>
+            <strong>Non-Blocking Email Broadcast Stop:</strong> Aborting outreach dispatches teardown cleanly in a background daemon thread, eliminating UI freezes.
+          </div>
+        </div>
+        <div class="changelog-entry">
+          <span class="change-item-pill change-improved">Improved</span>
+          <div>
+            <strong>Fast Lead Preview Count:</strong> Replaced heavy table scans with lightweight SQL <code>COUNT(*)</code> queries for instant lead previews in the loading dialog.
+          </div>
+        </div>
+        <div class="changelog-entry">
+          <span class="change-item-pill change-new">New</span>
+          <div>
+            <strong>Company Address (<code>{{ADRESSE}}</code>):</strong> Full DIN 5008 address support across cover letter generation and email outreach with automatic blank line trimming.
+          </div>
+        </div>
+      </div>
+      <div style="margin-top: 24px; text-align: center;">
+        <a href="#downloads" class="btn-primary" style="font-size: 13px; min-height: 38px; height: 38px;" onclick="document.getElementById('changelog-modal').classList.remove('active'); document.body.style.overflow='';">
+          Download v1.2.2 Free
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js?v=1.2.2"></script>
 </body>
 </html>

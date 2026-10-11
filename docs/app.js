@@ -281,20 +281,154 @@
     }
   }
 
-  // Initialize on load
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-      highlightRecommendedDownload();
-      initHeroTabs();
-      initFaq();
-      initTeaserPills();
-      initFloatingBar();
+  // 8. Dynamic OS-specific Download Button in Hero
+  function initHeroDownloadButton() {
+    const btn = document.getElementById('hero-download-btn');
+    if (!btn) return;
+
+    try {
+      const userAgent = window.navigator.userAgent || '';
+      const platform = window.navigator.platform || '';
+      let osLabel = 'Download Free App';
+      let targetHref = '#downloads';
+
+      if (/Macintosh|MacIntel|MacPPC|Mac68K/i.test(platform) || /Mac OS X/i.test(userAgent)) {
+        osLabel = 'Download for Mac (v1.2.2 .dmg)';
+        targetHref = 'https://github.com/F0WHB/Zugzwang/releases/latest';
+      } else if (/Win32|Win64|Windows|WinCE/i.test(platform) || /Windows NT/i.test(userAgent)) {
+        osLabel = 'Download for Windows (v1.2.2 .exe)';
+        targetHref = 'https://github.com/F0WHB/Zugzwang/releases/latest';
+      } else if (/Linux/i.test(platform) || /Linux/i.test(userAgent)) {
+        osLabel = 'Download for Linux (v1.2.2)';
+        targetHref = 'https://github.com/F0WHB/Zugzwang/releases/latest';
+      }
+
+      btn.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+        ${osLabel}
+      `;
+      btn.href = targetHref;
+    } catch (e) {}
+  }
+
+  // 9. Interactive DIN 5008 Cover Letter Live Simulator
+  function initCoverLetterSimulator() {
+    const companyInput = document.getElementById('sim-input-company');
+    const addressInput = document.getElementById('sim-input-address');
+    const cityInput = document.getElementById('sim-input-city');
+    const roleInput = document.getElementById('sim-input-role');
+    const contactInput = document.getElementById('sim-input-contact');
+    const copyBtn = document.getElementById('sim-copy-btn');
+
+    if (!companyInput || !roleInput) return;
+
+    function updatePreview() {
+      const company = companyInput.value.trim() || 'Musterfirma GmbH';
+      const address = addressInput ? addressInput.value.trim() || 'Hauptstraße 42' : 'Hauptstraße 42';
+      const city = cityInput.value.trim() || '10115 Berlin';
+      const role = roleInput.value.trim() || 'Fachinformatiker für Anwendungsentwicklung';
+      const contact = contactInput.value.trim() || 'Frau Schmidt';
+
+      const prevCompany = document.getElementById('sim-preview-company');
+      const prevAddress = document.getElementById('sim-preview-address');
+      const prevCity = document.getElementById('sim-preview-city');
+      const prevSubject = document.getElementById('sim-preview-subject');
+      const prevSalutation = document.getElementById('sim-preview-salutation');
+      const prevRoleBody = document.getElementById('sim-preview-role-body');
+
+      if (prevCompany) prevCompany.textContent = company;
+      if (prevAddress) prevAddress.textContent = address;
+      if (prevCity) prevCity.textContent = city;
+      if (prevSubject) prevSubject.textContent = `Bewerbung um einen Ausbildungsplatz als ${role}`;
+      if (prevSalutation) prevSalutation.textContent = `Sehr geehrte(r) ${contact},`;
+      if (prevRoleBody) prevRoleBody.textContent = role;
+    }
+
+    [companyInput, addressInput, cityInput, roleInput, contactInput].forEach(inp => {
+      if (inp) {
+        inp.addEventListener('input', updatePreview);
+      }
     });
-  } else {
+
+    if (copyBtn) {
+      copyBtn.addEventListener('click', () => {
+        const paper = document.getElementById('sim-paper-content');
+        if (!paper) return;
+        const textToCopy = paper.innerText || paper.textContent || '';
+        navigator.clipboard.writeText(textToCopy).then(() => {
+          copyBtn.classList.add('copied');
+          copyBtn.innerHTML = `
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            Kopiert!
+          `;
+          setTimeout(() => {
+            copyBtn.classList.remove('copied');
+            copyBtn.innerHTML = `
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+              Text kopieren
+            `;
+          }, 2000);
+        });
+      });
+    }
+
+    updatePreview();
+  }
+
+  // 10. Changelog Modal Controller
+  function initChangelogModal() {
+    const modal = document.getElementById('changelog-modal');
+    const openBtns = document.querySelectorAll('.open-changelog-trigger');
+    const closeBtn = document.getElementById('changelog-modal-close');
+
+    if (!modal) return;
+
+    function openModal(e) {
+      if (e) e.preventDefault();
+      modal.classList.add('active');
+      modal.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeModal() {
+      modal.classList.remove('active');
+      modal.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+    }
+
+    openBtns.forEach(b => b.addEventListener('click', openModal));
+    if (closeBtn) closeBtn.addEventListener('click', closeModal);
+
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeModal();
+    });
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && modal.classList.contains('active')) {
+        closeModal();
+      }
+    });
+  }
+
+  // Initialize on load
+  function initAll() {
     highlightRecommendedDownload();
     initHeroTabs();
     initFaq();
     initTeaserPills();
     initFloatingBar();
+    initHeroDownloadButton();
+    initCoverLetterSimulator();
+    initChangelogModal();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initAll);
+  } else {
+    initAll();
   }
 })();
