@@ -1932,7 +1932,7 @@ footer {
 }
 
 /* ==========================================================================
-   Version 1.2.2 Banner & Interactive Enhancements
+   Version 1.5.0 Banner & Interactive Enhancements
    ========================================================================== */
 .version-banner {
   display: inline-flex;
@@ -2154,7 +2154,7 @@ footer {
 }
 
 /* ==========================================================================
-   Changelog Modal (v1.2.2)
+   Changelog Modal (v1.5.0)
    ========================================================================== */
 .changelog-modal-backdrop {
   position: fixed;

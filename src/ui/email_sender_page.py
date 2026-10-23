@@ -56,7 +56,7 @@ from PySide6.QtWidgets import QListWidget, QListWidgetItem, QMenu, QAbstractItem
 from PySide6.QtGui import QPainter, QCursor, QGuiApplication
 import re
 
-_EMAIL_PROFILE_RE = re.compile(r"^[^@\s]+@[^@\s]+\.com$", re.IGNORECASE)
+_EMAIL_PROFILE_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[a-zA-Z]{2,}$", re.IGNORECASE)
 
 class RecipientItem(QListWidgetItem):
     def __init__(self, email: str, parent=None):
@@ -486,6 +486,7 @@ class EmailSenderPage(QWidget):
         self._isPreview = False
         self._error_vault: dict[str, str] = {} # recipient -> full error
         self._language = get_language(config_manager.settings.app_language)
+        self._current_profile_id: str = ""
         
         self._signals.log.connect(self._on_log)
         self._signals.progress.connect(self._on_progress)
@@ -503,6 +504,7 @@ class EmailSenderPage(QWidget):
         try:
             event_bus.subscribe(EventBus.SETTINGS_CHANGED, self._on_signature_changed_event)
             event_bus.subscribe("signature.changed", self._on_signature_changed_event)
+            event_bus.subscribe(EventBus.PROFILE_SWITCHED, self._on_profile_switched_event)
         except Exception:
             pass
 
@@ -631,7 +633,9 @@ class EmailSenderPage(QWidget):
         self._append_outreach_history(email_key, signature)
 
     def _refresh_recipient_history_state(self):
-        self._recipient_list.viewport().update()
+        from PySide6.QtCore import QMetaObject, Qt
+        if hasattr(self, "_recipient_list") and self._recipient_list:
+            QMetaObject.invokeMethod(self._recipient_list.viewport(), "update", Qt.QueuedConnection)
 
     def import_emails(self, emails: list[str]):
         """Consolidated API to push leads into the recipient queue."""
@@ -647,6 +651,10 @@ class EmailSenderPage(QWidget):
         self._on_log(f"Imported {len(clean_new)} lead(s). Total: {len(combined)}", "SUCCESS")
 
     def _init_widgets(self):
+        self._current_sending_account = None
+        self._btn_sender_pool = None
+        self._lbl_pool_status = None
+        
         # Step 1 Widgets
         self._smtp_host = LineEdit(); self._smtp_host.setPlaceholderText(tr("send.placeholder.smtp", self._language))
         self._smtp_port = LineEdit(); self._smtp_port.setText("587"); self._smtp_port.setFixedWidth(70)
@@ -670,13 +678,14 @@ class EmailSenderPage(QWidget):
         
         self._body_preview = QTextBrowser()
         self._body_preview.setOpenExternalLinks(True)
-        self._body_preview.setOpenLinks(True)
+        self._body_preview.setOpenLinks(False)
         self._body_stack.addWidget(self._body_preview)
         
         self._type_toggle = MacSwitch()
         self._preview_btn = TransparentToolButton(FluentIcon.VIEW)
         self._attach_btn = TransparentToolButton(FluentIcon.ADD)
         self._attach_clear_btn = TransparentToolButton(FluentIcon.DELETE)
+        self._placeholder_btn = TransparentToolButton(FluentIcon.CODE)
         self._attach_badge = QLabel(tr("send.badge.files", self._language).format(count=0))
         self._attachments = []
         
@@ -693,6 +702,7 @@ class EmailSenderPage(QWidget):
         
         self._status_log = QTextBrowser()
         self._status_log.setOpenExternalLinks(False)
+        self._status_log.setOpenLinks(False)
         self._status_log.setReadOnly(True)
         self._status_log.setText(tr("send.log.initial", self._language))
         self._status_log.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -779,7 +789,29 @@ class EmailSenderPage(QWidget):
         self._card1.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         left_col.addWidget(self._card1, 0)
 
-        self._card2 = self._step_card("2", tr("send.step2.title", self._language), self._build_payload_section())
+        self._profile_badge = QPushButton()
+        self._profile_badge.setCursor(Qt.PointingHandCursor)
+        self._profile_badge.setStyleSheet("""
+            QPushButton {
+                background: #2C2C2E;
+                border: 0.5px solid #3A3A3C;
+                border-radius: 6px;
+                color: #0A84FF;
+                font-family: system-ui, -apple-system, sans-serif;
+                font-size: 11px;
+                font-weight: 600;
+                padding: 3px 10px;
+            }
+            QPushButton:hover {
+                background: #3A3A3C;
+                border: 0.5px solid #0A84FF;
+                color: #FFFFFF;
+            }
+        """)
+        self._profile_badge.clicked.connect(self._show_profile_menu)
+        self._update_profile_badge()
+
+        self._card2 = self._step_card("2", tr("send.step2.title", self._language), self._build_payload_section(), header_widget=self._profile_badge)
         self._card2.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self._card2.setMinimumHeight(0)
         left_col.addWidget(self._card2, 1)
@@ -876,6 +908,37 @@ class EmailSenderPage(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(6)
 
+        # Header widget: Sender Pool + Settings
+        hdr_widget = QWidget()
+        hdr_hl = QHBoxLayout(hdr_widget)
+        hdr_hl.setContentsMargins(0, 0, 0, 0)
+        hdr_hl.setSpacing(6)
+
+        self._btn_sender_pool = QPushButton(tr("POOL", self._language))
+        self._btn_sender_pool.setCursor(Qt.PointingHandCursor)
+        self._btn_sender_pool.setFixedHeight(20)
+        self._btn_sender_pool.setToolTip("Manage Multi-Sender Accounts & Rotation Policies (pairs, 1-by-1, batch)")
+        self._btn_sender_pool.setStyleSheet("""
+            QPushButton { 
+                color: #AEAEB2; 
+                font-family: 'PT Root UI', sans-serif; 
+                font-size: 10px; 
+                font-weight: 700;
+                letter-spacing: 1.0px;
+                background: #3A3A3C; 
+                border: none;
+                border-radius: 6px;
+                padding: 4px 10px;
+            } 
+            QPushButton:hover { 
+                background: #48484A;
+                color: #FFFFFF; 
+                border: none;
+            }
+        """)
+        self._btn_sender_pool.clicked.connect(self._open_sender_pool_dialog)
+        hdr_hl.addWidget(self._btn_sender_pool)
+
         settings_btn = QPushButton(tr("⚙ SETTINGS", self._language))
         settings_btn.setCursor(Qt.PointingHandCursor)
         settings_btn.setFixedHeight(20)
@@ -898,6 +961,7 @@ class EmailSenderPage(QWidget):
             }
         """)
         settings_btn.clicked.connect(lambda: self.window()._switch(5))
+        hdr_hl.addWidget(settings_btn)
 
         # 3. SMTP status row
         status_row = QHBoxLayout()
@@ -1014,12 +1078,101 @@ class EmailSenderPage(QWidget):
         add_sep()
         add_det("TLS", "Enabled", "#28B84E")
         add_sep()
-        add_det("AUTH", "Activated", "#28B84E")
+        
+        self._lbl_pool_status = QLabel("ROTATION: Off")
+        self._lbl_pool_status.setStyleSheet("color: #8E8E93; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 10px; font-weight: 600; background: transparent; border: none;")
+        det_row.addWidget(self._lbl_pool_status)
         det_row.addStretch()
 
         layout.addWidget(det_widget)
+        self._update_pool_ui()
 
-        return self._step_card("1", tr("email.identity", self._language), content, header_widget=settings_btn)
+        return self._step_card("1", tr("email.identity", self._language), content, header_widget=hdr_widget)
+
+    def _open_sender_pool_dialog(self):
+        from .sender_pool_dialog import SenderPoolDialog
+        dlg = SenderPoolDialog(self)
+        if dlg.exec():
+            self._update_pool_ui()
+            from ..services import sender_pool_service
+            accounts = sender_pool_service.get_sender_accounts()
+            enabled = [a for a in accounts if a.is_enabled]
+            if enabled:
+                self._smtp_user.setText(enabled[0].email)
+                self._smtp_pass.setText(enabled[0].password)
+                if enabled[0].name and not self._from_name.text():
+                    self._from_name.setText(enabled[0].name)
+            self._refresh_sender_completer()
+        else:
+            self._update_pool_ui()
+
+    def _update_pool_ui(self):
+        try:
+            from ..services import sender_pool_service
+            from ..core.config import config_manager
+            accounts = sender_pool_service.get_sender_accounts()
+            enabled = [a for a in accounts if a.is_enabled]
+            rotation_mode = getattr(config_manager.settings, "email_rotation_mode", "pairs")
+            mode_label = {
+                "pairs": "Pairs (2 per acc)",
+                "single": "1-by-1",
+                "batch5": "5 per acc",
+                "none": "Single Acc"
+            }.get(rotation_mode, "Pairs")
+            
+            count = len(enabled)
+            if hasattr(self, "_btn_sender_pool") and self._btn_sender_pool:
+                pool_txt = tr("email.pool_button", self._language)
+                active_txt = tr("email.pool_active", self._language).upper()
+                if count >= 2 and rotation_mode != "none":
+                    self._btn_sender_pool.setText(f"{pool_txt}: {count} {active_txt}")
+                    self._btn_sender_pool.setStyleSheet("""
+                        QPushButton { 
+                            color: #30D158; 
+                            font-family: 'PT Root UI', sans-serif; 
+                            font-size: 10px; 
+                            font-weight: 700;
+                            letter-spacing: 1.0px;
+                            background: #3A3A3C; 
+                            border: none;
+                            border-radius: 6px;
+                            padding: 4px 10px;
+                        } 
+                        QPushButton:hover { 
+                            background: #48484A;
+                            color: #FFFFFF; 
+                            border: none;
+                        }
+                    """)
+                else:
+                    self._btn_sender_pool.setText(f"{pool_txt} ({count})")
+                    self._btn_sender_pool.setStyleSheet("""
+                        QPushButton { 
+                            color: #AEAEB2; 
+                            font-family: 'PT Root UI', sans-serif; 
+                            font-size: 10px; 
+                            font-weight: 700;
+                            letter-spacing: 1.0px;
+                            background: #3A3A3C; 
+                            border: none;
+                            border-radius: 6px;
+                            padding: 4px 10px;
+                        } 
+                        QPushButton:hover { 
+                            background: #48484A;
+                            color: #FFFFFF; 
+                            border: none;
+                        }
+                    """)
+            if hasattr(self, "_lbl_pool_status") and self._lbl_pool_status:
+                if count >= 2 and rotation_mode != "none":
+                    self._lbl_pool_status.setText(f"ROTATION: {count} accounts • {mode_label}")
+                    self._lbl_pool_status.setStyleSheet("color: #30D158; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 10px; font-weight: 600; background: transparent; border: none;")
+                else:
+                    self._lbl_pool_status.setText("ROTATION: Off (Single account)")
+                    self._lbl_pool_status.setStyleSheet("color: #8E8E93; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 10px; font-weight: 500; background: transparent; border: none;")
+        except Exception:
+            pass
 
     def _build_payload_section(self) -> QWidget:
         container = QWidget()
@@ -1070,25 +1223,43 @@ class EmailSenderPage(QWidget):
         actions_h.setSpacing(8)
         
         from PySide6.QtCore import QSize
-        for btn, tip in [(self._preview_btn, "Preview"), (self._attach_btn, "Attach Files"), (self._attach_clear_btn, "Clear Attachments")]:
+        for btn, tip in [
+            (self._preview_btn, "Preview"),
+            (self._placeholder_btn, "Insert Placeholders ({{BERUF}}, {{FIRMA}}, etc.)"),
+        ]:
             btn.setFixedSize(32, 32)
             btn.setIconSize(QSize(16, 16))
             btn.setCursor(Qt.PointingHandCursor)
             btn.setToolTip(tip)
             btn.setStyleSheet(self._icon_button_stylesheet())
             actions_h.addWidget(btn)
+
+        self._placeholder_btn.clicked.connect(self._show_placeholder_menu)
         
         lbl_row.addLayout(actions_h)
         
         # --- Middle Gap ---
         lbl_row.addStretch(1)
         
-        # --- Right Cluster: File Count & HTML Toggle ---
+        # --- Right Cluster: File Count, Attachment Actions & HTML Toggle ---
         status_h = QHBoxLayout()
-        status_h.setSpacing(12)
+        status_h.setSpacing(8)
         
-        self._attach_badge.setStyleSheet("color: #8E8E93; font-family: 'PT Root UI', monospace; font-size: 11px; font-weight: 600; background: transparent;")
+        self._attach_badge.setStyleSheet("color: #8E8E93; font-family: 'PT Root UI', monospace; font-size: 11px; font-weight: 600; background: transparent; margin-right: 2px;")
         status_h.addWidget(self._attach_badge, 0, Qt.AlignVCenter)
+
+        for btn, tip in [
+            (self._attach_btn, "Attach Files"),
+            (self._attach_clear_btn, "Clear Attachments"),
+        ]:
+            btn.setFixedSize(32, 32)
+            btn.setIconSize(QSize(16, 16))
+            btn.setCursor(Qt.PointingHandCursor)
+            btn.setToolTip(tip)
+            btn.setStyleSheet(self._icon_button_stylesheet())
+            status_h.addWidget(btn, 0, Qt.AlignVCenter)
+
+        status_h.addSpacing(6)
         
         html_lbl = QLabel(tr("email.content.html", self._language))
         html_lbl.setStyleSheet("color: #8E8E93; font-family: 'PT Root UI', sans-serif; font-size: 12px; font-weight: 600; background: transparent; border: none;")
@@ -1506,6 +1677,7 @@ class EmailSenderPage(QWidget):
 
     def _on_finished(self, sent: int, failed: int, was_aborted: bool):
         self._set_sending_state(False)
+        self._update_pool_ui()
         self._status_badge.setText(tr("monitor.status.cancelled", self._language) if was_aborted else tr("send.status.done", self._language))
         msg = f"Broadcast aborted by user. Sent: {sent}, Failed: {failed}" if was_aborted else f"Broadcast concluded. Sent: {sent}, Failed: {failed}"
         color = "#FF453A" if was_aborted else "#4EA1FF"
@@ -1555,8 +1727,250 @@ class EmailSenderPage(QWidget):
         if self._isPreview:
             self._render_preview_content()
 
+    def _update_profile_badge(self):
+        try:
+            from ..services import profile_service
+            p = profile_service.get_active_profile()
+            name = p.name if p else "Default"
+            if hasattr(self, "_profile_badge"):
+                self._profile_badge.setText(f"Profile: {name}  ▾")
+                beruf_info = f" ({p.effective_beruf})" if (p and p.effective_beruf) else ""
+                self._profile_badge.setToolTip(f"Active Profile: {name}{beruf_info}\nClick to switch or edit profile.")
+        except Exception:
+            if hasattr(self, "_profile_badge"):
+                self._profile_badge.setText("Profile: Default  ▾")
+
+    def _sync_with_active_profile(self, force_reload: bool = False):
+        from ..services import profile_service
+        import re
+
+        try:
+            active_p = profile_service.get_active_profile()
+        except Exception:
+            active_p = None
+
+        if not active_p:
+            return
+
+        self._update_profile_badge()
+
+        if not force_reload and self._current_profile_id == active_p.id:
+            return
+
+        # Save outgoing profile payload
+        if self._current_profile_id and self._current_profile_id != active_p.id and not getattr(self, '_is_restoring', False):
+            try:
+                curr_subj = self._subject.text()
+                curr_body = self._body_text.toPlainText()
+                profile_service.save_email_payload(self._current_profile_id, curr_subj, curr_body)
+            except Exception:
+                pass
+
+        self._current_profile_id = active_p.id
+
+        # Load payload for active profile
+        subj, body = profile_service.get_email_payload(active_p.id)
+
+        # Fallback if profile has no saved email payload yet
+        if not subj and not body:
+            global_subj = getattr(config_manager.settings, "email_subject", "")
+            global_body = getattr(config_manager.settings, "email_body", "")
+            if global_subj or global_body:
+                subj = global_subj
+                body = global_body
+            else:
+                subj, body = profile_service.get_default_email_payload(active_p)
+
+        # Modernize stale hardcoded job titles (e.g. Laborant) -> {{BERUF}}
+        if subj:
+            subj = re.sub(r'\b(als|zum|zur)\s+Laborant\b', r'\1 {{BERUF}}', subj, flags=re.IGNORECASE)
+            subj = re.sub(r'\bLaborant\b', '{{BERUF}}', subj)
+        if body:
+            body = re.sub(r'\b(als|zum|zur)\s+Laborant\b', r'\1 {{BERUF}}', body, flags=re.IGNORECASE)
+            body = re.sub(r'\bLaborant\b', '{{BERUF}}', body)
+
+        old_restoring = getattr(self, '_is_restoring', False)
+        self._is_restoring = True
+        try:
+            self._subject.setText(subj or "Bewerbung um einen Ausbildungsplatz als {{BERUF}}")
+            self._body_text.setPlainText(body or (
+                "{{ANREDE}}\n\n"
+                "gerne möchte ich mich bei {{FIRMA}} um einen Ausbildungsplatz als {{BERUF}} bewerben. "
+                "Im Anhang finden Sie meine vollständigen Bewerbungsunterlagen als PDF-Datei.\n\n"
+                "Bei Rückfragen stehe ich Ihnen jederzeit gerne zur Verfügung. Ich freue mich, von Ihnen zu hören!\n\n"
+                "Mit freundlichen Grüßen\n\n"
+                "{{SENDER_NAME}}"
+            ))
+        finally:
+            self._is_restoring = old_restoring
+
+        try:
+            profile_service.save_email_payload(active_p.id, self._subject.text(), self._body_text.toPlainText())
+        except Exception:
+            pass
+
+        self._refresh_preview_if_open()
+
+    def _on_profile_switched_event(self, profile_id="", **kwargs):
+        from PySide6.QtCore import QTimer
+        QTimer.singleShot(0, lambda: self._sync_with_active_profile(force_reload=True))
+
+    def _show_profile_menu(self):
+        from .components import ZugzwangDropdownMenu
+        from ..services import profile_service
+        from PySide6.QtCore import QPoint
+        from PySide6.QtGui import QCursor
+
+        menu = ZugzwangDropdownMenu(parent=self)
+
+        try:
+            profiles = profile_service.get_profiles()
+            active_p = profile_service.get_active_profile()
+            active_id = active_p.id if active_p else ""
+        except Exception:
+            profiles = []
+            active_p = None
+            active_id = ""
+
+        # Active profile at top (highlighted blue with checkmark)
+        if active_p:
+            title = active_p.name
+            if active_p.beruf and active_p.beruf.strip():
+                title += f" ({active_p.effective_beruf})"
+            menu.add_item(title, is_selected=True, callback=lambda: None)
+            menu.add_divider()
+
+        # Other available profiles
+        other_profiles = [p for p in profiles if p.id != active_id]
+        for p in other_profiles:
+            title = p.name
+            if p.beruf and p.beruf.strip():
+                title += f" ({p.effective_beruf})"
+            def make_switch(pid=p.id):
+                return lambda: self._switch_profile_from_menu(pid)
+            menu.add_item(title, is_selected=False, callback=make_switch(p.id))
+
+        if profiles:
+            menu.add_divider()
+
+        # Actions
+        if active_p:
+            edit_lbl = f"{tr('profiles.action_edit_profile', self._language)}..."
+            menu.add_item(edit_lbl, callback=self._edit_active_profile_dialog)
+        create_lbl = f"{tr('profiles.create_title', self._language)}..."
+        menu.add_item(create_lbl, callback=self._create_new_profile_dialog)
+
+        badge = getattr(self, "_profile_badge", None)
+        if badge and hasattr(badge, "mapToGlobal"):
+            pos = badge.mapToGlobal(QPoint(0, badge.height() + 6))
+            menu.move(pos)
+            menu.show()
+        else:
+            menu.move(QCursor.pos())
+            menu.show()
+
+    def _switch_profile_from_menu(self, profile_id: str):
+        from ..services import profile_service
+        from .event_bridge import event_bus
+        from ..core.events import EventBus
+
+        self._save_fields()
+        profile_service.set_active_profile_id(profile_id)
+        event_bus.emit(EventBus.PROFILE_SWITCHED, profile_id=profile_id)
+        self._sync_with_active_profile(force_reload=True)
+
+    def _edit_active_profile_dialog(self):
+        from ..services import profile_service
+        from .profile_bar import ProfileNameDialog
+        from .event_bridge import event_bus
+        from ..core.events import EventBus
+
+        p = profile_service.get_active_profile()
+        if not p:
+            return
+
+        dlg = ProfileNameDialog(mode="rename", initial_name=p.name, initial_beruf=p.beruf, parent=self.window())
+        if dlg.exec():
+            new_name = dlg.get_name()
+            new_beruf = dlg.get_beruf()
+            profile_service.update_profile(p.id, name=new_name, beruf=new_beruf)
+            event_bus.emit(EventBus.PROFILE_SWITCHED, profile_id=p.id)
+            self._sync_with_active_profile(force_reload=True)
+
+    def _create_new_profile_dialog(self):
+        from ..services import profile_service
+        from .profile_bar import ProfileNameDialog
+        from .event_bridge import event_bus
+        from ..core.events import EventBus
+
+        dlg = ProfileNameDialog(mode="create", parent=self.window())
+        if dlg.exec():
+            new_name = dlg.get_name()
+            new_beruf = dlg.get_beruf()
+            new_p = profile_service.create_profile(name=new_name, beruf=new_beruf)
+            self._save_fields()
+            profile_service.set_active_profile_id(new_p.id)
+            event_bus.emit(EventBus.PROFILE_SWITCHED, profile_id=new_p.id)
+            self._sync_with_active_profile(force_reload=True)
+
+    def _show_placeholder_menu(self):
+        from .components import ZugzwangDropdownMenu
+        from PySide6.QtCore import QPoint
+        from PySide6.QtGui import QCursor
+
+        menu = ZugzwangDropdownMenu(parent=self)
+
+        target = self._subject if self._subject.hasFocus() else self._body_text
+
+        placeholders_main = [
+            ("{{BERUF}}", "Target Profession"),
+            ("{{FIRMA}}", "Company / Institution"),
+            ("{{ANREDE}}", "Salutation"),
+            ("{{DATUM}}", "Current Date"),
+            ("{{SENDER_NAME}}", "Your Full Name"),
+        ]
+        placeholders_addr = [
+            ("{{ADRESSE}}", "Street Address"),
+            ("{{ORT}}", "City"),
+            ("{{PLZ}}", "Postal Code"),
+        ]
+
+        for code, desc in placeholders_main:
+            def make_handler(c=code):
+                return lambda: self._insert_placeholder(target, c)
+            menu.add_item(code, description=desc, callback=make_handler(code))
+
+        menu.add_divider()
+
+        for code, desc in placeholders_addr:
+            def make_handler(c=code):
+                return lambda: self._insert_placeholder(target, c)
+            menu.add_item(code, description=desc, callback=make_handler(code))
+
+        btn = getattr(self, "_placeholder_btn", None)
+        if btn and hasattr(btn, "mapToGlobal"):
+            pos = btn.mapToGlobal(QPoint(0, btn.height() + 6))
+            menu.move(pos)
+            menu.show()
+        else:
+            menu.move(QCursor.pos())
+            menu.show()
+
+    def _insert_placeholder(self, target_widget, placeholder: str):
+        if target_widget == self._subject:
+            self._subject.insert(placeholder)
+            self._subject.setFocus()
+        else:
+            cursor = self._body_text.textCursor()
+            cursor.insertText(placeholder)
+            self._body_text.setTextCursor(cursor)
+            self._body_text.setFocus()
+        self._refresh_preview_if_open()
+
     def showEvent(self, event):
         super().showEvent(event)
+        self._sync_with_active_profile()
+        self._update_pool_ui()
         self._refresh_preview_if_open()
 
     def _on_signature_changed_event(self, **kwargs):
@@ -1588,7 +2002,7 @@ class EmailSenderPage(QWidget):
         
         anrede = "Sehr geehrte Damen und Herren,"
         company = "Firma"
-        job_title = "Pflegefachmann"
+        job_title = ""
         ort = ""
         plz = ""
         sender_name = ""
@@ -1630,7 +2044,7 @@ class EmailSenderPage(QWidget):
                 return res[0] if res and res[0] else default
                 
             sender_name = get_setting("sender_name", getattr(config_manager.settings, "email_from_name", "") or "Bewerber")
-            sender_beruf = get_setting("sender_beruf", "Pflegefachmann")
+            sender_beruf = get_setting("sender_beruf", "")
             sender_phone = get_setting("sender_phone", "")
             sender_address = get_setting("sender_address", "")
             sender_city = get_setting("sender_city", "")
@@ -1652,10 +2066,21 @@ class EmailSenderPage(QWidget):
             text = text.replace("{{FIRMA}}", company)
             text = text.replace("{{COMPANY}}", company)
             text = text.replace("{{FIRMA_NAME}}", company)
+
+        # Dynamic profile-aware profession resolution
+        prof_beruf = ""
+        try:
+            from ..services import profile_service
+            active_prof = profile_service.get_active_profile()
+            prof_beruf = active_prof.effective_beruf if active_prof else ""
+        except Exception:
+            prof_beruf = ""
+
+        eff_beruf = prof_beruf or sender_beruf or job_title or "Ausbildung"
             
-        text = text.replace("{{BERUF}}", job_title or "Pflegefachmann")
-        text = text.replace("{{JOB_TITLE}}", job_title or "Pflegefachmann")
-        text = text.replace("{{AUSBILDUNG}}", job_title or "Pflegefachmann")
+        text = text.replace("{{BERUF}}", eff_beruf)
+        text = text.replace("{{JOB_TITLE}}", eff_beruf)
+        text = text.replace("{{AUSBILDUNG}}", eff_beruf)
         
         text = text.replace("{{SENDER_NAME}}", sender_name or "")
         text = text.replace("{{SENDER_BERUF}}", sender_beruf or "")
@@ -1874,9 +2299,15 @@ class EmailSenderPage(QWidget):
         self._refresh_sender_completer()
 
     def _refresh_sender_completer(self):
-        emails = [entry["email"] for entry in self._sender_profiles.values()]
+        try:
+            from ..services import sender_pool_service
+            pool_emails = [a.email for a in sender_pool_service.get_sender_accounts() if a.email]
+        except Exception:
+            pool_emails = []
+        emails = list(dict.fromkeys([entry["email"] for entry in self._sender_profiles.values() if entry.get("email")] + pool_emails))
         emails.sort(key=str.lower)
-        self._sender_completer.model().setStringList(emails)
+        if hasattr(self, "_sender_completer") and self._sender_completer.model():
+            self._sender_completer.model().setStringList(emails)
 
     def _remember_current_sender_profile(self, email: str = None, password: str = None):
         if not email:
@@ -2281,6 +2712,27 @@ class EmailSenderPage(QWidget):
 
     # import_emails consolidated above
 
+    def _capture_send_parameters(self) -> dict:
+        try:
+            raw_interval = int(self._interval_input.text().strip())
+        except Exception:
+            raw_interval = None
+        try:
+            batch_size = int(self._batch_size.text().strip())
+        except Exception:
+            batch_size = None
+
+        return {
+            "raw_interval": raw_interval,
+            "batch_size": batch_size,
+            "from_name": self._from_name.text(),
+            "smtp_user": self._smtp_user.text(),
+            "reply_to": self._reply_to.text(),
+            "subject": self._subject.text(),
+            "body_text": self._body_text.toPlainText(),
+            "attachments": list(self._attachments),
+        }
+
     def _send_test(self):
         recs = self._get_recipients()
         if not recs: return self._on_log("No recipients in queue.", "ERROR")
@@ -2295,9 +2747,10 @@ class EmailSenderPage(QWidget):
             if not LicenseManager.can_send_email(1):
                 return
                 
+        params = self._capture_send_parameters()
         self._log(f"Executing test broadcast to {recs[0]}...")
         self._set_sending_state(True)
-        threading.Thread(target=self._worker_send, args=([recs[0]],), daemon=True).start()
+        threading.Thread(target=self._worker_send, args=([recs[0]], params), daemon=True).start()
 
     def _send_all(self):
         recs = self._get_recipients()
@@ -2329,9 +2782,10 @@ class EmailSenderPage(QWidget):
                     parent=self.window()
                 )
                 
+        params = self._capture_send_parameters()
         self._log("Initiating global broadcast...")
         self._set_sending_state(True)
-        threading.Thread(target=self._worker_send, args=(recs,), daemon=True).start()
+        threading.Thread(target=self._worker_send, args=(recs, params), daemon=True).start()
 
     def _set_sending_state(self, sending: bool):
 
@@ -2346,30 +2800,52 @@ class EmailSenderPage(QWidget):
     def _log(self, text: str, level: str = "INFO"):
         self._signals.log.emit(text, level)
 
-    def _worker_send(self, recipients: list[str]):
+    def _worker_send(self, recipients: list[str], params: dict | None = None):
         from ..core.power import WakeLock
         WakeLock.acquire("Email Sending Broadcast")
         try:
-            self._do_worker_send(recipients)
+            self._do_worker_send(recipients, params=params)
         finally:
             WakeLock.release("Email Sending Broadcast")
 
-    def _do_worker_send(self, recipients: list[str]):
+    def _do_worker_send(self, recipients: list[str], params: dict | None = None):
         self._error_vault.clear()
         sent = 0; failed = 0; total = len(recipients)
+        from ..services import profile_service, sender_pool_service
+        from ..core.config import config_manager
+
+        active_prof = profile_service.get_active_profile()
+        prof_name = active_prof.name if active_prof else "Default"
+        self._log(f"Starting broadcast using active profile: '{prof_name}'", "INFO")
         fresh_per_message = self._should_use_fresh_connection_per_message()
-        try: 
-            raw_val = int(self._interval_input.text().strip())
-            if fresh_per_message:
-                interval = max(45, raw_val)
-                if raw_val < 45:
-                    self._log(f"🛡️ Gmail Protection: Enforcing safe minimum interval of 45s (was {raw_val}s) to prevent account lockdown.", "WARNING")
+        p = params or {}
+
+        # ── Multi-Sender Pool & Rotation Configuration ──
+        rotation_mode = getattr(config_manager.settings, "email_rotation_mode", "pairs")
+        pool = sender_pool_service.get_active_pool(rotation_mode=rotation_mode)
+        is_rotating = (rotation_mode != "none") and (len(pool) >= 2)
+
+        raw_val = p.get("raw_interval")
+        if raw_val is None:
+            try: 
+                raw_val = int(self._interval_input.text().strip())
+            except: 
+                raw_val = 35 if is_rotating else (45 if fresh_per_message else 30)
+
+        if is_rotating:
+            interval = max(30, raw_val)
+            if raw_val < 30:
+                self._log(f"🛡️ Multi-Sender Rotation Active ({len(pool)} accounts): Enforcing safe minimum interval of 30s (was {raw_val}s).", "WARNING")
             else:
-                interval = max(15, raw_val)
-                if raw_val < 15:
-                    self._log(f"Enforcing minimum interval of 15 seconds (was {raw_val}s).", "WARNING")
-        except: 
-            interval = 45 if fresh_per_message else 30
+                self._log(f"🛡️ Multi-Sender Rotation Active: Rotating {len(pool)} accounts ({rotation_mode}) with {interval}s pacing.", "INFO")
+        elif fresh_per_message:
+            interval = max(45, raw_val)
+            if raw_val < 45:
+                self._log(f"🛡️ Gmail Protection: Enforcing safe minimum interval of 45s (was {raw_val}s) to prevent account lockdown.", "WARNING")
+        else:
+            interval = max(15, raw_val)
+            if raw_val < 15:
+                self._log(f"Enforcing minimum interval of 15 seconds (was {raw_val}s).", "WARNING")
 
         def _sleep_interruptibly(duration: float):
             deadline = time.monotonic() + max(duration, 0.0)
@@ -2383,11 +2859,14 @@ class EmailSenderPage(QWidget):
             if self._stop_requested:
                 return
             import random
-            jitter = random.uniform(5.0, 18.0) if fresh_per_message else random.uniform(2.0, 6.0)
+            if is_rotating:
+                jitter = random.uniform(2.0, 5.0)
+            else:
+                jitter = random.uniform(5.0, 18.0) if fresh_per_message else random.uniform(2.0, 6.0)
             remaining = max(interval - (time.monotonic() - cycle_started_at), 0.0) + jitter
             
-            # Coffee Break / Micro-Batch Cooldown: Every 12 sent emails, pause for 2.5 minutes to reset Google's burst detectors
-            if fresh_per_message and sent > 0 and sent % 12 == 0:
+            # Single-account cooldown: Only needed if sending from 1 account
+            if not is_rotating and fresh_per_message and sent > 0 and sent % 12 == 0:
                 cooldown = random.uniform(140.0, 180.0)
                 self._log(f"🛡️ Gmail Protection: Taking a brief {int(cooldown)}s human cooldown after {sent} emails to protect your account...", "INFO")
                 remaining += cooldown
@@ -2395,15 +2874,29 @@ class EmailSenderPage(QWidget):
             if remaining > 0:
                 _sleep_interruptibly(remaining)
 
+        pool_candidates = list(pool) if is_rotating else []
+        pool_idx = 0
+        account_sent_count = 0
+        current_acc = pool_candidates[0] if pool_candidates else None
+        self._current_sending_account = current_acc
+
+        chunk_size = 2 if rotation_mode == "pairs" else (1 if rotation_mode == "single" else (5 if rotation_mode == "batch5" else 999999))
+
         if fresh_per_message:
-            self._log("Gmail mode detected. A fresh SMTP session will be opened for each recipient.", "INFO")
+            if is_rotating:
+                self._log(f"Rotating across {len(pool_candidates)} active sender accounts in chunks of {chunk_size}.", "INFO")
+            else:
+                self._log("Gmail mode detected. A fresh SMTP session will be opened for each recipient.", "INFO")
         else:
             try:
                 self._log("Initializing SMTP Handshake...")
                 last_err = None
                 for attempt in range(1, 4):  # 3 retries with exponential backoff
                     try:
-                        self._active_server = self._create_smtp_connection()
+                        self._active_server = self._create_smtp_connection(
+                            custom_user=current_acc.email if current_acc else None,
+                            custom_pass=current_acc.password if current_acc else None
+                        )
                         last_err = None
                         break
                     except Exception as e:
@@ -2411,7 +2904,7 @@ class EmailSenderPage(QWidget):
                         if self._stop_requested:
                             break
                         if attempt < 3:
-                            wait = 2 ** attempt  # 2s, 4s
+                            wait = 2 ** attempt
                             self._log(f"Handshake attempt {attempt}/3 failed: {e}. Retrying in {wait}s...", "WARNING")
                             _sleep_interruptibly(wait)
                 
@@ -2460,113 +2953,209 @@ class EmailSenderPage(QWidget):
             return
 
         # Respect Batch Size
-        try: 
-            bs = int(self._batch_size.text().strip())
-            if bs < len(recipients):
-                self._log(f"Limiting broadcast to batch size of {bs}...", "WARNING")
-                recipients = recipients[:bs]
-        except: pass
+        bs = p.get("batch_size")
+        if bs is None:
+            try: 
+                bs = int(self._batch_size.text().strip())
+            except: 
+                bs = None
+        if bs is not None and bs < len(recipients):
+            self._log(f"Limiting broadcast to batch size of {bs}...", "WARNING")
+            recipients = recipients[:bs]
 
         total = len(recipients)
 
-        for i, rec in enumerate(recipients):
-            if self._stop_requested: break
-            cycle_started_at = time.monotonic()
-            
-            # ── Robust Sending Logic ──
-            try:
-                msg, tracking_id = self._build_message(rec)
+        try:
+            for i, rec in enumerate(recipients):
                 if self._stop_requested: break
-
-                if fresh_per_message:
-                    self._reconnect_smtp(delay_seconds=0.35 if i > 0 else 0.0, silent=True)
+                cycle_started_at = time.monotonic()
                 
-                # Proactively ensure connection BEFORE sending
-                try:
-                    self._ensure_smtp_connection()
-                except (smtplib.SMTPServerDisconnected, socket.error, ssl.SSLError):
-                    self._log(f"Connection lost. Reconnecting for {rec}...", "WARNING")
-                    try:
-                        self._reconnect_smtp(delay_seconds=2.0)
-                        self._log("Reconnected successfully.", "SUCCESS")
-                    except Exception as reconn_err:
-                        self._log(f"Reconnection failed for {rec}: {reconn_err}", "ERROR")
-                        failed += 1
-                        self._error_vault[rec] = f"Reconnection failed: {reconn_err}"
-                        self._signals.progress.emit(i+1, total)
-                        if i < total - 1 and not self._stop_requested:
-                            _sleep_remaining(cycle_started_at)
-                        continue
+                # ── Multi-Account Rotation Handling ──
+                account_switched = False
+                if is_rotating and pool_candidates:
+                    # Filter out accounts that have hit their daily limit
+                    pool_candidates = [a for a in pool_candidates if a.can_send()]
+                    if not pool_candidates:
+                        self._log("❌ All sender accounts in the pool have reached their daily limit! Broadcast stopped.", "ERROR")
+                        break
 
-                # Actual Transmission
+                    # Rotate when current turn chunk size is reached
+                    if account_sent_count >= chunk_size:
+                        pool_idx = (pool_idx + 1) % len(pool_candidates)
+                        account_sent_count = 0
+
+                    selected_acc = pool_candidates[pool_idx % len(pool_candidates)]
+                    account_switched = (current_acc is None) or (selected_acc.id != current_acc.id)
+                    current_acc = selected_acc
+                    self._current_sending_account = current_acc
+
+                    if account_switched or account_sent_count == 0:
+                        self._log(
+                            f"🔄 Active Sender → '{current_acc.email}' (Turn {account_sent_count+1}/{chunk_size} • Capacity today: {current_acc.remaining_today()}/{current_acc.daily_limit})",
+                            "INFO"
+                        )
+                else:
+                    current_acc = None
+                    self._current_sending_account = None
+
+                p_rec = dict(p)
+                if current_acc:
+                    p_rec["smtp_user"] = current_acc.email
+                    if current_acc.name:
+                        p_rec["from_name"] = current_acc.name
+
+                # ── Robust Sending Logic ──
                 try:
-                    self._send_message_with_recovery(msg)
-                except (smtplib.SMTPServerDisconnected, socket.error, ssl.SSLError):
-                    self._log(f"Connection dropped during transmission. Retrying {rec}...", "WARNING")
+                    msg, tracking_id = self._build_message(rec, params=p_rec)
+                    if self._stop_requested: break
+
+                    if fresh_per_message or account_switched:
+                        self._reconnect_smtp(
+                            delay_seconds=0.35 if i > 0 else 0.0, 
+                            silent=True,
+                            custom_user=current_acc.email if current_acc else None,
+                            custom_pass=current_acc.password if current_acc else None
+                        )
+                    
+                    # Proactively ensure connection BEFORE sending
                     try:
-                        self._reconnect_smtp(delay_seconds=2.0)
-                        self._log("Reconnected successfully. Retrying transmission...", "SUCCESS")
-                        self._send_message_with_recovery(msg)
-                    except Exception as retry_err:
-                        self._log(f"Retry failed for {rec}: {retry_err}", "ERROR")
-                        failed += 1
-                        self._error_vault[rec] = f"Retry failed: {retry_err}"
-                        self._active_server = None  # Force re-init on next loop
-                        self._signals.progress.emit(i+1, total)
-                        if i < total - 1 and not self._stop_requested:
-                            _sleep_remaining(cycle_started_at)
-                        continue
-                except smtplib.SMTPResponseException as rate_err:
-                    if rate_err.smtp_code in (421, 450, 451, 452, 550) or "rate" in str(rate_err).lower() or "unusual" in str(rate_err).lower():
-                        self._log(f"🛡️ Gmail Protection: Server throttling detected (code {rate_err.smtp_code}). Resting for 5 minutes to protect your account...", "WARNING")
-                        _sleep_interruptibly(300)
-                        if self._stop_requested:
-                            break
+                        self._ensure_smtp_connection()
+                    except (smtplib.SMTPServerDisconnected, socket.error, ssl.SSLError):
+                        self._log(f"Connection lost. Reconnecting for {rec}...", "WARNING")
                         try:
-                            self._reconnect_smtp()
-                            self._send_message_with_recovery(msg)
-                        except Exception as rl_err:
+                            self._reconnect_smtp(
+                                delay_seconds=2.0,
+                                custom_user=current_acc.email if current_acc else None,
+                                custom_pass=current_acc.password if current_acc else None
+                            )
+                            self._log("Reconnected successfully.", "SUCCESS")
+                        except Exception as reconn_err:
+                            self._log(f"Reconnection failed for {rec}: {reconn_err}", "ERROR")
                             failed += 1
-                            self._error_vault[rec] = f"Rate-limit retry failed: {rl_err}"
+                            self._error_vault[rec] = f"Reconnection failed: {reconn_err}"
+                            self._signals.progress.emit(i+1, total)
+                            if i < total - 1 and not self._stop_requested:
+                                _sleep_remaining(cycle_started_at)
+                            continue
+
+                    # Actual Transmission
+                    try:
+                        self._send_message_with_recovery(msg)
+                    except (smtplib.SMTPServerDisconnected, socket.error, ssl.SSLError):
+                        self._log(f"Connection dropped during transmission. Retrying {rec}...", "WARNING")
+                        try:
+                            self._reconnect_smtp(
+                                delay_seconds=2.0,
+                                custom_user=current_acc.email if current_acc else None,
+                                custom_pass=current_acc.password if current_acc else None
+                            )
+                            self._log("Reconnected successfully. Retrying transmission...", "SUCCESS")
+                            self._send_message_with_recovery(msg)
+                        except Exception as retry_err:
+                            self._log(f"Retry failed for {rec}: {retry_err}", "ERROR")
+                            failed += 1
+                            self._error_vault[rec] = f"Retry failed: {retry_err}"
                             self._active_server = None
                             self._signals.progress.emit(i+1, total)
                             if i < total - 1 and not self._stop_requested:
                                 _sleep_remaining(cycle_started_at)
                             continue
+                    except smtplib.SMTPResponseException as rate_err:
+                        if rate_err.smtp_code in (421, 450, 451, 452, 550) or "rate" in str(rate_err).lower() or "unusual" in str(rate_err).lower() or "quota" in str(rate_err).lower():
+                            if is_rotating and len(pool_candidates) > 1 and current_acc:
+                                self._log(f"⚠️ Account {current_acc.email} throttled ({rate_err.smtp_code}). Auto-failing over to next pool account...", "WARNING")
+                                pool_candidates = [a for a in pool_candidates if a.id != current_acc.id]
+                                if pool_candidates:
+                                    pool_idx = pool_idx % len(pool_candidates)
+                                    current_acc = pool_candidates[pool_idx]
+                                    self._current_sending_account = current_acc
+                                    account_sent_count = 0
+                                    self._log(f"↳ Failover: Switched to '{current_acc.email}'", "INFO")
+                                    try:
+                                        self._reconnect_smtp(
+                                            delay_seconds=1.0, 
+                                            silent=True,
+                                            custom_user=current_acc.email,
+                                            custom_pass=current_acc.password
+                                        )
+                                        p_rec["smtp_user"] = current_acc.email
+                                        if current_acc.name:
+                                            p_rec["from_name"] = current_acc.name
+                                        msg_failover, tracking_id = self._build_message(rec, params=p_rec)
+                                        self._send_message_with_recovery(msg_failover)
+                                    except Exception as failover_err:
+                                        failed += 1
+                                        self._error_vault[rec] = f"Failover retry failed: {failover_err}"
+                                        self._active_server = None
+                                        self._signals.progress.emit(i+1, total)
+                                        if i < total - 1 and not self._stop_requested:
+                                            _sleep_remaining(cycle_started_at)
+                                        continue
+                                else:
+                                    self._log("All pool accounts rate-limited. Resting for 5 minutes...", "WARNING")
+                                    _sleep_interruptibly(300)
+                            else:
+                                self._log(f"🛡️ Gmail Protection: Server throttling detected (code {rate_err.smtp_code}). Resting for 5 minutes to protect your account...", "WARNING")
+                                _sleep_interruptibly(300)
+                                if self._stop_requested:
+                                    break
+                                try:
+                                    self._reconnect_smtp(
+                                        custom_user=current_acc.email if current_acc else None,
+                                        custom_pass=current_acc.password if current_acc else None
+                                    )
+                                    self._send_message_with_recovery(msg)
+                                except Exception as rl_err:
+                                    failed += 1
+                                    self._error_vault[rec] = f"Rate-limit retry failed: {rl_err}"
+                                    self._active_server = None
+                                    self._signals.progress.emit(i+1, total)
+                                    if i < total - 1 and not self._stop_requested:
+                                        _sleep_remaining(cycle_started_at)
+                                    continue
+                        else:
+                            raise
+                        
+                    sent += 1
+                    if current_acc:
+                        sender_pool_service.record_account_send(current_acc.email)
+                        current_acc.sent_today += 1
+                        current_acc.last_sent_date = datetime.now().date().isoformat()
+                        account_sent_count += 1
+                    from ..core.security import LicenseManager
+                    LicenseManager.record_email_send(1)
+                    self._record_successful_send(rec, message_signature, tracking_id)
+                    self._refresh_recipient_history_state()
+                    self._cleanup_sent_dynamic_pdf(rec)
+                        
+                    acc_suffix = f" [via {current_acc.email}]" if current_acc else ""
+                    self._log(f"✓ Sent to {rec} ({i+1}/{total}){acc_suffix}", "SUCCESS")
+
+                except Exception as e:
+                    if self._stop_requested: break
+                    
+                    failed += 1
+                    self._error_vault[rec] = str(e)
+                    err_short = str(e).splitlines()[0][:60] + "..." if len(str(e)) > 60 else str(e)
+                    
+                    if "server not connected" in err_short.lower() or "closed" in err_short.lower():
+                        self._log(f"Connection error for {rec}: {err_short}. Re-initializing for next recipient.", "ERROR")
+                        self._active_server = None
                     else:
-                        raise  # Re-raise non-rate-limit SMTP errors
-                    
-                sent += 1
-                from ..core.security import LicenseManager
-                LicenseManager.record_email_send(1)
-                self._record_successful_send(rec, message_signature, tracking_id)
-                self._refresh_recipient_history_state()
-                self._cleanup_sent_dynamic_pdf(rec)
-                    
-                self._log(f"✓ Sent to {rec} ({i+1}/{total})", "SUCCESS")
-
-            except Exception as e:
-                if self._stop_requested: break
+                        self._on_log(f"Error for {rec}: <a href='err:{rec}' style='color: #FF453A; text-decoration: underline;'>{err_short} (Details)</a>", "ERROR")
                 
-                failed += 1
-                self._error_vault[rec] = str(e)
-                err_short = str(e).splitlines()[0][:60] + "..." if len(str(e)) > 60 else str(e)
-                
-                if "server not connected" in err_short.lower() or "closed" in err_short.lower():
-                    self._log(f"Connection error for {rec}: {err_short}. Re-initializing for next recipient.", "ERROR")
-                    self._active_server = None
-                else:
-                    self._on_log(f"Error for {rec}: <a href='err:{rec}' style='color: #FF453A; text-decoration: underline;'>{err_short} (Details)</a>", "ERROR")
-            
-            self._signals.progress.emit(i+1, total)
-            if i < total - 1 and not self._stop_requested:
-                _sleep_remaining(cycle_started_at)
+                self._signals.progress.emit(i+1, total)
+                if i < total - 1 and not self._stop_requested:
+                    _sleep_remaining(cycle_started_at)
 
-        try: 
-            if self._active_server:
-                self._active_server.quit()
-        except: pass
-        self._signals.finished.emit(sent, failed, self._stop_requested)
+        finally:
+            self._current_sending_account = None
+            try: 
+                if self._active_server:
+                    self._active_server.quit()
+            except: pass
+            self._active_server = None
+            self._signals.finished.emit(sent, failed, self._stop_requested)
 
     def _cleanup_sent_dynamic_pdf(self, recipient: str):
         """Delete company-specific generated PDFs after sending to optimize disk space."""
@@ -2606,16 +3195,33 @@ class EmailSenderPage(QWidget):
 
 
     def _salutation(self, contact_person: str | None) -> str:
-        name  = (contact_person or "").strip()
+        name = (contact_person or "").strip()
         if not name:
             return "Sehr geehrte Damen und Herren,"
-        first = name.split()[0].strip(" ,.;:").lower()
         import re
+        name_lower = name.lower()
+        # Filter out common scraped table headers or placeholder tokens
+        bogus_words = {
+            "frau", "herr", "divers", "vorname", "nachname", "ansprechpartner",
+            "ansprechperson", "kontakt", "kontaktperson", "name", "unbekannt",
+            "n/a", "none", "null", "team", "abteilung", "bewerbung", "stelle"
+        }
+        tokens = [t.strip(" ,.;:/-()") for t in re.split(r"[\s/,;]+", name_lower) if t.strip(" ,.;:/-()")]
+        if not tokens or all(t in bogus_words for t in tokens):
+            return "Sehr geehrte Damen und Herren,"
+
+        first = tokens[0]
         if first in {"frau", "ms", "mrs"}:
             clean = re.sub(r"^(frau|ms|mrs)\s+", "", name, flags=re.IGNORECASE).strip()
+            rem_tokens = [t.strip(" ,.;:/-()") for t in re.split(r"[\s/,;]+", clean.lower()) if t.strip(" ,.;:/-()")]
+            if not rem_tokens or all(t in bogus_words for t in rem_tokens):
+                return "Sehr geehrte Damen und Herren,"
             return f"Sehr geehrte Frau {clean},"
         if first in {"herr", "mr"}:
             clean = re.sub(r"^(herr|mr)\s+", "", name, flags=re.IGNORECASE).strip()
+            rem_tokens = [t.strip(" ,.;:/-()") for t in re.split(r"[\s/,;]+", clean.lower()) if t.strip(" ,.;:/-()")]
+            if not rem_tokens or all(t in bogus_words for t in rem_tokens):
+                return "Sehr geehrte Damen und Herren,"
             return f"Sehr geehrter Herr {clean},"
         return f"Guten Tag {name},"
 
@@ -2641,12 +3247,12 @@ class EmailSenderPage(QWidget):
         """
         Dynamically generate the candidate's personalized Bewerbung PDF on-the-fly
         if it wasn't pre-exported in the Edit page.
-        Guarantees that cover letters and applications are never omitted from sent emails.
+        Guarantees that cover letters and applications are never omitted from sent emails in dynamic flow.
         """
         try:
             import sqlite3
             import re
-            from ..core.config import get_memory_db_path, get_exports_dir, get_app_data_dir
+            from ..core.config import get_memory_db_path, get_exports_dir, get_app_data_dir, config_manager
             from ..core.models import LeadRecord
 
             lead_record = None
@@ -2679,22 +3285,28 @@ class EmailSenderPage(QWidget):
                 )
 
             if not letter_text:
-                template_path = get_app_data_dir() / "templates" / "anschreiben_base.txt"
-                if template_path.exists():
-                    template_text = template_path.read_text(encoding="utf-8")
-                else:
-                    template_text = (
-                        "{{SENDER_NAME}}\n{{SENDER_ADDRESS}}\n{{SENDER_CITY}}\n"
-                        "{{SENDER_PHONE}} · {{SENDER_EMAIL}}\n\n"
-                        "{{FIRMA}}\n{{ADRESSE}}\n{{PLZ}} {{ORT}}\n\n"
-                        "{{DATUM}}\n\n"
-                        "Bewerbung um einen Ausbildungsplatz als {{BERUF}}\n\n"
-                        "{{ANREDE}}\n\n"
-                        "Mit großem Interesse bewerbe ich mich bei Ihnen als {{BERUF}}.\n\n"
-                        "Mit freundlichen Grüßen"
-                    )
+                from ..services import profile_service
+                active_id = profile_service.get_active_profile_id()
+                template_text = profile_service.get_template_text(active_id)
 
                 sender_settings = self._load_sender_profile_settings()
+                eff_sender_name = (
+                    sender_settings.get("name")
+                    or getattr(config_manager.settings, "email_from_name", "")
+                    or (self._from_name.text().strip() if hasattr(self, "_from_name") else "")
+                )
+                eff_sender_email = (
+                    sender_settings.get("email")
+                    or getattr(config_manager.settings, "email_smtp_user", "")
+                    or (self._smtp_user.text().strip() if hasattr(self, "_smtp_user") else "")
+                )
+                eff_sender_phone = sender_settings.get("phone", "")
+                eff_sender_city = sender_settings.get("city", "")
+                eff_sender_addr = sender_settings.get("address", "") or sender_settings.get("strasse", "")
+                active_prof = profile_service.get_active_profile()
+                prof_beruf = active_prof.effective_beruf if active_prof else ""
+                eff_sender_beruf = prof_beruf or sender_settings.get("beruf") or lead_record.job_title or "Ausbildung"
+
                 firma_addr = (lead_record.address or "").strip()
                 lines = [line.strip() for line in firma_addr.splitlines() if line.strip()]
                 if len(lines) > 1 and re.search(r"\b\d{5}\b", lines[-1]):
@@ -2704,30 +3316,62 @@ class EmailSenderPage(QWidget):
                 addr_val = clean_street or firma_addr
 
                 replacements = {
-                    "ANREDE":         self._salutation(lead_record.contact_person),
-                    "FIRMA":          lead_record.company_name or company or "Unternehmen",
-                    "ADRESSE":        addr_val,
-                    "STRASSE":        addr_val,
-                    "FIRMA_ADRESSE":  addr_val,
-                    "FIRMA_STRASSE":  addr_val,
-                    "ADDRESS":        addr_val,
-                    "COMPANY_ADDRESS":addr_val,
-                    "ORT":            lead_record.city or re.sub(r"^\d+\s*", "", str(sender_settings.get("city") or "")).strip(),
-                    "PLZ":            lead_record.postal_code or "",
-                    "BERUF":          sender_settings.get("beruf") or lead_record.job_title or "Ausbildung",
-                    "DATUM":          self._german_date(),
+                    "ANREDE":          self._salutation(lead_record.contact_person),
+                    "FIRMA":           lead_record.company_name or company or "Unternehmen",
+                    "ADRESSE":         addr_val,
+                    "STRASSE":         addr_val,
+                    "FIRMA_ADRESSE":   addr_val,
+                    "FIRMA_STRASSE":   addr_val,
+                    "ADDRESS":         addr_val,
+                    "COMPANY_ADDRESS": addr_val,
+                    "ORT":             lead_record.city or re.sub(r"^\d+\s*", "", str(eff_sender_city)).strip(),
+                    "PLZ":             lead_record.postal_code or "",
+                    "BERUF":           eff_sender_beruf,
+                    "DATUM":           self._german_date(),
+                    "SENDER_NAME":     eff_sender_name,
+                    "SENDER_EMAIL":    eff_sender_email,
+                    "SENDER_PHONE":    eff_sender_phone,
+                    "SENDER_CITY":     eff_sender_city,
+                    "SENDER_ADDRESS":  eff_sender_addr,
+                    "SENDER_STRASSE":  eff_sender_addr,
                 }
                 for k, v in sender_settings.items():
                     replacements[f"SENDER_{k.upper()}"] = v
+
                 letter_text = template_text
+                # Replace defined placeholders
+                for k, v in replacements.items():
+                    letter_text = letter_text.replace(f"{{{{{k}}}}}", str(v) if v is not None else "")
+
+                # Remove any leftover company address placeholders if empty
                 if not addr_val:
                     letter_text = re.sub(r"\n[ \t]*\{\{(?:ADRESSE|STRASSE|FIRMA_ADRESSE|FIRMA_STRASSE|ADDRESS|COMPANY_ADDRESS)\}\}[ \t]*\n", "\n", letter_text, flags=re.IGNORECASE)
-                for k, v in replacements.items():
-                    letter_text = letter_text.replace(f"{{{{{k}}}}}", str(v))
 
-            from .edit_page import EditPage
-            dummy_edit = EditPage()
-            out_paths = dummy_edit._export_bewerbungsmappe(lead_record, letter_text, get_exports_dir())
+                # Strip unpopulated placeholders cleanly instead of leaving raw template brackets
+                letter_text = re.sub(r"\{\{SENDER_[A-Za-z0-9_]+\}\}", "", letter_text)
+                letter_text = re.sub(r"\{\{(?:ADRESSE|STRASSE|FIRMA_ADRESSE|FIRMA_STRASSE|ADDRESS|COMPANY_ADDRESS)\}\}", "", letter_text)
+                letter_text = re.sub(r"\{\{[A-Za-z0-9_]+\}\}", "", letter_text)
+
+                # Clean separator lines left empty
+                letter_text = re.sub(r"^[ \t]*[·|•\-][ \t]*$", "", letter_text, flags=re.MULTILINE)
+                letter_text = re.sub(r"\n{3,}", "\n\n", letter_text)
+
+                # Guard: if sender profile is completely unconfigured or letter has no content,
+                # do NOT generate an unpopulated dummy PDF
+                if not eff_sender_name or not letter_text.strip():
+                    self._log(f"Dynamic PDF note: sender profile or letter text is unconfigured for {recipient}. Skipping on-the-fly PDF.", "INFO")
+                    return None
+
+            from ..services.bewerbung_pdf_service import export_bewerbungsmappe
+            from ..services import profile_service
+            out_paths = export_bewerbungsmappe(
+                lead_record,
+                letter_text,
+                get_exports_dir(),
+                sender_settings=sender_settings,
+                signature_image_path=self._get_signature_image_path(),
+                profile_id=active_id
+            )
             if out_paths:
                 out_dir = get_exports_dir()
                 if export_mode == "separate":
@@ -2744,7 +3388,7 @@ class EmailSenderPage(QWidget):
             self._log(f"Dynamic PDF generation note: {e}", "INFO")
         return None
 
-    def _build_message(self, recipient: str) -> tuple[MIMEMultipart, str]:
+    def _build_message(self, recipient: str, params: dict | None = None) -> tuple[MIMEMultipart, str]:
         from email.header import Header
         from email.utils import formataddr
 
@@ -2765,22 +3409,24 @@ class EmailSenderPage(QWidget):
         from email.policy import SMTPUTF8
         msg = MIMEMultipart(policy=SMTPUTF8)
 
-        from_name = _clean_unicode(self._from_name.text())
-        sender_email = _clean_unicode(self._smtp_user.text())
+        p = params or {}
+        from_name = _clean_unicode(p.get("from_name") if "from_name" in p else self._from_name.text())
+        sender_email = _clean_unicode(p.get("smtp_user") if "smtp_user" in p else self._smtp_user.text())
         if from_name:
             msg["From"] = formataddr((from_name, sender_email))
         else:
             msg["From"] = sender_email
 
-        reply_addr = _clean_unicode(self._reply_to.text())
+        reply_addr = _clean_unicode(p.get("reply_to") if "reply_to" in p else self._reply_to.text())
         if reply_addr:
             msg["Reply-To"] = reply_addr
 
         msg["To"] = recipient
-        subject_text = _clean_unicode(self._replace_placeholders(self._subject.text(), recipient))
+        raw_subj = p.get("subject") if "subject" in p else self._subject.text()
+        subject_text = _clean_unicode(self._replace_placeholders(raw_subj, recipient))
         msg["Subject"] = subject_text
 
-        raw_body_text = self._body_text.toPlainText()
+        raw_body_text = p.get("body_text") if "body_text" in p else self._body_text.toPlainText()
         body_text = self._replace_placeholders(raw_body_text, recipient)
         body_text = _clean_unicode(body_text)
 
@@ -2848,10 +3494,12 @@ class EmailSenderPage(QWidget):
         else:
             msg.attach(MIMEText(html_body, "html", "utf-8"))
 
-        has_manual_attachments = bool(self._attachments)
+        attachments = p.get("attachments", self._attachments)
+        has_manual_attachments = bool(attachments)
+        has_manual_pdf = any(str(f).lower().endswith(".pdf") for f in attachments if os.path.exists(f))
 
         # 1. Attach manual files explicitly added in the Send tab
-        for file_path in self._attachments:
+        for file_path in attachments:
             if not os.path.exists(file_path):
                 continue
 
@@ -2868,186 +3516,164 @@ class EmailSenderPage(QWidget):
                 self._log(f"Failed to encode attachment {file_path}: {e}", "WARNING")
 
         # 2. Attach dynamically generated lead PDF / Edit page Bewerbung
-        def sanitize(v):
-            v_clean = _clean_unicode(v)
-            return re.sub(r'[<>:"/\\|?*]', '_', v_clean).strip()
-
-        beruf_san = sanitize(sender_beruf or job_title or "Ausbildung")
-        firma_san = sanitize(company)
-        sender_san = sanitize(sender_name)
-
-        if firma_san:
-            base_filename = f"Bewerbung als {beruf_san} - {sender_san} @ {firma_san}"
-        else:
-            base_filename = f"Bewerbung als {beruf_san} - {sender_san}"
-
-        if len(base_filename) > 150:
-            base_filename = base_filename[:146].strip()
-        generic_base = f"Bewerbung als {beruf_san} - {sender_san}"
-
-        export_mode = getattr(config_manager.settings, "bewerbung_export_mode", "full")
-        
-        if export_mode == "separate":
-            pdf_filename = f"{base_filename}_Anschreiben.pdf"
-            generic_pdf_filename = f"{generic_base}_Anschreiben.pdf"
-            display_name = "Anschreiben.pdf"
-            file_suffix = "_Anschreiben.pdf"
-        elif export_mode == "letter_cv_certs":
-            pdf_filename = f"{base_filename}_AnschreibenLebenslauf.pdf"
-            generic_pdf_filename = f"{generic_base}_AnschreibenLebenslauf.pdf"
-            display_name = "Anschreiben_Lebenslauf.pdf"
-            file_suffix = "_AnschreibenLebenslauf.pdf"
-        else:
-            pdf_filename = f"{base_filename}.pdf"
-            generic_pdf_filename = f"{generic_base}.pdf"
-            display_name = generic_pdf_filename
-            file_suffix = ".pdf"
-
-        dynamic_pdf_path = get_exports_dir() / pdf_filename
-        generic_pdf_path = get_exports_dir() / generic_pdf_filename
-        raw_pdf_path = get_exports_dir() / "Bewerbung_Raw_Uploaded.pdf"
-        lv_setting_str = getattr(config_manager.settings, "bewerbung_lebenslauf_path", "") or ""
-        lv_setting_path = Path(lv_setting_str) if lv_setting_str else None
-
+        # STRICT RULE: If a user adds his file in the send page (has_manual_attachments is True),
+        # the app must ignore EVERYTHING coming from the edit page.
         chosen_pdf_path = None
-        chosen_display_name = display_name
+        chosen_display_name = ""
 
-        # Priority 1: Exact dynamic PDF match
-        if dynamic_pdf_path.exists():
-            chosen_pdf_path = dynamic_pdf_path
-            chosen_display_name = display_name
-        else:
-            # Priority 2: Smart fuzzy candidate lookup in exports dir for this company
-            if firma_san and get_exports_dir().exists():
-                candidates = []
-                for p in get_exports_dir().glob("*.pdf"):
-                    p_name = p.name
-                    if export_mode in ("separate", "letter_cv_certs"):
-                        if file_suffix.lower() not in p_name.lower():
-                            continue
-                    elif "_Anschreiben" in p_name or "_Zeugnisse" in p_name:
-                        continue
-                    if firma_san.lower() in p_name.lower():
-                        candidates.append(p)
-                if candidates:
-                    chosen_pdf_path = candidates[0]
-                    chosen_display_name = display_name
+        if not has_manual_attachments:
+            def sanitize(v):
+                v_clean = _clean_unicode(v)
+                return re.sub(r'[<>:"/\\|?*]', '_', v_clean).strip()
 
-        # Priority 3: Dynamic On-The-Fly Generation (Guarantees cover letters are never dropped)
-        if not chosen_pdf_path:
-            generated_path = self._generate_custom_pdf_on_the_fly(
-                recipient=rec_clean,
-                company=company,
-                job_title=job_title,
-                export_mode=export_mode,
-                base_filename=base_filename
-            )
-            if generated_path and generated_path.exists():
-                chosen_pdf_path = generated_path
-                chosen_display_name = display_name
-
-        # Priority 4: Generic base PDF match
-        if not chosen_pdf_path and generic_pdf_path.exists() and not has_manual_attachments:
-            chosen_pdf_path = generic_pdf_path
-            chosen_display_name = generic_pdf_filename
-
-        # Priority 5: Raw uploaded PDF fallback
-        if not chosen_pdf_path and raw_pdf_path.exists() and not has_manual_attachments:
-            chosen_pdf_path = raw_pdf_path
-            chosen_display_name = "Lebenslauf.pdf"
-
-        # Priority 6: User's loaded Lebenslauf from settings directly
-        if not chosen_pdf_path and not has_manual_attachments and lv_setting_path and lv_setting_path.exists():
-            chosen_pdf_path = lv_setting_path
-            chosen_display_name = "Lebenslauf.pdf"
-
-        if chosen_pdf_path and chosen_pdf_path.exists():
             try:
-                part = MIMEBase("application", "pdf")
-                with open(chosen_pdf_path, "rb") as f:
-                    part.set_payload(f.read())
-                encoders.encode_base64(part)
-                _add_safe_filename_header(part, "attachment", chosen_display_name)
-                msg.attach(part)
-            except Exception as e:
-                raise RuntimeError(f"Failed to attach PDF {chosen_pdf_path}: {e}")
-
-        # Multi-doc modes: attach Lebenslauf and/or Zeugnisse as extra files
-        if not has_manual_attachments or chosen_pdf_path:
-            import json as _json
-            export_mode = getattr(config_manager.settings, "bewerbung_export_mode", "full")
-            lv_path = getattr(config_manager.settings, "bewerbung_lebenslauf_path", "") or ""
-            zeug_raw = getattr(config_manager.settings, "bewerbung_zeugnisse_paths", "[]") or "[]"
-            try:
-                zeug_paths = _json.loads(zeug_raw)
+                from ..services import profile_service
+                active_prof = profile_service.get_active_profile()
+                prof_beruf = active_prof.effective_beruf if active_prof else ""
             except Exception:
-                zeug_paths = []
-            zeug_paths = [p for p in zeug_paths if p and Path(p).exists()]
+                prof_beruf = ""
 
-            def _attach_pdf_file(path: str, display_name: str):
+            beruf_san = sanitize(prof_beruf or sender_beruf or job_title or "Ausbildung")
+            firma_san = sanitize(company)
+            sender_san = sanitize(sender_name)
+
+            if firma_san:
+                base_filename = f"Bewerbung als {beruf_san} - {sender_san} @ {firma_san}"
+            else:
+                base_filename = f"Bewerbung als {beruf_san} - {sender_san}"
+
+            if len(base_filename) > 150:
+                base_filename = base_filename[:146].strip()
+            generic_base = f"Bewerbung als {beruf_san} - {sender_san}"
+
+            export_mode = getattr(config_manager.settings, "bewerbung_export_mode", "full")
+            
+            if export_mode == "separate":
+                pdf_filename = f"{base_filename}_Anschreiben.pdf"
+                generic_pdf_filename = f"{generic_base}_Anschreiben.pdf"
+                display_name = "Anschreiben.pdf"
+                file_suffix = "_Anschreiben.pdf"
+            elif export_mode == "letter_cv_certs":
+                pdf_filename = f"{base_filename}_AnschreibenLebenslauf.pdf"
+                generic_pdf_filename = f"{generic_base}_AnschreibenLebenslauf.pdf"
+                display_name = "Anschreiben_Lebenslauf.pdf"
+                file_suffix = "_AnschreibenLebenslauf.pdf"
+            else:
+                pdf_filename = f"{base_filename}.pdf"
+                generic_pdf_filename = f"{generic_base}.pdf"
+                display_name = generic_pdf_filename
+                file_suffix = ".pdf"
+
+            dynamic_pdf_path = get_exports_dir() / pdf_filename
+            generic_pdf_path = get_exports_dir() / generic_pdf_filename
+            raw_pdf_path = get_exports_dir() / "Bewerbung_Raw_Uploaded.pdf"
+            from ..services import profile_service
+            active_id = profile_service.get_active_profile_id()
+            lv_doc = profile_service.get_lebenslauf(active_id)
+            lv_setting_str = (lv_doc.stored_path if lv_doc else "") or getattr(config_manager.settings, "bewerbung_lebenslauf_path", "") or ""
+            lv_setting_path = Path(lv_setting_str) if lv_setting_str else None
+
+            # Priority 1: Exact dynamic PDF match
+            if dynamic_pdf_path.exists():
+                chosen_pdf_path = dynamic_pdf_path
+                chosen_display_name = display_name
+            else:
+                # Priority 2: Smart fuzzy candidate lookup in exports dir for this company
+                if firma_san and get_exports_dir().exists():
+                    candidates = []
+                    for p_cand in get_exports_dir().glob("*.pdf"):
+                        p_name = p_cand.name
+                        if export_mode in ("separate", "letter_cv_certs"):
+                            if file_suffix.lower() not in p_name.lower():
+                                continue
+                        elif "_Anschreiben" in p_name or "_Zeugnisse" in p_name:
+                            continue
+                        if firma_san.lower() in p_name.lower():
+                            candidates.append(p_cand)
+                    if candidates:
+                        chosen_pdf_path = candidates[0]
+                        chosen_display_name = display_name
+
+                # Priority 3: Dynamic On-The-Fly Generation (Guarantees cover letters are never dropped in Edit tab flow)
+                if not chosen_pdf_path:
+                    generated_path = self._generate_custom_pdf_on_the_fly(
+                        recipient=rec_clean,
+                        company=company,
+                        job_title=job_title,
+                        export_mode=export_mode,
+                        base_filename=base_filename
+                    )
+                    if generated_path and generated_path.exists():
+                        chosen_pdf_path = generated_path
+                        chosen_display_name = display_name
+
+                # Priority 4: Generic base PDF match
+                if not chosen_pdf_path and generic_pdf_path.exists():
+                    chosen_pdf_path = generic_pdf_path
+                    chosen_display_name = generic_pdf_filename
+
+                # Priority 5: Raw uploaded PDF fallback
+                if not chosen_pdf_path and raw_pdf_path.exists():
+                    chosen_pdf_path = raw_pdf_path
+                    chosen_display_name = "Lebenslauf.pdf"
+
+                # Priority 6: User's loaded Lebenslauf from settings directly
+                if not chosen_pdf_path and lv_setting_path and lv_setting_path.exists():
+                    chosen_pdf_path = lv_setting_path
+                    chosen_display_name = "Lebenslauf.pdf"
+
+            if chosen_pdf_path and chosen_pdf_path.exists():
                 try:
                     part = MIMEBase("application", "pdf")
-                    with open(path, "rb") as f:
+                    with open(chosen_pdf_path, "rb") as f:
                         part.set_payload(f.read())
                     encoders.encode_base64(part)
-                    _add_safe_filename_header(part, "attachment", display_name)
+                    _add_safe_filename_header(part, "attachment", chosen_display_name)
                     msg.attach(part)
                 except Exception as e:
-                    self._log(f"Failed to attach {display_name}: {e}", "WARNING")
+                    raise RuntimeError(f"Failed to attach PDF {chosen_pdf_path}: {e}")
 
-            chosen_resolved = Path(chosen_pdf_path).resolve() if chosen_pdf_path else None
-
-            if export_mode == "separate":
-                # Separate files: Deckblatt (if available), Lebenslauf, and merged Zeugnisse.
-                db_path = getattr(config_manager.settings, "bewerbung_deckblatt_path", "") or ""
-                if db_path and Path(db_path).exists() and (not chosen_resolved or Path(db_path).resolve() != chosen_resolved):
-                    _attach_pdf_file(db_path, "Deckblatt.pdf")
-                if lv_path and Path(lv_path).exists() and (not chosen_resolved or Path(lv_path).resolve() != chosen_resolved):
-                    _attach_pdf_file(lv_path, "Lebenslauf.pdf")
-                if zeug_paths:
-                    import io, pypdf as _pypdf
-                    w = _pypdf.PdfWriter()
-                    for zp in zeug_paths:
-                        try:
-                            r = _pypdf.PdfReader(zp)
-                            for pg in r.pages:
-                                w.add_page(pg)
-                        except Exception:
-                            pass
-                    buf = io.BytesIO()
-                    w.write(buf)
+            # Multi-doc modes: attach Lebenslauf and/or Zeugnisse as extra files ONLY in Edit tab flow
+            if chosen_pdf_path:
+                from ..services import profile_service
+                active_id = profile_service.get_active_profile_id()
+                export_mode = getattr(config_manager.settings, "bewerbung_export_mode", "full")
+                lv_doc = profile_service.get_lebenslauf(active_id)
+                lv_path = (lv_doc.stored_path if lv_doc else "") or getattr(config_manager.settings, "bewerbung_lebenslauf_path", "") or ""
+                zeug_docs = profile_service.get_zeugnisse(active_id)
+                if zeug_docs:
+                    zeug_paths = [d.stored_path for d in zeug_docs if Path(d.stored_path).exists()]
+                else:
+                    import json as _json
+                    zeug_raw = getattr(config_manager.settings, "bewerbung_zeugnisse_paths", "[]") or "[]"
                     try:
-                        z_part = MIMEBase("application", "pdf")
-                        z_part.set_payload(buf.getvalue())
-                        encoders.encode_base64(z_part)
-                        _add_safe_filename_header(z_part, "attachment", "Zeugnisse.pdf")
-                        msg.attach(z_part)
+                        zeug_paths = _json.loads(zeug_raw)
+                    except Exception:
+                        zeug_paths = []
+                    zeug_paths = [p for p in zeug_paths if p and Path(p).exists()]
+
+                def _attach_pdf_file(path: str, display_name: str):
+                    try:
+                        part = MIMEBase("application", "pdf")
+                        with open(path, "rb") as f:
+                            part.set_payload(f.read())
+                        encoders.encode_base64(part)
+                        _add_safe_filename_header(part, "attachment", display_name)
+                        msg.attach(part)
                     except Exception as e:
-                        self._log(f"Failed to attach Zeugnisse: {e}", "WARNING")
+                        self._log(f"Failed to attach {display_name}: {e}", "WARNING")
 
-            elif export_mode == "letter_cv_certs":
-                # Lebenslauf is merged with Anschreiben in the first file (handled by export).
-                # Attach the Zeugnisse PDF separately if it was written or dynamically merged.
-                if zeug_paths:
-                    attached_zeug = False
-                    zeug_dest_dynamic = get_exports_dir() / f"{base_filename}_Zeugnisse.pdf"
-                    zeug_dest_generic = get_exports_dir() / f"{generic_base}_Zeugnisse.pdf"
-                    
-                    if zeug_dest_dynamic.exists():
-                        _attach_pdf_file(str(zeug_dest_dynamic), "Zeugnisse.pdf")
-                        attached_zeug = True
-                    elif zeug_dest_generic.exists():
-                        _attach_pdf_file(str(zeug_dest_generic), "Zeugnisse.pdf")
-                        attached_zeug = True
-                    else:
-                        if firma_san and get_exports_dir().exists():
-                            for p in get_exports_dir().glob("*_Zeugnisse.pdf"):
-                                if firma_san.lower() in p.name.lower():
-                                    _attach_pdf_file(str(p), "Zeugnisse.pdf")
-                                    attached_zeug = True
-                                    break
+                chosen_resolved = Path(chosen_pdf_path).resolve() if chosen_pdf_path else None
 
-                    if not attached_zeug:
+                if export_mode == "separate":
+                    # Separate files: Deckblatt (if available), Lebenslauf, and merged Zeugnisse.
+                    db_doc = profile_service.get_deckblatt(active_id)
+                    db_path = (db_doc.stored_path if db_doc else "") or getattr(config_manager.settings, "bewerbung_deckblatt_path", "") or ""
+                    if db_path and Path(db_path).exists() and (not chosen_resolved or Path(db_path).resolve() != chosen_resolved):
+                        _attach_pdf_file(db_path, "Deckblatt.pdf")
+                    if lv_path and Path(lv_path).exists() and (not chosen_resolved or Path(lv_path).resolve() != chosen_resolved):
+                        _attach_pdf_file(lv_path, "Lebenslauf.pdf")
+                    if zeug_paths:
                         import io, pypdf as _pypdf
                         w = _pypdf.PdfWriter()
                         for zp in zeug_paths:
@@ -3068,11 +3694,54 @@ class EmailSenderPage(QWidget):
                         except Exception as e:
                             self._log(f"Failed to attach Zeugnisse: {e}", "WARNING")
 
+                elif export_mode == "letter_cv_certs":
+                    # Lebenslauf is merged with Anschreiben in the first file (handled by export).
+                    # Attach the Zeugnisse PDF separately if it was written or dynamically merged.
+                    if zeug_paths:
+                        attached_zeug = False
+                        zeug_dest_dynamic = get_exports_dir() / f"{base_filename}_Zeugnisse.pdf"
+                        zeug_dest_generic = get_exports_dir() / f"{generic_base}_Zeugnisse.pdf"
+                        
+                        if zeug_dest_dynamic.exists():
+                            _attach_pdf_file(str(zeug_dest_dynamic), "Zeugnisse.pdf")
+                            attached_zeug = True
+                        elif zeug_dest_generic.exists():
+                            _attach_pdf_file(str(zeug_dest_generic), "Zeugnisse.pdf")
+                            attached_zeug = True
+                        else:
+                            if firma_san and get_exports_dir().exists():
+                                for p in get_exports_dir().glob("*_Zeugnisse.pdf"):
+                                    if firma_san.lower() in p.name.lower():
+                                        _attach_pdf_file(str(p), "Zeugnisse.pdf")
+                                        attached_zeug = True
+                                        break
+
+                        if not attached_zeug:
+                            import io, pypdf as _pypdf
+                            w = _pypdf.PdfWriter()
+                            for zp in zeug_paths:
+                                try:
+                                    r = _pypdf.PdfReader(zp)
+                                    for pg in r.pages:
+                                        w.add_page(pg)
+                                except Exception:
+                                    pass
+                            buf = io.BytesIO()
+                            w.write(buf)
+                            try:
+                                z_part = MIMEBase("application", "pdf")
+                                z_part.set_payload(buf.getvalue())
+                                encoders.encode_base64(z_part)
+                                _add_safe_filename_header(z_part, "attachment", "Zeugnisse.pdf")
+                                msg.attach(z_part)
+                            except Exception as e:
+                                self._log(f"Failed to attach Zeugnisse: {e}", "WARNING")
+
         if not has_manual_attachments and not chosen_pdf_path:
             raise FileNotFoundError("No application papers found. Please load your Lebenslauf or cover letter in the Edit page, or attach files manually in the Send tab.")
         return msg, tracking_id
 
-    def _create_smtp_connection(self, silent: bool = False):
+    def _create_smtp_connection(self, silent: bool = False, custom_user: str | None = None, custom_pass: str | None = None):
         from ..core.config import config_manager
         s = config_manager.settings
 
@@ -3081,11 +3750,17 @@ class EmailSenderPage(QWidget):
                 return ""
             return str(v).replace('\xa0', '').replace(' ', '').replace('\u200b', '').replace('\ufeff', '').strip()
 
-        # Prefer config values, fall back to any UI fields still present
+        # If custom credentials not explicitly provided, check active rotating account
+        curr_acc = getattr(self, "_current_sending_account", None)
+        if custom_user is None and curr_acc:
+            custom_user = curr_acc.email
+            custom_pass = curr_acc.password
+
+        # Prefer custom passed credentials if rotating, else config values, fall back to any UI fields still present
         host = _clean_cred(getattr(s, "email_smtp_host", "") or self._smtp_host.text())
         port_txt = _clean_cred(getattr(s, "email_smtp_port", "587") or self._smtp_port.text())
-        user = _clean_cred(getattr(s, "email_smtp_user", "") or self._smtp_user.text())
-        pwd  = _clean_cred(getattr(s, "email_smtp_pass", "") or self._smtp_pass.text())
+        user = _clean_cred(custom_user) if custom_user else _clean_cred(getattr(s, "email_smtp_user", "") or self._smtp_user.text())
+        pwd  = _clean_cred(custom_pass) if custom_pass else _clean_cred(getattr(s, "email_smtp_pass", "") or self._smtp_pass.text())
 
         if not host:
             raise ValueError(
@@ -3156,7 +3831,7 @@ class EmailSenderPage(QWidget):
         except Exception:
             pass
 
-    def _reconnect_smtp(self, delay_seconds: float = 0.8, silent: bool = False):
+    def _reconnect_smtp(self, delay_seconds: float = 0.8, silent: bool = False, custom_user: str | None = None, custom_pass: str | None = None):
         self._close_active_server()
         if delay_seconds > 0:
             deadline = time.monotonic() + delay_seconds
@@ -3167,7 +3842,7 @@ class EmailSenderPage(QWidget):
                 time.sleep(min(remaining, 0.2))
             if self._stop_requested:
                 raise smtplib.SMTPServerDisconnected("Reconnect cancelled by user")
-        self._active_server = self._create_smtp_connection(silent=silent)
+        self._active_server = self._create_smtp_connection(silent=silent, custom_user=custom_user, custom_pass=custom_pass)
         return self._active_server
 
     def _should_use_fresh_connection_per_message(self) -> bool:
@@ -3256,6 +3931,13 @@ class EmailSenderPage(QWidget):
             email_recipients="\n".join(self._get_recipients()),
             email_attachments="\n".join(self._attachments),
         )
+        try:
+            from ..services import profile_service
+            active_p = profile_service.get_active_profile()
+            if active_p:
+                profile_service.save_email_payload(active_p.id, self._subject.text(), self._body_text.toPlainText())
+        except Exception:
+            pass
 
     def _restore_fields(self):
         s = config_manager.settings
@@ -3270,18 +3952,9 @@ class EmailSenderPage(QWidget):
         self._ssl_switch.setChecked(s.email_smtp_ssl)
         self._tls_switch.setChecked(s.email_smtp_tls)
         self._type_toggle.setChecked(s.email_body_html)
-        self._subject.setText(s.email_subject)
         
-        if s.email_body:
-            self._body_text.setPlainText(s.email_body)
-        else:
-            self._body_text.setPlainText(
-                "{{ANREDE}}\n\n"
-                "gerne möchte ich mich um den von Ihnen ausgeschriebenen Ausbildungsplatz bewerben. "
-                "Im Anhang finden Sie meine Bewerbungsunterlagen als PDF-Datei.\n\n"
-                "Bei Rückfragen stehe ich Ihnen gerne zur Verfügung. Ich freue mich, von Ihnen zu hören!\n\n"
-                "Mit freundlichen Grüßen\n\n{{SENDER_NAME}}"
-            )
+        # Load profile-specific email subject & body
+        self._sync_with_active_profile(force_reload=True)
         self._interval_input.setText(s.email_interval)
         self._attachments = [
             path for path in (s.email_attachments or "").split("\n")
@@ -3306,4 +3979,4 @@ class EmailSenderPage(QWidget):
 
     # End of class
 
-# 1.2.2
+# 1.5.0

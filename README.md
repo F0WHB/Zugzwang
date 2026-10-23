@@ -14,7 +14,7 @@
 
 <p align="center">
   <a href="https://github.com/whbexc"><img alt="Crafted by WAHB" src="https://img.shields.io/badge/crafted%20by-WAHB-FF2D55?style=for-the-badge&logo=github&logoColor=white"></a>
-  <a href="https://github.com/whbexc/Zugzwang/releases/latest"><img alt="Version" src="https://img.shields.io/badge/version-1.2.2-30D158?style=for-the-badge&logo=github&logoColor=white"></a>
+  <a href="https://github.com/whbexc/Zugzwang/releases/latest"><img alt="Version" src="https://img.shields.io/badge/version-1.5.0-30D158?style=for-the-badge&logo=github&logoColor=white"></a>
   <img alt="Platform" src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-0A84FF?style=for-the-badge">
   <img alt="Python" src="https://img.shields.io/badge/python-3.11+-5AC8FA?style=for-the-badge&logo=python&logoColor=white">
   <img alt="UI" src="https://img.shields.io/badge/UI-PySide6%20%7C%20Fluent-BF5AF2?style=for-the-badge&logo=qt&logoColor=white">
@@ -22,7 +22,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/whbexc/Zugzwang/releases/latest"><b>📥 Download Pre-built v1.2.2</b></a> &nbsp;&bull;&nbsp;
+  <a href="https://github.com/whbexc/Zugzwang/releases/latest"><b>📥 Download Pre-built v1.5.0</b></a> &nbsp;&bull;&nbsp;
   <a href="#quick-start"><b>⚡ Quick Start</b></a> &nbsp;&bull;&nbsp;
   <a href="#email--smtp-configuration"><b>📧 Email Setup</b></a> &nbsp;&bull;&nbsp;
   <a href="#the-mission"><b>✊ The Mission</b></a> &nbsp;&bull;&nbsp;
@@ -61,7 +61,7 @@
 
 | 🚀 Getting Started | ⚡ Features & Workflow | 🛠️ Reference & Project |
 |:---|:---|:---|
-| • [Overview](#overview)<br>• [The Mission](#the-mission)<br>• [Why ZUGZWANG](#why-zugzwang)<br>• [Quick Start](#quick-start)<br>• [Email & SMTP Setup](#email--smtp-configuration)<br>• [Build Commands](#build) | • [What It Does](#features)<br>• [Product Flow](#product-flow)<br>• [Core Screens](#screenshots)<br>• [Feature Snapshot](#feature-snapshot)<br>• [Keyboard Shortcuts](#keyboard-shortcuts) | • [Current Version (1.2.2)](#current-version)<br>• [Tech Stack](#tech-stack)<br>• [Project Structure](#project-structure)<br>• [Frequently Asked Questions](#frequently-asked-questions)<br>• [Roadmap Direction](#roadmap) |
+| • [Overview](#overview)<br>• [The Mission](#the-mission)<br>• [Why ZUGZWANG](#why-zugzwang)<br>• [Quick Start](#quick-start)<br>• [Email & SMTP Setup](#email--smtp-configuration)<br>• [Build Commands](#build) | • [What It Does](#features)<br>• [Product Flow](#product-flow)<br>• [Core Screens](#screenshots)<br>• [Feature Snapshot](#feature-snapshot)<br>• [Keyboard Shortcuts](#keyboard-shortcuts) | • [Current Version (1.5.0)](#current-version)<br>• [Tech Stack](#tech-stack)<br>• [Project Structure](#project-structure)<br>• [Frequently Asked Questions](#frequently-asked-questions)<br>• [Roadmap Direction](#roadmap) |
 | • [License (MIT)](#license)<br>• [Contributing](#contributing) | • [Data & Privacy](#data--privacy)<br>• [Development Notes](#development-notes) | • [Meet the Creator](#meet-the-creator)<br>• [Legal Disclaimer](#disclaimer) |
 
 ---
@@ -447,12 +447,12 @@ makensis installer.nsi
 
 ## Current Version
 
-**1.2.2**
+**1.5.0**
 
-- Hardened Google Maps scraping with explicit `?hl=de` binding, multi-lingual consent popup bypass (Arabic, French, Spanish, German, English), and iframe handling.
-- Enhanced Maps detail panel extraction (header, website, address, phone) with automated back-button navigation to keep subsequent search cards clickable.
-- Decoupled active SMTP socket closing into a background thread, preventing UI freezing when aborting broadcasts.
-- Optimized lead count preview with lightweight `COUNT(*)` queries, eliminating main-thread SQLite stalls.
+- Added Multi-Profile Management to seamlessly switch between candidate identities and job targets with dedicated templates.
+- Introduced Dynamic SMTP Sender Pool with automated round-robin rotation and hourly sending caps across multiple accounts.
+- Integrated dynamic Bewerbung PDF dossier generator adhering to German DIN 5008 application standards.
+- Enhanced macOS window management with native screen geometry adaptation and smooth maximize/restore behavior.
 
 See [CHANGELOG.md](CHANGELOG.md) for full release history.
 
@@ -593,4 +593,4 @@ Users are responsible for complying with:
   Cross-platform desktop scraping and outreach, built for speed.
 </p>
 
-<!-- 1.2.2 -->
+<!-- 1.5.0 -->

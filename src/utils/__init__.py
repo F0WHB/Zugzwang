@@ -1,3 +1,3 @@
 # ZUGZWANG utilities package
 
-# 1.2.2
+# 1.5.0

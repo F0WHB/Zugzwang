@@ -2,6 +2,17 @@
 
 All notable changes and technical release notes for ZUGZWANG are documented in this file.
 
+## 1.5.0
+
+### Multi-Profile & Sender Pool Architecture
+- **Multi-Profile Management System** — Create, customize, and switch between multiple candidate profiles on the fly. Each profile maintains isolated cover letter drafts, application dossier settings, subject lines, and email body templates.
+- **Dynamic SMTP Sender Pool & Rotation** — Distribute outbound campaign volume across multiple authenticated SMTP sender accounts. Includes automated round-robin rotation, configurable hourly limits, live credential connection testing, and seamless failover.
+- **Bewerbung PDF Dossier Engine** — Built-in dynamic compilation of full German application packets (`Deckblatt`, `Anschreiben`, `Lebenslauf`, `Zeugnisse`) following DIN 5008 standards directly into optimized PDF files.
+- **macOS Window Geometry & Display Optimization** — Tailored desktop display logic for macOS that maximizes to the exact `availableGeometry()` on launch and seamlessly toggles between normal and maximized geometry.
+- **Native Typography & UI Polish** — Implemented system font fallbacks (`-apple-system, BlinkMacSystemFont`), enhanced profile bar switching, and strengthened clean thread shutdown on exit.
+
+---
+
 ## 1.2.2
 
 ### Scraper Reliability & Outreach Performance
@@ -120,4 +131,4 @@ All notable changes and technical release notes for ZUGZWANG are documented in t
 - **Telemetry Noise Reduction** — Aggressively filtered low-level PyPDF warning noise ('Ignoring wrong pointing object') and internal startup traces from user activity streams.
 - **Startup Resource Optimization** — Reduced startup and dashboard refresh pressure to improve Google Maps launch responsiveness and avoid false temporary freeze behavior.
 
-<!-- 1.2.0 -->
+<!-- 1.5.0 -->

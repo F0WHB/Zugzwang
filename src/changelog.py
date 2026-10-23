@@ -1,14 +1,42 @@
 # ZUGZWANG Changelog Definitions
 # Contains version history and changes for the "What's New" dialog.
 
-APP_VERSION = "1.2.2"
+APP_VERSION = "1.5.0"
 
 CHANGELOG = [
     {
-        "version": "1.2.2",
-        "date": "October 10, 2026",
+        "version": "1.5.0",
+        "date": "October 23, 2026",
         "label": "LATEST",
         "label_color": "#30D158",
+        "changes": [
+            {
+                "type": "new",
+                "text": "Multi-Profile Management — Create, configure, and switch between multiple applicant profiles on the fly. Isolates cover letter templates, resume settings, sender identities, and email copy per career track."
+            },
+            {
+                "type": "new",
+                "text": "Dynamic SMTP Sender Pool & Account Rotation — Configure multiple outbound email accounts with automated round-robin rotation, hourly sending rate limits, live credential verification, and failover."
+            },
+            {
+                "type": "new",
+                "text": "Dynamic Bewerbung PDF Dossier Engine — On-the-fly compilation of full German application packets uniting DIN 5008 cover letters, Lebenslauf, and Zeugnisse directly into professional PDFs."
+            },
+            {
+                "type": "improved",
+                "text": "Native macOS Window Geometry — Tailored display logic fits available screen geometry on startup with seamless maximize and restore transitions."
+            },
+            {
+                "type": "improved",
+                "text": "System Typography & UI Polish — Refined system font fallback stack (-apple-system, BlinkMacSystemFont), clean background thread teardown, and enhanced profile status indicators."
+            },
+        ]
+    },
+    {
+        "version": "1.2.2",
+        "date": "October 10, 2026",
+        "label": None,
+        "label_color": None,
         "changes": [
             {
                 "type": "fixed",
@@ -836,10 +864,44 @@ CHANGELOG = [
 
 CHANGELOG_AR = [
     {
-        "version": "1.2.2",
-        "date": "10 أكتوبر 2026",
+        "version": "1.5.0",
+        "date": "23 أكتوبر 2026",
         "label": "الأحدث",
         "label_color": "#30D158",
+        "type_labels": {
+            "new": "جديد",
+            "improved": "مُحسَّن",
+            "fixed": "مُصلَّح",
+            "removed": "مُزال"
+        },
+        "changes": [
+            {
+                "type": "new",
+                "text": "نظام الملفات الشخصية المتعددة (Multi-Profile) — إمكانية إنشاء والتبديل الفوري بين ملفات تقديم متعددة لكل مهنة مع خطابات تقديم وإعدادات بريد إلكتروني منفصلة تماماً لكل ملف."
+            },
+            {
+                "type": "new",
+                "text": "مجمع حسابات البريد وتدوير الإرسال (Sender Pool) — توزيع حملات الإرسال تلقائياً بين عدة حسابات SMTP بالتناوب مع مراقبة حدود الإرسال وفحص جاهزية الخوادم."
+            },
+            {
+                "type": "new",
+                "text": "توليد ملفات التقديم (Bewerbung) بصيغة PDF ديناميكياً — تجميع حزم التقديم المتكاملة وفق معايير DIN 5008 ودمج السيرة الذاتية والشهادات آلياً وبدون تأخير."
+            },
+            {
+                "type": "improved",
+                "text": "تحسين تجربة العرض والملء التلقائي للشاشة على macOS — توافق مثالي مع أبعاد الشاشة عند بدء التشغيل على أنظمة الماك والاحتفاظ بحجم النافذة بدقة."
+            },
+            {
+                "type": "improved",
+                "text": "ترقية خطوط النظام وتحسينات الأداء — استخدام خطوط النظام الأصلية وتحديث مؤشرات الحالة والإغلاق الآمن للمهام دون تجميد الواجهة."
+            },
+        ]
+    },
+    {
+        "version": "1.2.2",
+        "date": "10 أكتوبر 2026",
+        "label": None,
+        "label_color": None,
         "type_labels": {
             "new": "جديد",
             "improved": "مُحسَّن",
@@ -1707,4 +1769,4 @@ CHANGELOG_AR = [
     }
 ]
 
-# 1.2.2
+# 1.5.0

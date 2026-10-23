@@ -2747,7 +2747,7 @@ QPushButton#ResultsRoundIconBtn:disabled {
 
 /* Strict Monochrome / Grayscale override layer */
 * {
-    font-family: "Inter", "Geist Sans", "PT Root UI", sans-serif;
+    font-family: "PT Root UI", "SF Pro Text", "Segoe UI", sans-serif;
     color: #F5F5F5;
 }
 
@@ -3194,4 +3194,4 @@ QPushButton#btn_wipe_data:hover {
 }
 """.replace("__CHEVRON_DOWN__", _CHEVRON_DOWN).replace("__CHEVRON_UP__", _CHEVRON_UP)
 
-# 1.2.2
+# 1.5.0

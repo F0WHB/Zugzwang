@@ -247,6 +247,7 @@ class LogViewerPage(QWidget):
         self._log_view = QTextBrowser()
         self._log_view.setReadOnly(True)
         self._log_view.setOpenExternalLinks(False)
+        self._log_view.setOpenLinks(False)
         self._log_view.setStyleSheet("""
             QTextBrowser {
                 background: transparent;
@@ -487,4 +488,4 @@ class LogViewerPage(QWidget):
         scrollbar = self._log_view.verticalScrollBar()
         scrollbar.setValue(scrollbar.maximum())
 
-# 1.2.2
+# 1.5.0

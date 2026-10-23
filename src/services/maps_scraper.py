@@ -1926,4 +1926,4 @@ class GoogleMapsScraper:
 
                 record.city = city_m
 
-# 1.2.2
+# 1.5.0

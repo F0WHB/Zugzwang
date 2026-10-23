@@ -98,6 +98,10 @@ from .toast_system import ToastNotification as InfoBar
 from qfluentwidgets import LineEdit, PushButton, InfoBarPosition, CaptionLabel, FluentIcon, IconWidget, Action
 from .components import StatCard, GlassToolTipFilter
 from ..core.i18n import tr, get_language
+from .profile_bar import ProfileBar
+from ..services import profile_service
+from ..services.profile_service import Profile
+
 
 
 class SegmentTabButton(QPushButton):
@@ -186,6 +190,37 @@ from .theme import Theme
 from .icons import _render_tinted_icon
 
 
+def _detect_pdf_task(path: Path) -> tuple[int, int, bool, str]:
+    try:
+        import pypdf
+    except ImportError:
+        return (0, -1, False, "Install pypdf:  pip install pypdf")
+
+    try:
+        reader = pypdf.PdfReader(path)
+        if reader.is_encrypted:
+            return (0, -1, False, "PDF is password-protected. Please unlock it first.")
+
+        num_pages = len(reader.pages)
+        detected_idx = 1 if num_pages > 1 else 0
+        was_detected = False
+
+        # Try to detect Anschreiben
+        for i, page in enumerate(reader.pages):
+            try:
+                text = page.extract_text() or ""
+                if any(kw in text for kw in ["Anschreiben", "Motivation", "Sehr geehrte", "Mit freundlichen Grüßen"]):
+                    detected_idx = i
+                    was_detected = True
+                    break
+            except Exception:
+                pass
+
+        return (num_pages, detected_idx, was_detected, "")
+    except Exception as e:
+        return (0, -1, False, str(e))
+
+
 class PdfDetectWorker(QThread):
     detection_done = Signal(int, int, bool, str)
 
@@ -194,36 +229,17 @@ class PdfDetectWorker(QThread):
         self.path = path
 
     def run(self):
+        res = _detect_pdf_task(self.path)
+        self.detection_done.emit(*res)
+
+    def __del__(self):
         try:
-            import pypdf
-        except ImportError:
-            self.detection_done.emit(0, -1, False, "Install pypdf:  pip install pypdf")
-            return
+            if self.isRunning():
+                self.quit()
+                self.wait(500)
+        except Exception:
+            pass
 
-        try:
-            reader = pypdf.PdfReader(self.path)
-            if reader.is_encrypted:
-                self.detection_done.emit(0, -1, False, "PDF is password-protected. Please unlock it first.")
-                return
-            
-            num_pages = len(reader.pages)
-            detected_idx = 1 if num_pages > 1 else 0
-            was_detected = False
-
-            # Try to detect Anschreiben
-            for i, page in enumerate(reader.pages):
-                try:
-                    text = page.extract_text() or ""
-                    if any(kw in text for kw in ["Anschreiben", "Motivation", "Sehr geehrte", "Mit freundlichen Grüßen"]):
-                        detected_idx = i
-                        was_detected = True
-                        break
-                except Exception:
-                    pass
-
-            self.detection_done.emit(num_pages, detected_idx, was_detected, "")
-        except Exception as e:
-            self.detection_done.emit(0, -1, False, str(e))
 
 
 GERMAN_MONTHS = [
@@ -260,6 +276,7 @@ class LetterState:
     previous_text: str = ""          # one-level undo (last saved version)
     last_saved_ts: str = ""          # human-readable "saved HH:MM"
     is_discarded: int = 0            # hidden from edit page but kept in db
+    profile_id: str = ""
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1580,6 +1597,7 @@ class EditPage(QWidget):
         self._cached_sender_settings: dict = {}
         self._fetch_sender_settings()
         event_bus.subscribe(EventBus.SETTINGS_CHANGED, self._fetch_sender_settings)
+        event_bus.subscribe(EventBus.PROFILE_SWITCHED, self._on_external_profile_switched)
         event_bridge.job_result.connect(self._on_live_result_added)
         event_bridge.job_started.connect(self._on_job_started)
         event_bridge.job_completed.connect(self._on_job_finished)
@@ -1602,6 +1620,9 @@ class EditPage(QWidget):
         from ..core.config import get_app_data_dir
         import shutil
 
+        profile_service.init_db()
+        active_prof_id = profile_service.get_active_profile_id()
+
         self._template_path = get_app_data_dir() / "templates" / "anschreiben_base.txt"
         if not self._template_path.exists():
             default_path = Path(__file__).resolve().parents[2] / "templates" / "anschreiben_base.txt"
@@ -1612,7 +1633,7 @@ class EditPage(QWidget):
                 except Exception as e:
                     import logging
                     logging.getLogger(__name__).warning(f"Could not copy default template: {e}")
-        self._template_text = self._load_template()
+        self._template_text = profile_service.get_template_text(active_prof_id)
 
         # auto-save debounce timer
         self._autosave_timer = QTimer(self)
@@ -1630,6 +1651,12 @@ class EditPage(QWidget):
         self._setup_shortcuts()
         QTimer.singleShot(0, self.refresh)
 
+    def closeEvent(self, event):
+        if hasattr(self, "_autosave_timer") and self._autosave_timer.isActive():
+            self._autosave_timer.stop()
+            self._autosave(silent=True)
+        super().closeEvent(event)
+
     # ─────────────────────────────────────────────────────────────────────────
     # UI construction
     # ─────────────────────────────────────────────────────────────────────────
@@ -1637,11 +1664,10 @@ class EditPage(QWidget):
     def _build_ui(self):
         self.setStyleSheet("QWidget#editPage { background: transparent; }")
         root = QVBoxLayout(self)
-        root.setContentsMargins(8, 24, 8, 24)
+        root.setContentsMargins(8, 20, 8, 24)
         root.setSpacing(0)
 
-
-        # Child 2: BodySplitter
+        # BodySplitter
         class StyledSplitter(QSplitter):
             def createHandle(self):
                 return CustomSplitterHandle(self.orientation(), self)
@@ -1654,13 +1680,25 @@ class EditPage(QWidget):
         left_panel.setFixedWidth(280)
         self._left_panel_widget = left_panel
         
+        # Center column: ProfileBar as wide as middle section + center_panel
+        center_column = QWidget()
+        center_column.setStyleSheet("background: transparent;")
+        center_col_layout = QVBoxLayout(center_column)
+        center_col_layout.setContentsMargins(0, 0, 0, 0)
+        center_col_layout.setSpacing(8)
+
+        self._profile_bar = ProfileBar(self)
+        self._profile_bar.profile_switched.connect(self._on_profile_switched)
+        center_col_layout.addWidget(self._profile_bar, 0)
+
         center_panel = self._build_center_panel()
+        center_col_layout.addWidget(center_panel, 1)
         
         right_panel = self._build_right_panel()
         right_panel.setFixedWidth(280)
 
         workspace.addWidget(left_panel)
-        workspace.addWidget(center_panel)
+        workspace.addWidget(center_column)
         workspace.addWidget(right_panel)
 
         workspace.setStretchFactor(0, 0)
@@ -2445,6 +2483,12 @@ class EditPage(QWidget):
         QShortcut(QKeySequence("Escape"), self._find_bar).activated.connect(
             self._find_bar.hide
         )
+        for i in range(1, 10):
+            idx = i - 1
+            sc_c = QShortcut(QKeySequence(f"Ctrl+{i}"), self)
+            sc_c.activated.connect(lambda target=idx: self._profile_bar.switch_to_index(target))
+            sc_m = QShortcut(QKeySequence(f"Meta+{i}"), self)
+            sc_m.activated.connect(lambda target=idx: self._profile_bar.switch_to_index(target))
 
     def _toggle_find_bar(self):
         if self._find_bar.isVisible():
@@ -2741,12 +2785,13 @@ class EditPage(QWidget):
             self._ensure_letter_state_table(conn)
             rows = conn.execute(
                 "SELECT lead_id, generated_at, edited_at, sent_at, "
-                "letter_text, previous_text, last_saved_ts, is_discarded FROM letter_state"
+                "letter_text, previous_text, last_saved_ts, is_discarded, profile_id FROM letter_state"
             ).fetchall()
             return {
                 row[0]: LetterState(
                     row[1] or "", row[2] or "", row[3] or "",
-                    row[4] or "", row[5] or "", row[6] or "", row[7] or 0
+                    row[4] or "", row[5] or "", row[6] or "", row[7] or 0,
+                    row[8] or ""
                 )
                 for row in rows
             }
@@ -2767,19 +2812,25 @@ class EditPage(QWidget):
                 is_discarded  INTEGER DEFAULT 0,
                 tracking_id   TEXT,
                 opened_at     TEXT,
-                open_count    INTEGER DEFAULT 0
+                open_count    INTEGER DEFAULT 0,
+                profile_id    TEXT DEFAULT ''
             )
         """)
         # migrate older schema that lacked new columns
         existing = {r[1] for r in conn.execute("PRAGMA table_info(letter_state)")}
         
         migrations = [
+            ("generated_at", "TEXT", "''"),
+            ("edited_at", "TEXT", "''"),
+            ("sent_at", "TEXT", "''"),
+            ("letter_text", "TEXT", "''"),
             ("previous_text", "TEXT", "''"), 
             ("last_saved_ts", "TEXT", "''"), 
             ("is_discarded", "INTEGER", "0"),
             ("tracking_id", "TEXT", "NULL"),
             ("opened_at", "TEXT", "NULL"),
-            ("open_count", "INTEGER", "0")
+            ("open_count", "INTEGER", "0"),
+            ("profile_id", "TEXT", "''"),
         ]
         
         for col, ctype, default in migrations:
@@ -2997,8 +3048,15 @@ class EditPage(QWidget):
         self._selected_record  = record
         previous_selected      = self._selected_row_widget
         self._selected_lead_id = record.id
+        active_pid = profile_service.get_active_profile_id()
         state  = self._states.get(record.id, LetterState())
-        text   = state.letter_text or self._assemble_letter(record)
+        if state.letter_text and state.profile_id and state.profile_id == active_pid:
+            text = state.letter_text
+        else:
+            text = self._assemble_letter(record)
+            state.letter_text = text
+            state.profile_id = active_pid
+            self._persist_state_async(record.id, letter_text=text, profile_id=active_pid)
 
         self._rendered_text = text
         self._set_editor_text(text)
@@ -3053,12 +3111,14 @@ class EditPage(QWidget):
         state.letter_text    = text
         state.edited_at      = state.edited_at or datetime.utcnow().isoformat()
         state.last_saved_ts  = now_ts
+        state.profile_id     = profile_service.get_active_profile_id()
         self._persist_state_async(
             self._selected_record.id,
             edited_at=state.edited_at,
             letter_text=text,
             previous_text=state.previous_text,
             last_saved_ts=now_ts,
+            profile_id=state.profile_id,
         )
         self._set_undo_ver_enabled(bool(state.previous_text))
 
@@ -3098,6 +3158,22 @@ class EditPage(QWidget):
     # Letter assembly & polish
     # ─────────────────────────────────────────────────────────────────────────
 
+    def _resolve_beruf(self, record: LeadRecord | None = None) -> str:
+        """Resolve the effective target profession (BERUF) dynamically.
+        Prioritizes the active profile's profession/name, then falls back to sender settings / lead job title.
+        """
+        active_prof = profile_service.get_active_profile()
+        prof_beruf = active_prof.effective_beruf if active_prof else ""
+        if prof_beruf:
+            return prof_beruf
+        sender = self._load_sender_settings()
+        return (
+            sender.get("beruf")
+            or (record.job_title if record else "")
+            or (record.category if record else "")
+            or "Ausbildung"
+        )
+
     def _assemble_letter(self, record: LeadRecord) -> str:
         template = self._template_text or self._load_template()
         sender   = self._load_sender_settings()
@@ -3121,7 +3197,7 @@ class EditPage(QWidget):
             "COMPANY_ADDRESS":addr_val,
             "ORT":            record.city or __import__("re").sub(r"^\d+\s*", "", str(sender.get("city") or "")).strip(),
             "PLZ":            record.postal_code         or "",
-            "BERUF":          sender.get("beruf") or record.job_title or record.category or "Ausbildung",
+            "BERUF":          self._resolve_beruf(record),
             "DATUM":          self._german_date(),
         }
         for k, v in sender.items():
@@ -4053,7 +4129,7 @@ class EditPage(QWidget):
             "FIRMA":  self._selected_record.company_name or "Unternehmen",
             "ORT":    __import__("re").sub(r"^\d+\s*", "", str(sender.get("city") or "")).strip(),
             "PLZ":    self._selected_record.postal_code or "",
-            "BERUF":  sender.get("beruf") or self._selected_record.job_title or self._selected_record.category or "Ausbildung",
+            "BERUF":  self._resolve_beruf(self._selected_record),
             "DATUM":  self._german_date(),
         }
         polished = self._polish_letter(self._editor.toPlainText(), replacements)
@@ -4193,29 +4269,70 @@ class EditPage(QWidget):
             self._loading_text = False
 
     def _load_template(self) -> str:
-        if self._template_path.exists():
-            return self._template_path.read_text(encoding="utf-8")
-        return (
-            "{{SENDER_NAME}}\n{{SENDER_ADDRESS}}\n{{SENDER_CITY}}\n"
-            "{{SENDER_PHONE}} · {{SENDER_EMAIL}}\n\n"
-            "{{FIRMA}}\n{{ADRESSE}}\n{{PLZ}} {{ORT}}\n\n"
-            "{{DATUM}}\n\n"
-            "Bewerbung um einen Ausbildungsplatz als {{BERUF}}\n\n"
-            "{{ANREDE}}\n\n"
-            "[ Hier deinen Bewerbungstext einfügen... ]\n\n"
-            "Mit freundlichen Grüßen"
-        )
+        active_id = profile_service.get_active_profile_id()
+        return profile_service.get_template_text(active_id)
 
     def _save_template(self, text: str):
-        self._template_path.parent.mkdir(parents=True, exist_ok=True)
-        self._template_path.write_text(text.strip() + "\n", encoding="utf-8")
+        active_id = profile_service.get_active_profile_id()
+        profile_service.save_template_text(active_id, text)
         self._template_text = text.strip() + "\n"
-        self._template_status.setText(self._template_status_text())
+        if hasattr(self, "_template_status"):
+            self._template_status.setText(self._template_status_text())
 
     def _template_status_text(self) -> str:
-        if self._template_path.exists():
-            return f"Using: {self._template_path.name}"
-        return "Using: built-in default"
+        active_prof = profile_service.get_active_profile()
+        p_name = active_prof.name if active_prof else "Default"
+        return f"Using: {p_name}"
+
+    def _on_external_profile_switched(self, profile_id: str = "", **kwargs):
+        pid = profile_id or profile_service.get_active_profile_id()
+        if not pid:
+            return
+        if hasattr(self, "_profile_bar") and getattr(self._profile_bar, "_active_id", None) == pid:
+            return
+        self._on_profile_switched(pid, is_external=True)
+
+    def _on_profile_switched(self, new_profile_id: str, is_external: bool = False):
+        # 1. Flush any pending debounced auto-save for current profile first
+        if hasattr(self, "_autosave_timer") and self._autosave_timer.isActive():
+            self._autosave_timer.stop()
+        if self._selected_record and not getattr(self, "_loading_text", False):
+            self._autosave(silent=True)
+
+        # 2. Update active profile in service and UI
+        profile_service.set_active_profile_id(new_profile_id)
+        if hasattr(self, "_profile_bar"):
+            self._profile_bar.set_active_profile(new_profile_id)
+        if not is_external:
+            event_bus.emit(EventBus.PROFILE_SWITCHED, profile_id=new_profile_id)
+
+        # 3. Load active profile's template
+        self._template_text = profile_service.get_template_text(new_profile_id)
+        if hasattr(self, "_template_status"):
+            self._template_status.setText(self._template_status_text())
+
+        # 4. Refresh documents (Lebenslauf, Zeugnisse, Deckblatt)
+        self._refresh_bewerbung_status_ui()
+
+        # 5. Update editor if in template mode or lead selected
+        if getattr(self, "_is_template_mode", False):
+            self._load_template_into_editor()
+        elif self._selected_record:
+            state = self._states.get(self._selected_record.id, LetterState())
+            # If the letter was assembled/saved under a different profile or is empty, re-assemble for the new profile
+            if state.profile_id != new_profile_id or not state.letter_text:
+                text = self._assemble_letter(self._selected_record)
+                state.letter_text = text
+                state.profile_id = new_profile_id
+                state.edited_at = ""
+                self._persist_state_async(self._selected_record.id, letter_text=text, profile_id=new_profile_id)
+            else:
+                text = state.letter_text
+            self._rendered_text = text
+            self._set_editor_text(text)
+            self._update_lead_summary(self._selected_record)
+            self._update_word_count()
+            self._check_placeholders()
 
     # ─────────────────────────────────────────────────────────────────────────
     # Persistence helpers
@@ -4226,7 +4343,8 @@ class EditPage(QWidget):
         state = self._states.setdefault(lead_id, LetterState())
         state.generated_at = now
         state.letter_text  = text
-        self._persist_state_async(lead_id, generated_at=now, letter_text=text)
+        state.profile_id   = profile_service.get_active_profile_id()
+        self._persist_state_async(lead_id, generated_at=now, letter_text=text, profile_id=state.profile_id)
         self._refresh_selected_lead_row()
 
     def _refresh_selected_lead_row(self):
@@ -4255,6 +4373,7 @@ class EditPage(QWidget):
         letter_text:   str | None = None,
         previous_text: str | None = None,
         last_saved_ts: str | None = None,
+        profile_id:    str | None = None,
     ):
         run_in_thread(
             self._persist_state,
@@ -4265,6 +4384,7 @@ class EditPage(QWidget):
             letter_text,
             previous_text,
             last_saved_ts,
+            profile_id,
             on_error=lambda tb: self._show_error(
                 "Save failed", tb.splitlines()[-1] if tb else "Unknown error"
             ),
@@ -4279,6 +4399,7 @@ class EditPage(QWidget):
         letter_text:   str | None,
         previous_text: str | None,
         last_saved_ts: str | None,
+        profile_id:    str | None = None,
     ):
         db_path = get_memory_db_path()
         conn    = sqlite3.connect(db_path, timeout=30.0)
@@ -4286,10 +4407,10 @@ class EditPage(QWidget):
             self._ensure_letter_state_table(conn)
             existing = conn.execute(
                 "SELECT generated_at, edited_at, sent_at, letter_text, "
-                "previous_text, last_saved_ts, is_discarded FROM letter_state WHERE lead_id=?",
+                "previous_text, last_saved_ts, is_discarded, profile_id FROM letter_state WHERE lead_id=?",
                 (lead_id,),
             ).fetchone()
-            cur = LetterState(*(existing or ("", "", "", "", "", "", 0)))
+            cur = LetterState(*(existing or ("", "", "", "", "", "", 0, "")))
             final = LetterState(
                 generated_at  or cur.generated_at,
                 edited_at     or cur.edited_at,
@@ -4298,19 +4419,20 @@ class EditPage(QWidget):
                 previous_text if previous_text is not None else cur.previous_text,
                 last_saved_ts if last_saved_ts is not None else cur.last_saved_ts,
                 cur.is_discarded,
+                profile_id    if profile_id    is not None else (cur.profile_id or profile_service.get_active_profile_id()),
             )
             conn.execute(
                 """
                 INSERT OR REPLACE INTO letter_state
                   (lead_id, generated_at, edited_at, sent_at,
-                   letter_text, previous_text, last_saved_ts, is_discarded)
-                VALUES (?,?,?,?,?,?,?,?)
+                   letter_text, previous_text, last_saved_ts, is_discarded, profile_id)
+                VALUES (?,?,?,?,?,?,?,?,?)
                 """,
                 (
                     lead_id,
                     final.generated_at, final.edited_at, final.sent_at,
                     final.letter_text,  final.previous_text, final.last_saved_ts,
-                    final.is_discarded,
+                    final.is_discarded, final.profile_id,
                 ),
             )
             conn.commit()
@@ -4881,17 +5003,18 @@ class EditPage(QWidget):
         self._refresh_bewerbung_export_btn()
 
     def _clear_deckblatt(self) -> None:
-        config_manager.settings.bewerbung_deckblatt_path = ""
-        config_manager.save()
+        active_id = profile_service.get_active_profile_id()
+        profile_service.clear_deckblatt(active_id)
         self._refresh_bewerbung_status_ui()
 
     def _clear_lebenslauf(self) -> None:
-        config_manager.settings.bewerbung_lebenslauf_path = ""
-        config_manager.save()
+        active_id = profile_service.get_active_profile_id()
+        profile_service.clear_lebenslauf(active_id)
         self._refresh_bewerbung_status_ui()
 
     def _clear_zeugnisse(self) -> None:
-        self._save_zeugnisse_paths([])
+        active_id = profile_service.get_active_profile_id()
+        profile_service.clear_zeugnisse(active_id)
         self._refresh_bewerbung_status_ui()
 
     def _refresh_doc_order_ui(self) -> None:
@@ -4905,22 +5028,65 @@ class EditPage(QWidget):
 
         self._doc_card_rows = []
         order = self._get_doc_order()
-        db_path = getattr(config_manager.settings, "bewerbung_deckblatt_path", "") or ""
-        lv_path = getattr(config_manager.settings, "bewerbung_lebenslauf_path", "") or ""
-        zeug_paths = self._get_zeugnisse_paths()
+        active_id = profile_service.get_active_profile_id()
 
-        has_db = bool(db_path and Path(db_path).exists())
-        has_lv = bool(lv_path and Path(lv_path).exists())
-        has_zeug = bool(zeug_paths)
+        db_doc = profile_service.get_deckblatt(active_id)
+        lv_doc = profile_service.get_lebenslauf(active_id)
+        zeug_docs = profile_service.get_zeugnisse(active_id)
+
+        # Deckblatt status
+        if db_doc:
+            if Path(db_doc.stored_path).exists():
+                has_db = True
+                db_sub = db_doc.file_name
+                db_color = "#30D158"
+            else:
+                has_db = False
+                db_sub = "File missing — re-upload"
+                db_color = "#FF453A"
+        else:
+            has_db = False
+            db_sub = "optional"
+            db_color = "#8E8E93"
+
+        # Lebenslauf status
+        if lv_doc:
+            if Path(lv_doc.stored_path).exists():
+                has_lv = True
+                lv_sub = lv_doc.file_name
+                lv_color = "#30D158"
+            else:
+                has_lv = False
+                lv_sub = "File missing — re-upload"
+                lv_color = "#FF453A"
+        else:
+            has_lv = False
+            lv_sub = "No Lebenslauf yet, upload one"
+            lv_color = "#FF9F0A"
+
+        # Zeugnisse status
+        missing_zeug = [d for d in zeug_docs if not Path(d.stored_path).exists()]
+        if missing_zeug:
+            has_zeug = True
+            zeug_sub = f"{len(missing_zeug)} missing — re-upload"
+            zeug_color = "#FF453A"
+        elif zeug_docs:
+            has_zeug = True
+            zeug_sub = f"{len(zeug_docs)} file{'s' if len(zeug_docs) != 1 else ''}"
+            zeug_color = "#30D158"
+        else:
+            has_zeug = False
+            zeug_sub = "optional"
+            zeug_color = "#8E8E93"
 
         doc_meta = {
             "deckblatt": {
                 "title": "Deckblatt",
-                "sub": Path(db_path).name if has_db else "optional",
-                "color": "#30D158" if has_db else "#8E8E93",
+                "sub": db_sub,
+                "color": db_color,
                 "icon": FluentIcon.PHOTO,
                 "action": self._on_deckblatt_browse,
-                "has_file": has_db,
+                "has_file": bool(db_doc),
                 "clear_fn": self._clear_deckblatt,
             },
             "anschreiben": {
@@ -4934,20 +5100,20 @@ class EditPage(QWidget):
             },
             "lebenslauf": {
                 "title": "Lebenslauf",
-                "sub": Path(lv_path).name if has_lv else "required",
-                "color": "#30D158" if has_lv else "#FF9F0A",
+                "sub": lv_sub,
+                "color": lv_color,
                 "icon": FluentIcon.PEOPLE,
                 "action": self._on_lebenslauf_browse,
-                "has_file": has_lv,
+                "has_file": bool(lv_doc),
                 "clear_fn": self._clear_lebenslauf,
             },
             "zeugnisse": {
                 "title": "Zeugnisse",
-                "sub": f"{len(zeug_paths)} file{'s' if len(zeug_paths) != 1 else ''}" if has_zeug else "optional",
-                "color": "#30D158" if has_zeug else "#8E8E93",
+                "sub": zeug_sub,
+                "color": zeug_color,
                 "icon": FluentIcon.FOLDER,
                 "action": self._on_manage_zeugnisse,
-                "has_file": has_zeug,
+                "has_file": bool(zeug_docs),
                 "clear_fn": self._clear_zeugnisse,
             },
         }
@@ -4966,49 +5132,54 @@ class EditPage(QWidget):
             self._doc_order_layout.addWidget(row)
 
     def _get_zeugnisse_paths(self) -> list[str]:
-        """Return the current ordered list of Zeugnisse PDF paths from settings."""
-        import json
-        raw = getattr(config_manager.settings, "bewerbung_zeugnisse_paths", "[]") or "[]"
-        try:
-            return json.loads(raw)
-        except Exception:
-            return []
+        """Return the current ordered list of Zeugnisse PDF paths for active profile."""
+        active_id = profile_service.get_active_profile_id()
+        return [d.stored_path for d in profile_service.get_zeugnisse(active_id)]
 
     def _save_zeugnisse_paths(self, paths: list[str]) -> None:
-        import json
-        config_manager.settings.bewerbung_zeugnisse_paths = json.dumps(paths)
-        config_manager.save()
+        active_id = profile_service.get_active_profile_id()
+        profile_service.set_zeugnisse_paths(active_id, paths)
 
     def _refresh_bewerbung_status_ui(self) -> None:
         """Update status pill, Deckblatt, Lebenslauf, Zeugnisse, and order list."""
-        db_path = getattr(config_manager.settings, "bewerbung_deckblatt_path", "") or ""
-        lv_path = getattr(config_manager.settings, "bewerbung_lebenslauf_path", "") or ""
-        zeug_paths = self._get_zeugnisse_paths()
+        active_id = profile_service.get_active_profile_id()
+        db_doc = profile_service.get_deckblatt(active_id)
+        lv_doc = profile_service.get_lebenslauf(active_id)
+        zeug_docs = profile_service.get_zeugnisse(active_id)
 
-        has_db = bool(db_path and Path(db_path).exists())
-        has_lv = bool(lv_path and Path(lv_path).exists())
-        has_zeug = bool(zeug_paths)
+        has_db = bool(db_doc and Path(db_doc.stored_path).exists())
+        has_lv = bool(lv_doc and Path(lv_doc.stored_path).exists())
+        has_zeug = bool(zeug_docs and all(Path(d.stored_path).exists() for d in zeug_docs))
 
         if hasattr(self, "_db_status_lbl"):
             if has_db:
-                self._db_status_lbl.setText(f"Deckblatt: {Path(db_path).name}")
+                self._db_status_lbl.setText(f"Deckblatt: {db_doc.file_name}")
                 self._db_status_lbl.setStyleSheet("color: #30A46C; font-size: 11px; font-weight: 500; background: transparent; padding-left: 2px;")
+            elif db_doc and not Path(db_doc.stored_path).exists():
+                self._db_status_lbl.setText("Deckblatt: File missing — re-upload")
+                self._db_status_lbl.setStyleSheet("color: #FF453A; font-size: 11px; font-weight: 500; background: transparent; padding-left: 2px;")
             else:
                 self._db_status_lbl.setText("Deckblatt: optional / not loaded")
                 self._db_status_lbl.setStyleSheet("color: #6E6E73; font-size: 11px; font-weight: 400; background: transparent; padding-left: 2px;")
 
         if hasattr(self, "_lv_status_lbl"):
             if has_lv:
-                self._lv_status_lbl.setText(f"Lebenslauf: {Path(lv_path).name}")
+                self._lv_status_lbl.setText(f"Lebenslauf: {lv_doc.file_name}")
                 self._lv_status_lbl.setStyleSheet("color: #30A46C; font-size: 11px; font-weight: 500; background: transparent; padding-left: 2px;")
+            elif lv_doc and not Path(lv_doc.stored_path).exists():
+                self._lv_status_lbl.setText("Lebenslauf: File missing — re-upload")
+                self._lv_status_lbl.setStyleSheet("color: #FF453A; font-size: 11px; font-weight: 500; background: transparent; padding-left: 2px;")
             else:
                 self._lv_status_lbl.setText("Lebenslauf: required / not loaded")
                 self._lv_status_lbl.setStyleSheet("color: #FF9F0A; font-size: 11px; font-weight: 400; background: transparent; padding-left: 2px;")
 
         if hasattr(self, "_zeug_status_lbl"):
             if has_zeug:
-                self._zeug_status_lbl.setText(f"Zeugnisse: {len(zeug_paths)} file{'s' if len(zeug_paths) != 1 else ''}")
+                self._zeug_status_lbl.setText(f"Zeugnisse: {len(zeug_docs)} file{'s' if len(zeug_docs) != 1 else ''}")
                 self._zeug_status_lbl.setStyleSheet("color: #30A46C; font-size: 11px; font-weight: 500; background: transparent; padding-left: 2px;")
+            elif zeug_docs:
+                self._zeug_status_lbl.setText("Zeugnisse: File missing — re-upload")
+                self._zeug_status_lbl.setStyleSheet("color: #FF453A; font-size: 11px; font-weight: 500; background: transparent; padding-left: 2px;")
             else:
                 self._zeug_status_lbl.setText("Zeugnisse: 0 files (optional)")
                 self._zeug_status_lbl.setStyleSheet("color: #6E6E73; font-size: 11px; font-weight: 400; background: transparent; padding-left: 2px;")
@@ -5052,8 +5223,9 @@ class EditPage(QWidget):
         """Enable export when documents (Lebenslauf, Anschreiben, etc.) are available."""
         if not hasattr(self, "_btn_export"):
             return
-        lv_path = getattr(config_manager.settings, "bewerbung_lebenslauf_path", "") or ""
-        has_lv = bool(lv_path and Path(lv_path).exists())
+        active_id = profile_service.get_active_profile_id()
+        lv_doc = profile_service.get_lebenslauf(active_id)
+        has_lv = bool(lv_doc and Path(lv_doc.stored_path).exists())
         has_letter = bool(hasattr(self, "_editor") and self._editor.toPlainText().strip()) or bool(getattr(self, "_records", None))
         self._btn_export.setEnabled(has_lv or has_letter)
 
@@ -5063,8 +5235,8 @@ class EditPage(QWidget):
         start_dir = QStandardPaths.writableLocation(QStandardPaths.DocumentsLocation) or str(Path.home())
         path, _ = QFileDialog.getOpenFileName(self, "Select Deckblatt (Cover Sheet) PDF", start_dir, "PDF Files (*.pdf)")
         if path:
-            config_manager.settings.bewerbung_deckblatt_path = path
-            config_manager.save()
+            active_id = profile_service.get_active_profile_id()
+            profile_service.set_deckblatt(active_id, path)
             self._refresh_bewerbung_status_ui()
 
     def _on_lebenslauf_browse(self) -> None:
@@ -5073,22 +5245,21 @@ class EditPage(QWidget):
         start_dir = QStandardPaths.writableLocation(QStandardPaths.DocumentsLocation) or str(Path.home())
         path, _ = QFileDialog.getOpenFileName(self, "Select Lebenslauf (CV) PDF", start_dir, "PDF Files (*.pdf)")
         if path:
-            config_manager.settings.bewerbung_lebenslauf_path = path
-            config_manager.save()
+            active_id = profile_service.get_active_profile_id()
+            profile_service.set_lebenslauf(active_id, path)
             self._refresh_bewerbung_status_ui()
 
     def _on_manage_zeugnisse(self) -> None:
         dlg = ZeugisseManagerDialog(self._get_zeugnisse_paths(), self)
         if dlg.exec():
-            self._save_zeugnisse_paths(dlg.get_paths())
+            active_id = profile_service.get_active_profile_id()
+            profile_service.set_zeugnisse_paths(active_id, dlg.get_paths())
             self._refresh_bewerbung_status_ui()
 
     def _clear_bewerbung_all(self) -> None:
         """Clear Deckblatt + Lebenslauf + Zeugnisse only (never touches Anschreiben card)."""
-        config_manager.settings.bewerbung_deckblatt_path = ""
-        config_manager.settings.bewerbung_lebenslauf_path = ""
-        config_manager.settings.bewerbung_zeugnisse_paths = "[]"
-        config_manager.save()
+        active_id = profile_service.get_active_profile_id()
+        profile_service.clear_all_documents(active_id)
         self._refresh_bewerbung_status_ui()
 
 
@@ -5144,9 +5315,11 @@ class EditPage(QWidget):
         if hasattr(self, "_btn_generate"):
             self._btn_generate.setEnabled(False)
 
-        self._pdf_worker = PdfDetectWorker(path, self)
-        self._pdf_worker.detection_done.connect(self._on_pdf_detected)
-        self._pdf_worker.start()
+        run_in_thread(
+            _detect_pdf_task,
+            path,
+            on_result=lambda res: self._on_pdf_detected(*res) if hasattr(self, "_on_pdf_detected") else None
+        )
 
     def _on_pdf_detected(self, num_pages: int, detected_idx: int, was_detected: bool, error_msg: str) -> None:
         if error_msg:
@@ -5277,7 +5450,9 @@ class EditPage(QWidget):
 
         try:
             filled_text = self._editor.toPlainText()
-            lv_path = getattr(config_manager.settings, "bewerbung_lebenslauf_path", "") or ""
+            active_id = profile_service.get_active_profile_id()
+            lv_doc = profile_service.get_lebenslauf(active_id)
+            lv_path = lv_doc.stored_path if lv_doc else ""
             has_lv = bool(lv_path and Path(lv_path).exists())
 
             if has_lv:
@@ -5304,255 +5479,13 @@ class EditPage(QWidget):
 
 
     def _render_letter_as_pdf_page(self, text: str) -> bytes:
-        import io
-        from reportlab.lib.pagesizes import A4
-        from reportlab.lib.units import mm
-        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image
-        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-        from reportlab.lib.enums import TA_LEFT, TA_JUSTIFY, TA_CENTER, TA_RIGHT
-        from reportlab.platypus.flowables import KeepTogether
-
-        buffer = io.BytesIO()
-        
-        # Modern Minimalist layout: tighter margins to ensure signature stays on page 1
-        doc = SimpleDocTemplate(
-            buffer,
-            pagesize=A4,
-            rightMargin=10*mm,
-            leftMargin=10*mm,
-            topMargin=8*mm,
-            bottomMargin=5*mm,
+        from ..services.bewerbung_pdf_service import render_letter_as_pdf_page
+        return render_letter_as_pdf_page(
+            text,
+            sender_name=self._cached_sender_settings.get("name", ""),
+            signature_image_path=getattr(self, "_signature_image_path", ""),
+            pdf_settings=self._load_pdf_settings(),
         )
-        
-        pdf_settings = self._load_pdf_settings()
-        font_name = pdf_settings.get("font", "Helvetica")
-        
-        # Enforce highly readable defaults since UI is removed
-        font_size = 11
-        leading = 14
-        alignment = TA_JUSTIFY
-        
-        styles = getSampleStyleSheet()
-        style_normal = styles["Normal"]
-        style_normal.fontName = font_name
-        style_normal.fontSize = font_size
-        style_normal.leading = leading
-        style_normal.alignment = alignment
-        
-        style_h1 = ParagraphStyle(
-            "H1",
-            parent=style_normal,
-            fontName=f"{font_name}-Bold" if font_name != "Times-Roman" else "Times-Bold",
-            fontSize=30,
-            leading=34,
-            spaceAfter=4,
-            alignment=TA_CENTER,
-        )
-        
-        style_h2 = ParagraphStyle(
-            "H2",
-            parent=style_normal,
-            fontName=f"{font_name}-Bold" if font_name != "Times-Roman" else "Times-Bold",
-            fontSize=12,
-            leading=14,
-            spaceAfter=8,
-            alignment=TA_CENTER,
-        )
-        
-        style_right = ParagraphStyle(
-            "Right",
-            parent=style_normal,
-            alignment=TA_RIGHT,
-        )
-        
-        style_bold = ParagraphStyle(
-            "Bold",
-            parent=style_normal,
-            fontName=f"{font_name}-Bold" if font_name != "Times-Roman" else "Times-Bold",
-        )
-        
-        def _safe_xml(val: str) -> str:
-            if not val:
-                return ""
-            s = str(val)
-
-            # 1. Protect allowed formatting tags supported by ReportLab: b, i, u, strike, sub, sup, br
-            allowed_pattern = re.compile(r'<\s*(/?)\s*(b|i|u|strike|sub|sup|br)\s*(/?)>', re.IGNORECASE)
-            tokens = []
-            def save_tag(match):
-                is_closing = bool(match.group(1))
-                tag_name = match.group(2).lower()
-                is_self_closing = bool(match.group(3)) or tag_name == 'br'
-                idx = len(tokens)
-                if is_closing:
-                    tokens.append(f"</{tag_name}>")
-                elif is_self_closing:
-                    tokens.append(f"<{tag_name}/>")
-                else:
-                    tokens.append(f"<{tag_name}>")
-                return f"@@TAG_{idx}@@"
-
-            s_masked = allowed_pattern.sub(save_tag, s)
-
-            # 2. Escape XML special characters (&, <, >)
-            # Only escape & if not part of a standard XML entity
-            s_escaped = re.sub(r'&(?!(?:amp|lt|gt|quot|apos);)', '&amp;', s_masked)
-            s_escaped = s_escaped.replace('<', '&lt;').replace('>', '&gt;')
-
-            # 3. Restore protected tags
-            for i, tag in enumerate(tokens):
-                s_escaped = s_escaped.replace(f"@@TAG_{i}@@", tag)
-
-            # 4. Enforce proper tag nesting and closure so ReportLab expat parser never crashes
-            tag_stack = []
-            tag_regex = re.compile(r'<(/?)(b|i|u|strike|sub|sup|br)/?>')
-            cleaned_parts = []
-            last_idx = 0
-            for m in tag_regex.finditer(s_escaped):
-                cleaned_parts.append(s_escaped[last_idx:m.start()])
-                is_close = bool(m.group(1))
-                tag = m.group(2)
-                if tag == 'br':
-                    cleaned_parts.append('<br/>')
-                elif not is_close:
-                    tag_stack.append(tag)
-                    cleaned_parts.append(f"<{tag}>")
-                else:
-                    if tag in tag_stack:
-                        while tag_stack:
-                            popped = tag_stack.pop()
-                            cleaned_parts.append(f"</{popped}>")
-                            if popped == tag:
-                                break
-                last_idx = m.end()
-            cleaned_parts.append(s_escaped[last_idx:])
-            while tag_stack:
-                cleaned_parts.append(f"</{tag_stack.pop()}>")
-
-            return "".join(cleaned_parts)
-
-        story = []
-        lines = text.splitlines()
-        
-        if not lines:
-            doc.build([Paragraph("Empty", style_normal)])
-            return buffer.getvalue()
-            
-        # Parse the modern layout:
-        idx = 0
-        while idx < len(lines) and not lines[idx].strip():
-            idx += 1
-            
-        if idx < len(lines):
-            story.append(Paragraph(_safe_xml(lines[idx].strip().upper()), style_h1))
-            idx += 1
-            
-        while idx < len(lines) and not lines[idx].strip():
-            idx += 1
-            
-        if idx < len(lines):
-            story.append(Paragraph(_safe_xml(lines[idx].strip()), style_h2))
-            idx += 1
-            
-        # Lines 3, 4, etc. (normal paragraphs)
-        is_first_paragraph = True
-        for i in range(idx, len(lines)):
-            line = lines[i].strip()
-            if not line:
-                story.append(Spacer(1, 10))
-            else:
-                if is_first_paragraph:
-                    story.append(Paragraph(_safe_xml(line), style_right))
-                    is_first_paragraph = False
-                elif "bewerbung um eine ausbildung" in line.lower() or "bewerbung als" in line.lower():
-                    style_subj = ParagraphStyle("Subj", parent=style_bold, fontSize=13, spaceAfter=2)
-                    story.append(Paragraph(_safe_xml(line), style_subj))
-                elif "freundlichen" in line.lower() and "gr" in line.lower():
-                    story.append(Paragraph(_safe_xml(line), style_normal))
-                    story.append(Spacer(1, 2*mm)) # reduced from 5mm
-                    
-                    identity_block = []
-                    
-                    # Synchronous fallback to ensure we get the path even if background thread failed
-                    sig_val = getattr(self, "_signature_image_path", "")
-                    if not sig_val:
-                        try:
-                            import sqlite3
-                            conn = sqlite3.connect(get_memory_db_path(), timeout=10.0)
-                            row = conn.execute("SELECT value FROM settings WHERE key = 'signature_image_path'").fetchone()
-                            if row and row[0]:
-                                sig_val = row[0]
-                            conn.close()
-                        except Exception:
-                            pass
-                    
-                    if sig_val:
-                        sig_path = Path(sig_val)
-                        if sig_path.exists():
-                            try:
-                                # Preprocess the image using Pillow to fix ReportLab transparency crash
-                                from PIL import Image as PILImage
-                                with PILImage.open(str(sig_path)) as pil_img:
-                                    pil_img = pil_img.convert("RGBA")
-                                    # Create white background to eliminate transparency
-                                    bg = PILImage.new("RGBA", pil_img.size, (255, 255, 255, 255))
-                                    out = PILImage.alpha_composite(bg, pil_img)
-                                    rgb_img = out.convert("RGB")
-                                    
-                                    # Save to temporary buffer as JPEG
-                                    img_buffer = io.BytesIO()
-                                    rgb_img.save(img_buffer, format="JPEG")
-                                    img_buffer.seek(0)
-                                    
-                                    img = Image(img_buffer, width=55*mm, height=20*mm, kind="proportional")
-                                    img.hAlign = 'LEFT'
-                                    identity_block.append(img)
-                            except Exception:
-                                pass
-                                
-                    sender_name = self._cached_sender_settings.get("name", "")
-                    if not sender_name:
-                        try:
-                            import sqlite3
-                            conn = sqlite3.connect(get_memory_db_path(), timeout=10.0)
-                            row = conn.execute("SELECT value FROM settings WHERE key = 'sender_name'").fetchone()
-                            if row and row[0]:
-                                sender_name = row[0]
-                            conn.close()
-                        except Exception:
-                            pass
-
-                    if sender_name:
-                        style_name = ParagraphStyle("Name", parent=style_bold, fontSize=13)
-                        identity_block.append(Spacer(1, 1*mm))
-                        identity_block.append(Paragraph(_safe_xml(sender_name), style_name))
-                        
-                    if identity_block:
-                        story.append(KeepTogether(identity_block))
-                else:
-                    story.append(Paragraph(_safe_xml(line), style_normal))
-
-        try:
-            doc.build(story)
-            return buffer.getvalue()
-        except Exception as build_err:
-            print(f"Warning: ReportLab doc.build failed ({build_err}), falling back to canvas text rendering")
-            from reportlab.pdfgen import canvas
-            fallback_buf = io.BytesIO()
-            c = canvas.Canvas(fallback_buf, pagesize=A4)
-            width, height = A4
-            y = height - 20 * mm
-            c.setFont("Helvetica", 10)
-            for raw_line in text.splitlines():
-                if y < 15 * mm:
-                    c.showPage()
-                    c.setFont("Helvetica", 10)
-                    y = height - 20 * mm
-                clean_text = re.sub(r"<[^>]+>", "", str(raw_line))
-                c.drawString(15 * mm, y, clean_text[:120])
-                y -= 14
-            c.save()
-            return fallback_buf.getvalue()
 
     def _export_bewerbungsmappe(self, record: LeadRecord, letter_text: str, output_dir: Path | None = None) -> list[Path]:
         """
@@ -5560,175 +5493,17 @@ class EditPage(QWidget):
         Returns a list of produced Path objects (1, 2, or 3 files depending on mode).
         Raises ValueError if required documents are not loaded.
         """
-        import pypdf, io, json
-
-        # ── resolve document sources ────────────────────────────────────────
-        db_path_str = getattr(config_manager.settings, "bewerbung_deckblatt_path", "") or ""
-        has_db = bool(db_path_str and Path(db_path_str).exists())
-
-        lv_path_str = getattr(config_manager.settings, "bewerbung_lebenslauf_path", "") or ""
-        has_lv = bool(lv_path_str and Path(lv_path_str).exists())
-
-        has_letter = bool(letter_text and letter_text.strip())
-        if not has_lv and not has_letter and not has_db:
-            raise ValueError("No documents to export. Please load your Lebenslauf or enter cover letter text.")
-
-        zeug_paths_raw = getattr(config_manager.settings, "bewerbung_zeugnisse_paths", "[]") or "[]"
-        try:
-            zeug_paths: list[str] = json.loads(zeug_paths_raw)
-        except Exception:
-            zeug_paths = []
-        zeug_paths = [p for p in zeug_paths if p and Path(p).exists()]
-
-        mode = getattr(config_manager.settings, "bewerbung_export_mode", "full")
-        doc_order = self._get_doc_order()
-
-        # ── naming helpers ───────────────────────────────────────────────────
-        beruf = self._cached_sender_settings.get("beruf", "") or record.job_title or "Ausbildung"
-        sender = self._load_sender_settings().get("name", "") or config_manager.settings.email_from_name or "Bewerber"
-        firma = record.company_name or ""
-
-        def _clean_unicode(s: str) -> str:
-            if not s:
-                return ""
-            return str(s).replace('\xa0', ' ').replace('\u200b', '').replace('\ufeff', '').strip()
-
-        def sanitize(v: str) -> str:
-            v_clean = _clean_unicode(v)
-            return re.sub(r'[<>:"/\\|?*]', '_', v_clean).strip()
-
-        b = sanitize(beruf)
-        s = sanitize(sender)
-        f = sanitize(firma)
-        out_dir = output_dir or get_exports_dir()
-        
-        base_name = f"Bewerbung als {b} - {s}"
-        if f:
-            base_name += f" @ {f}"
-            
-        if len(base_name) > 150:
-            base_name = base_name[:146].strip()
-
-
-        # ── PDF building helpers ─────────────────────────────────────────────
-        letter_bytes = self._render_letter_as_pdf_page(letter_text) if has_letter else None
-
-        def _append_pdf_from_bytes(writer: pypdf.PdfWriter, data: bytes):
-            try:
-                r = pypdf.PdfReader(io.BytesIO(data))
-                for page in r.pages:
-                    writer.add_page(page)
-            except Exception as e:
-                print(f"Warning: could not merge letter bytes: {e}")
-
-        def _append_pdf(writer: pypdf.PdfWriter, path: str):
-            try:
-                r = pypdf.PdfReader(path)
-                if r.is_encrypted:
-                    return
-                for page in r.pages:
-                    writer.add_page(page)
-            except Exception as e:
-                print(f"Warning: could not merge {path}: {e}")
-
-        def _write(writer: pypdf.PdfWriter, dest: Path):
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            with open(dest, "wb") as f:
-                writer.write(f)
-            return dest
-
-        # ── export modes ────────────────────────────────────────────────────
-        if mode == "full":
-            # Single PDF: All available documents ordered according to user's doc_order
-            w = pypdf.PdfWriter()
-            has_pages = False
-            for doc_key in doc_order:
-                if doc_key == "deckblatt" and has_db:
-                    _append_pdf(w, db_path_str)
-                    has_pages = True
-                elif doc_key == "anschreiben" and letter_bytes:
-                    _append_pdf_from_bytes(w, letter_bytes)
-                    has_pages = True
-                elif doc_key == "lebenslauf" and has_lv:
-                    _append_pdf(w, lv_path_str)
-                    has_pages = True
-                elif doc_key == "zeugnisse":
-                    for zp in zeug_paths:
-                        _append_pdf(w, zp)
-                        has_pages = True
-            if has_pages:
-                dest = out_dir / f"{base_name}.pdf"
-                return [_write(w, dest)]
-            return []
-
-        elif mode == "letter_cv_certs":
-            # File 1: Dossier (Deckblatt, Anschreiben, Lebenslauf in user's doc_order)
-            w1 = pypdf.PdfWriter()
-            has_p1 = False
-            for doc_key in doc_order:
-                if doc_key == "deckblatt" and has_db:
-                    _append_pdf(w1, db_path_str)
-                    has_p1 = True
-                elif doc_key == "anschreiben" and letter_bytes:
-                    _append_pdf_from_bytes(w1, letter_bytes)
-                    has_p1 = True
-                elif doc_key == "lebenslauf" and has_lv:
-                    _append_pdf(w1, lv_path_str)
-                    has_p1 = True
-            result = []
-            if has_p1:
-                dest1 = out_dir / f"{base_name}_AnschreibenLebenslauf.pdf"
-                _write(w1, dest1)
-                result.append(dest1)
-            # File 2: all Zeugnisse merged (if any)
-            if zeug_paths:
-                dest2 = out_dir / f"{base_name}_Zeugnisse.pdf"
-                if not dest2.exists():
-                    w2 = pypdf.PdfWriter()
-                    for zp in zeug_paths:
-                        _append_pdf(w2, zp)
-                    _write(w2, dest2)
-                result.append(dest2)
-            return result
-
-        else:  # "separate"
-            result = []
-            import shutil
-            for doc_key in doc_order:
-                if doc_key == "deckblatt" and has_db:
-                    dest_d = out_dir / f"{base_name}_Deckblatt.pdf"
-                    if not dest_d.exists():
-                        try:
-                            shutil.copy2(db_path_str, str(dest_d))
-                        except Exception:
-                            w_d = pypdf.PdfWriter()
-                            _append_pdf(w_d, db_path_str)
-                            _write(w_d, dest_d)
-                    result.append(dest_d)
-                elif doc_key == "anschreiben" and letter_bytes:
-                    w_a = pypdf.PdfWriter()
-                    _append_pdf_from_bytes(w_a, letter_bytes)
-                    dest_a = out_dir / f"{base_name}_Anschreiben.pdf"
-                    result.append(_write(w_a, dest_a))
-                elif doc_key == "lebenslauf" and has_lv:
-                    dest_l = out_dir / f"{base_name}_Lebenslauf.pdf"
-                    if not dest_l.exists():
-                        try:
-                            shutil.copy2(lv_path_str, str(dest_l))
-                        except Exception:
-                            w_l = pypdf.PdfWriter()
-                            _append_pdf(w_l, lv_path_str)
-                            _write(w_l, dest_l)
-                    result.append(dest_l)
-                elif doc_key == "zeugnisse" and zeug_paths:
-                    dest_z = out_dir / f"{base_name}_Zeugnisse.pdf"
-                    if not dest_z.exists():
-                        w_z = pypdf.PdfWriter()
-                        for zp in zeug_paths:
-                            _append_pdf(w_z, zp)
-                        _write(w_z, dest_z)
-                    result.append(dest_z)
-            return result
+        from ..services.bewerbung_pdf_service import export_bewerbungsmappe
+        active_id = profile_service.get_active_profile_id()
+        return export_bewerbungsmappe(
+            record=record,
+            letter_text=letter_text,
+            output_dir=output_dir,
+            sender_settings=self._load_sender_settings(),
+            pdf_settings=self._load_pdf_settings(),
+            signature_image_path=getattr(self, "_signature_image_path", ""),
+            profile_id=active_id,
+        )
 
 
     def _export_bewerbungsmappe_batch(self, out_dir: Path | None = None, records: list = None) -> bool:
@@ -5740,7 +5515,9 @@ class EditPage(QWidget):
             WakeLock.release("Batch PDF Export")
 
     def _do_export_bewerbungsmappe_batch(self, out_dir: Path | None = None, records: list = None) -> bool:
-        lv_path = getattr(config_manager.settings, "bewerbung_lebenslauf_path", "") or ""
+        active_id = profile_service.get_active_profile_id()
+        lv_doc = profile_service.get_lebenslauf(active_id)
+        lv_path = lv_doc.stored_path if lv_doc else ""
         has_lv = bool(lv_path and Path(lv_path).exists())
 
         records = records if records is not None else self._pending_lead_records
@@ -5803,7 +5580,7 @@ class EditPage(QWidget):
                     print(f"Failed to export custom PDF for lead #{record.id}: {e}")
                     try:
                         import shutil
-                        b_san = re.sub(r'[<>:"/\\|?*]', '_', self._cached_sender_settings.get("beruf", "") or record.job_title or "Ausbildung").strip()
+                        b_san = re.sub(r'[<>:"/\\|?*]', '_', self._resolve_beruf(record)).strip()
                         s_san = re.sub(r'[<>:"/\\|?*]', '_', self._load_sender_settings().get("name", "") or config_manager.settings.email_from_name or "Bewerber").strip()
                         f_san = re.sub(r'[<>:"/\\|?*]', '_', record.company_name or "").strip()
                         bn = f"Bewerbung als {b_san} - {s_san}"
@@ -5845,7 +5622,9 @@ class EditPage(QWidget):
             self._show_error("Export Failed", "Select a lead first")
             return
 
-        lv_path = getattr(config_manager.settings, "bewerbung_lebenslauf_path", "") or ""
+        active_id = profile_service.get_active_profile_id()
+        lv_doc = profile_service.get_lebenslauf(active_id)
+        lv_path = lv_doc.stored_path if lv_doc else ""
         has_lv = bool(lv_path and Path(lv_path).exists())
         has_letter = bool(hasattr(self, "_editor") and self._editor.toPlainText().strip())
         if not has_lv and not has_letter:
@@ -6051,4 +5830,4 @@ class EditPage(QWidget):
         except Exception as e:
             self._show_error("Batch Export & Send Failed", str(e))
 
-# 1.2.2
+# 1.5.0

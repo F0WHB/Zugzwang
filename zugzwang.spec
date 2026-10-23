@@ -114,6 +114,11 @@ hiddenimports = [
     'src.ui.log_viewer_page',
     'src.ui.activation_dialog',
     'src.ui.results_page',
+    'src.services.profile_service',
+    'src.services.sender_pool_service',
+    'src.services.bewerbung_pdf_service',
+    'src.ui.profile_bar',
+    'src.ui.sender_pool_dialog',
     'src.utils',
     'src.utils.win32_patch',
     'src.utils.db_worker',
@@ -183,9 +188,9 @@ if sys.platform == 'darwin':
             'CFBundleName': 'ZUGZWANG',
             'CFBundleDisplayName': 'ZUGZWANG',
             'CFBundleVersion': '0',
-            'CFBundleShortVersionString': '1.2.0',
+            'CFBundleShortVersionString': '1.5.0',
             'NSHighResolutionCapable': 'True',
         },
     )
 
-# 1.2.0
+# 1.5.0

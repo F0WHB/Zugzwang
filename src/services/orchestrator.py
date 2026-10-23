@@ -392,7 +392,7 @@ class ScrapingOrchestrator:
         with self._memory_lock:
             return list(self._app_memory_records.values())
 
-    def persist_current_job(self) -> None:
+    def persist_current_job(self, sync: bool = False, emit_event: bool = True) -> None:
         """Persist the cumulative in-memory application records over time."""
         from ..core.models import ScrapingJob, ScrapingStatus
         
@@ -404,12 +404,19 @@ class ScrapingOrchestrator:
             try:
                 export_job = self._build_export_job(all_records)
                 self._export.save_project(export_job, str(get_memory_db_path()))
-                event_bus.emit(event_bus.DB_UPDATED, records=all_records)
+                if emit_event:
+                    event_bus.emit(event_bus.DB_UPDATED, records=all_records)
             except Exception as e:
                 logger.warning(f"Background persistence failed: {e}")
             finally:
                 with self._persistence_lock:
                     self._is_persisting = False
+
+        if sync:
+            with self._persistence_lock:
+                self._is_persisting = True
+            _do_persist()
+            return
 
         # Ensure only one persistence thread runs at a time to prevent SQLite locks
         with self._persistence_lock:
@@ -664,4 +671,4 @@ class ScrapingOrchestrator:
 # Global orchestrator instance
 orchestrator = ScrapingOrchestrator()
 
-# 1.2.2
+# 1.5.0

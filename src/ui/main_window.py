@@ -278,7 +278,15 @@ class MainWindow(FramelessWindow):
         self.setTitleBar(_CustomTitleBar(self))
         if sys.platform == "darwin" and hasattr(self, "setSystemTitleBarButtonVisible"):
             self.setSystemTitleBarButtonVisible(True)
-        self.resize(1600, 920); self.setMinimumSize(1280, 720)
+        if sys.platform == "darwin":
+            screen = QApplication.primaryScreen()
+            if screen:
+                self.setGeometry(screen.availableGeometry())
+            else:
+                self.resize(1600, 920)
+        else:
+            self.resize(1600, 920)
+        self.setMinimumSize(1280, 720)
         self.setStyleSheet(_GLOBAL_CSS + APP_STYLESHEET)
         from .toast_system import ToastNotificationManager
         ToastNotificationManager.instance().set_host_window(self)
@@ -733,8 +741,7 @@ class MainWindow(FramelessWindow):
         if LicenseManager.is_active():
             self._startup_upgrade_prompt_pending = False
             self._upgrade_prompt_timer.stop()
-            logger.info("[startup] Startup upgrade prompt skipped because license is active, showing support instead")
-            _show_support()
+            logger.info("[startup] Startup upgrade prompt skipped because license is active")
             return
             
         from .activation_dialog import ActivationDialog
@@ -868,14 +875,45 @@ class MainWindow(FramelessWindow):
         if sender_page:
             sender_page.import_emails(emails)
 
+    def showMaximized(self):
+        if sys.platform == "darwin":
+            screen = self.screen() or QApplication.primaryScreen()
+            if screen:
+                if not self.isMaximized():
+                    self._normal_geometry = self.geometry()
+                self.setGeometry(screen.availableGeometry())
+                self.setWindowState(self.windowState() | Qt.WindowMaximized)
+                return
+        super().showMaximized()
+
+    def showNormal(self):
+        if sys.platform == "darwin":
+            self.setWindowState(self.windowState() & ~Qt.WindowMaximized)
+            screen = self.screen() or QApplication.primaryScreen()
+            ag = screen.availableGeometry() if screen else None
+            normal_geom = getattr(self, "_normal_geometry", None)
+            if normal_geom and normal_geom != self.geometry():
+                self.setGeometry(normal_geom)
+            elif ag:
+                w = min(1320, ag.width() - 80)
+                h = min(820, ag.height() - 60)
+                x = ag.x() + (ag.width() - w) // 2
+                y = ag.y() + (ag.height() - h) // 2
+                self.setGeometry(x, y, w, h)
+            return
+        super().showNormal()
+
     def showEvent(self, event):
         super().showEvent(event)
         logger.info("[window] Main window shown")
         # Ensure window opens maximized on start
         if not hasattr(self, "_was_maximized_once"):
             self._was_maximized_once = True
-            # Small delay to allow Windows to register the window before maximizing
-            QTimer.singleShot(100, self.showMaximized)
+            if sys.platform == "darwin":
+                self.showMaximized()
+            else:
+                # Small delay to allow Windows to register the window before maximizing
+                QTimer.singleShot(100, self.showMaximized)
 
     def changeEvent(self, event):
         super().changeEvent(event)
@@ -892,7 +930,7 @@ class MainWindow(FramelessWindow):
             self._activation_prompt_open,
         )
         config_manager.flush()
-        orchestrator.persist_current_job()
+        orchestrator.persist_current_job(sync=True, emit_event=False)
         if orchestrator.current_job and orchestrator.current_job.status.name in ("RUNNING", "PAUSED"):
             orchestrator.cancel_job()
         thread = getattr(orchestrator, "_thread", None)
@@ -1088,4 +1126,4 @@ class MainWindow(FramelessWindow):
         painter.fillRect(self.rect(), QColor(_BG))
         painter.end()
 
-# 1.2.2
+# 1.5.0

@@ -439,6 +439,8 @@ class AppSettings:
     email_smtp_user: str = ""
     email_smtp_pass: str = ""
     email_sender_profiles: list = field(default_factory=list)
+    email_rotation_mode: str = "pairs"      # "none" | "pairs" | "single" | "batch5"
+    email_rotation_interval: int = 35       # default interval in seconds when rotating
     email_from_name: str = ""
     email_reply_to: str = ""
     email_smtp_auth: bool = True
@@ -458,6 +460,7 @@ class AppSettings:
     bewerbung_lebenslauf_path: str = ""      # single CV PDF, user-uploaded
     bewerbung_zeugnisse_paths: str = "[]"    # JSON list of certificate PDF paths (ordered)
     bewerbung_doc_order: str = '["deckblatt", "anschreiben", "lebenslauf", "zeugnisse"]'  # ordered document keys
+    last_active_profile_id: str = ""
 
     # Security & Licensing
     machine_id: str = ""
@@ -472,7 +475,7 @@ class AppSettings:
     auto_backup: bool = True
     backup_dir: str = ""
 
-    app_version: str = "1.2.2"
+    app_version: str = "1.5.0"
     app_build: int = 0
 
 
@@ -484,4 +487,4 @@ class AppSettings:
     trial_email_count: int = 0
     trial_email_last_reset_date: str = ""
 
-# 1.2.2
+# 1.5.0

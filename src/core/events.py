@@ -41,6 +41,7 @@ class EventBus:
 
     SETTINGS_CHANGED = "settings.changed"
     DB_UPDATED = "db.updated"
+    PROFILE_SWITCHED = "profile.switched"
 
     def __init__(self):
         self._listeners: dict[str, list[Callable]] = defaultdict(list)
@@ -70,4 +71,4 @@ class EventBus:
 # Global event bus instance
 event_bus = EventBus()
 
-# 1.2.2
+# 1.5.0

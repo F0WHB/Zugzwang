@@ -33,4 +33,4 @@ Mit freundlichen Grüßen
 
 {{SENDER_NAME}}
 
-# 1.2.0
+# 1.5.0

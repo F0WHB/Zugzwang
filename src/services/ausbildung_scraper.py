@@ -444,4 +444,4 @@ class AusbildungScraper:
             publication_date=start_date,
         )
 
-# 1.2.2
+# 1.5.0

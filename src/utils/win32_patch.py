@@ -122,4 +122,4 @@ def _patch_is_maximized(wu) -> None:
 
     wu.isMaximized = _patched
 
-# 1.2.2
+# 1.5.0

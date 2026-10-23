@@ -19,13 +19,18 @@ from .models import AppSettings
 logger = logging.getLogger(__name__)
 
 APP_NAME = "ZUGZWANG"
-APP_VERSION = "1.2.2"
+APP_VERSION = "1.5.0"
 APP_BUILD = 0
 APP_AUTHOR = "ZUGZWANG"
 
 
 def get_app_data_dir() -> Path:
     """Return platform-appropriate application data directory."""
+    custom = os.environ.get("ZUGZWANG_DATA_DIR")
+    if custom:
+        app_dir = Path(custom)
+        app_dir.mkdir(parents=True, exist_ok=True)
+        return app_dir
     if os.name == "nt":
         base = Path(os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming"))
     else:
@@ -183,6 +188,8 @@ class ConfigManager(QObject):
             "email_smtp_user": settings.email_smtp_user,
             "email_smtp_pass": settings.email_smtp_pass,
             "email_sender_profiles": list(settings.email_sender_profiles),
+            "email_rotation_mode": settings.email_rotation_mode,
+            "email_rotation_interval": settings.email_rotation_interval,
             "email_from_name": settings.email_from_name,
             "email_reply_to": settings.email_reply_to,
             "email_smtp_auth": settings.email_smtp_auth,
@@ -449,4 +456,4 @@ class ConfigManager(QObject):
 # Global singleton access
 config_manager = ConfigManager()
 
-# 1.2.2
+# 1.5.0

@@ -293,13 +293,13 @@
       let targetHref = '#downloads';
 
       if (/Macintosh|MacIntel|MacPPC|Mac68K/i.test(platform) || /Mac OS X/i.test(userAgent)) {
-        osLabel = 'Download for Mac (v1.2.2 .dmg)';
+        osLabel = 'Download for Mac (v1.5.0 .dmg)';
         targetHref = 'https://github.com/F0WHB/Zugzwang/releases/latest';
       } else if (/Win32|Win64|Windows|WinCE/i.test(platform) || /Windows NT/i.test(userAgent)) {
-        osLabel = 'Download for Windows (v1.2.2 .exe)';
+        osLabel = 'Download for Windows (v1.5.0 .exe)';
         targetHref = 'https://github.com/F0WHB/Zugzwang/releases/latest';
       } else if (/Linux/i.test(platform) || /Linux/i.test(userAgent)) {
-        osLabel = 'Download for Linux (v1.2.2)';
+        osLabel = 'Download for Linux (v1.5.0)';
         targetHref = 'https://github.com/F0WHB/Zugzwang/releases/latest';
       }
 

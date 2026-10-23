@@ -22,7 +22,7 @@
 
   <meta name="theme-color" content="#1C1C1E" />
 
-  <link rel="stylesheet" href="styles.css?v=1.2.2" />
+  <link rel="stylesheet" href="styles.css?v=1.5.0" />
   <link rel="icon" href="images/logo-mark.png" type="image/png" />
 </head>
 <body>
@@ -58,8 +58,8 @@
     <!-- Hero Section (Applicant-First Friendly & Clear Copy) -->
     <section id="hero" class="hero-section apple-reveal">
       <div class="version-banner">
-        <span class="version-tag">v1.2.2</span>
-        <span class="version-text">Now with Google Maps precision scraping, DIN 5008 address formatting &amp; dynamic PDF pipeline</span>
+        <span class="version-tag">v1.5.0</span>
+        <span class="version-text">Now with Multi-Profile applicant switching, SMTP Sender Pool rotation &amp; dynamic DIN 5008 PDF dossiers</span>
         <a href="#changelog" class="version-link open-changelog-trigger">What's new &rarr;</a>
       </div>
       <p class="eyebrow">Free Desktop App for Job &amp; Ausbildung Seekers in Germany</p>
@@ -743,7 +743,7 @@
             macOS (Mac)
           </div>
           <div class="download-spec-row">
-            <span class="download-spec-pill" style="color: #30D158; border-color: rgba(48, 209, 88, 0.4); font-weight: 600;">v1.2.2 Latest</span>
+            <span class="download-spec-pill" style="color: #30D158; border-color: rgba(48, 209, 88, 0.4); font-weight: 600;">v1.5.0 Latest</span>
             <span class="download-spec-pill">Apple Silicon (M1–M4)</span>
             <span class="download-spec-pill">Intel 64-bit</span>
             <span class="download-spec-pill">~85 MB</span>
@@ -764,7 +764,7 @@
             Windows
           </div>
           <div class="download-spec-row">
-            <span class="download-spec-pill" style="color: #30D158; border-color: rgba(48, 209, 88, 0.4); font-weight: 600;">v1.2.2 Latest</span>
+            <span class="download-spec-pill" style="color: #30D158; border-color: rgba(48, 209, 88, 0.4); font-weight: 600;">v1.5.0 Latest</span>
             <span class="download-spec-pill">Windows 11 &amp; 10</span>
             <span class="download-spec-pill">64-bit Architecture</span>
             <span class="download-spec-pill">~92 MB</span>
@@ -786,7 +786,7 @@
             <span class="platform-badge">Open Source</span>
           </div>
           <div class="download-spec-row">
-            <span class="download-spec-pill" style="color: #30D158; border-color: rgba(48, 209, 88, 0.4); font-weight: 600;">v1.2.2 Latest</span>
+            <span class="download-spec-pill" style="color: #30D158; border-color: rgba(48, 209, 88, 0.4); font-weight: 600;">v1.5.0 Latest</span>
             <span class="download-spec-pill">Ubuntu / Debian / Fedora</span>
             <span class="download-spec-pill">Python 3.11+</span>
           </div>
@@ -974,56 +974,56 @@
     </button>
   </aside>
 
-  <!-- Changelog Modal (v1.2.2) -->
+  <!-- Changelog Modal (v1.5.0) -->
   <div id="changelog-modal" class="changelog-modal-backdrop" aria-hidden="true" role="dialog" aria-modal="true">
     <div class="changelog-modal-card">
       <div class="modal-title-row">
         <div>
-          <span class="version-tag">v1.2.2 Release</span>
+          <span class="version-tag">v1.5.0 Release</span>
           <h3 style="font-size: 18px; font-weight: 700; color: #fff; margin-top: 6px;">What's New in ZUGZWANG</h3>
         </div>
         <button type="button" id="changelog-modal-close" class="modal-close-btn" aria-label="Close modal">&times;</button>
       </div>
       <div class="changelog-list">
         <div class="changelog-entry">
-          <span class="change-item-pill change-fixed">Fixed</span>
+          <span class="change-item-pill change-new">New</span>
           <div>
-            <strong>Google Maps Multilingual Consent Bypass:</strong> Automatically detects and dismisses cookie consent dialogs across English, German, Arabic, French, and Spanish, including nested Google iframes.
-          </div>
-        </div>
-        <div class="changelog-entry">
-          <span class="change-item-pill change-improved">Improved</span>
-          <div>
-            <strong>Seamless Listing Navigation:</strong> Automatically navigates back from detail panels so all consecutive cards remain active and clickable without timeouts.
-          </div>
-        </div>
-        <div class="changelog-entry">
-          <span class="change-item-pill change-fixed">Fixed</span>
-          <div>
-            <strong>Non-Blocking Email Broadcast Stop:</strong> Aborting outreach dispatches teardown cleanly in a background daemon thread, eliminating UI freezes.
-          </div>
-        </div>
-        <div class="changelog-entry">
-          <span class="change-item-pill change-improved">Improved</span>
-          <div>
-            <strong>Fast Lead Preview Count:</strong> Replaced heavy table scans with lightweight SQL <code>COUNT(*)</code> queries for instant lead previews in the loading dialog.
+            <strong>Multi-Profile Management:</strong> Instant switching between applicant profiles with isolated cover letters, resume configurations, sender identities, and email copy.
           </div>
         </div>
         <div class="changelog-entry">
           <span class="change-item-pill change-new">New</span>
           <div>
-            <strong>Company Address (<code>{{ADRESSE}}</code>):</strong> Full DIN 5008 address support across cover letter generation and email outreach with automatic blank line trimming.
+            <strong>Dynamic SMTP Sender Pool:</strong> Distribute outbound campaign outreach across multiple accounts with automated round-robin rotation and hourly rate limits.
+          </div>
+        </div>
+        <div class="changelog-entry">
+          <span class="change-item-pill change-new">New</span>
+          <div>
+            <strong>Dynamic Bewerbung PDF Dossier:</strong> Compiles complete DIN 5008 cover letters, Lebenslauf, and Zeugnisse dynamically on the fly into clean application packets.
+          </div>
+        </div>
+        <div class="changelog-entry">
+          <span class="change-item-pill change-improved">Improved</span>
+          <div>
+            <strong>macOS Native Geometry:</strong> Perfectly adapts to screen geometry on startup with smooth maximize/restore transitions.
+          </div>
+        </div>
+        <div class="changelog-entry">
+          <span class="change-item-pill change-improved">Improved</span>
+          <div>
+            <strong>Typography &amp; UI Polish:</strong> Native system font stack fallbacks, refined status indicators, and clean thread teardown on shutdown.
           </div>
         </div>
       </div>
       <div style="margin-top: 24px; text-align: center;">
         <a href="#downloads" class="btn-primary" style="font-size: 13px; min-height: 38px; height: 38px;" onclick="document.getElementById('changelog-modal').classList.remove('active'); document.body.style.overflow='';">
-          Download v1.2.2 Free
+          Download v1.5.0 Free
         </a>
       </div>
     </div>
   </div>
 
-  <script src="app.js?v=1.2.2"></script>
+  <script src="app.js?v=1.5.0"></script>
 </body>
 </html>

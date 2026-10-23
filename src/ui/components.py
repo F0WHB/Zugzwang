@@ -313,12 +313,12 @@ class ZugzwangDialog(QDialog):
     Premium macOS ZUGZWANG Style Dialog.
     Centered text, high-fidelity geometry, and Apple-style buttons to match Image 3.
     """
-    def __init__(self, title: str, message: str, parent=None, confirm_text: str = "OK", cancel_text: str = "CANCEL", single_button: bool = False, destructive: bool = False):
+    def __init__(self, title: str, message: str, parent=None, confirm_text: str = "OK", cancel_text: str = "CANCEL", single_button: bool = False, destructive: bool = False, width: int = 380):
         super().__init__(parent)
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.Dialog | Qt.Tool)
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setWindowModality(Qt.NonModal)
-        self.setFixedWidth(320)
+        self.setFixedWidth(width)
         self._drag_pos = None
         
         # Main layout for the dialog to allow dynamic height
@@ -331,8 +331,8 @@ class ZugzwangDialog(QDialog):
         self.container.setObjectName("DialogContainer")
         self.container.setStyleSheet("""
             QFrame#DialogContainer {
-                background: rgba(40, 40, 40, 0.95);
-                border: 1px solid rgba(255, 255, 255, 0.1);
+                background: rgba(30, 30, 32, 0.98);
+                border: 1px solid rgba(255, 255, 255, 0.12);
                 border-radius: 14px;
             }
         """)
@@ -340,28 +340,29 @@ class ZugzwangDialog(QDialog):
         main_layout.addWidget(self.container)
         
         layout = QVBoxLayout(self.container)
-        layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(8)
+        layout.setContentsMargins(22, 22, 22, 20)
+        layout.setSpacing(10)
         
         self.title_label = QLabel(title)
 
-        self.title_label.setStyleSheet("color: #FFFFFF; font-family: 'SF Pro Text', 'PT Root UI', sans-serif; font-size: 16px; font-weight: 600; background: transparent; border: none;")
+        self.title_label.setStyleSheet("color: #FFFFFF; font-family: 'SF Pro Text', 'PT Root UI', sans-serif; font-size: 16px; font-weight: 700; background: transparent; border: none;")
         self.title_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.title_label)
         
         self.message_label = QLabel(message)
-        self.message_label.setStyleSheet("color: rgba(255, 255, 255, 0.7); font-family: 'SF Pro Text', 'PT Root UI', sans-serif; font-size: 13px; font-weight: 400; background: transparent; border: none; line-height: 1.2;")
+        self.message_label.setStyleSheet("color: rgba(255, 255, 255, 0.75); font-family: 'SF Pro Text', 'PT Root UI', sans-serif; font-size: 13px; font-weight: 400; background: transparent; border: none; line-height: 1.35;")
         self.message_label.setAlignment(Qt.AlignCenter)
         self.message_label.setWordWrap(True)
         layout.addWidget(self.message_label, 1)
         
         btn_layout = QHBoxLayout()
-        btn_layout.setContentsMargins(0, 8, 0, 0)
+        btn_layout.setContentsMargins(0, 10, 0, 0)
         btn_layout.setSpacing(10)
+        
+        from ..core.i18n import get_language, tr
         
         # Cancel Button (Dark #2C2C2E)
         if not single_button:
-            from ..core.i18n import get_language, tr
             btn_cancel_txt = cancel_text if cancel_text and cancel_text != "CANCEL" else tr("dialog.cancel", get_language(None))
             self.cancel_btn = QPushButton(btn_cancel_txt)
             self.cancel_btn.setFixedHeight(32)
@@ -371,13 +372,13 @@ class ZugzwangDialog(QDialog):
                     background: rgba(255, 255, 255, 0.1);
                     color: white;
                     border: none;
-                    border-radius: 6px;
+                    border-radius: 7px;
                     font-family: 'SF Pro Text', 'PT Root UI', sans-serif;
                     font-size: 13px;
                     font-weight: 500;
-                    letter-spacing: 1px;
+                    letter-spacing: 0.5px;
                 }
-                QPushButton:hover { background: rgba(255, 255, 255, 0.15); }
+                QPushButton:hover { background: rgba(255, 255, 255, 0.16); }
             """)
             self.cancel_btn.clicked.connect(self.reject)
             btn_layout.addWidget(self.cancel_btn)
@@ -947,51 +948,87 @@ from PySide6.QtWidgets import QGraphicsDropShadowEffect
 class ZugzwangDropdownItem(QWidget):
     clicked = Signal(str, int)
 
-    def __init__(self, text: str, index: int, is_selected: bool = False, parent=None):
+    def __init__(self, text: str, index: int = 0, is_selected: bool = False, description: str = "", is_disabled: bool = False, is_destructive: bool = False, callback = None, parent=None):
         super().__init__(parent)
         self.text = text
         self.index = index
         self.is_selected = is_selected
-        self.setFixedHeight(34)
-        self.setCursor(Qt.PointingHandCursor)
+        self.is_disabled = is_disabled
+        self.is_destructive = is_destructive
+        self.callback = callback
+        self.setFixedHeight(32)
+        if not is_disabled:
+            self.setCursor(Qt.PointingHandCursor)
+        else:
+            self.setCursor(Qt.ArrowCursor)
         
         layout = QHBoxLayout(self)
         layout.setContentsMargins(14, 0, 14, 0)
-        layout.setSpacing(0)
+        layout.setSpacing(12)
         
         self.label = QLabel(text)
         weight = "600" if is_selected else "400"
-        color = "#0A84FF" if is_selected else "#AEAEB2"
-        self.label.setStyleSheet(f"color: {color}; font-family: 'PT Root UI', sans-serif; font-size: 13px; font-weight: {weight}; background: transparent; border: none;")
+        if is_disabled:
+            color = "#636366"
+        elif is_selected:
+            color = "#0A84FF"
+        elif is_destructive:
+            color = "#FF453A"
+        else:
+            color = "#AEAEB2"
+        self.label.setStyleSheet(f"color: {color}; font-family: 'PT Root UI', -apple-system, sans-serif; font-size: 13px; font-weight: {weight}; background: transparent; border: none;")
         layout.addWidget(self.label)
         
         layout.addStretch()
         
+        if description:
+            self.desc_label = QLabel(description)
+            desc_color = "#636366" if not is_disabled else "#48484A"
+            self.desc_label.setStyleSheet(f"color: {desc_color}; font-family: 'PT Root UI', -apple-system, sans-serif; font-size: 12px; background: transparent; border: none;")
+            layout.addWidget(self.desc_label)
+        else:
+            self.desc_label = None
+
         if is_selected:
             check = IconWidget(FluentIcon.COMPLETED)
             check.setFixedSize(12, 12)
             check.setStyleSheet("color: #0A84FF; background: transparent; border: none;")
             layout.addWidget(check)
 
-        self.setAttribute(Qt.WA_Hover)
+        if not is_disabled:
+            self.setAttribute(Qt.WA_Hover)
         self._update_style(False)
 
     def _update_style(self, hovering: bool):
-        bg = "#3A3A3C" if hovering else "transparent"
-        text_color = "white" if hovering else ("#0A84FF" if self.is_selected else "#AEAEB2")
-        self.label.setStyleSheet(self.label.styleSheet().replace("#AEAEB2", text_color).replace("#0A84FF", text_color).replace("white", text_color))
-        self.setStyleSheet(f"background: {bg}; border: none;")
+        if self.is_disabled:
+            self.label.setStyleSheet("color: #636366; font-family: 'PT Root UI', -apple-system, sans-serif; font-size: 13px; font-weight: 400; background: transparent; border: none;")
+            self.setStyleSheet("background: transparent; border: none; margin: 2px 4px;")
+            return
+        weight = "600" if self.is_selected else "400"
+        if self.is_destructive:
+            text_color = "#FF6961" if hovering else "#FF453A"
+        else:
+            text_color = "white" if hovering else ("#0A84FF" if self.is_selected else "#AEAEB2")
+        self.label.setStyleSheet(f"color: {text_color}; font-family: 'PT Root UI', -apple-system, sans-serif; font-size: 13px; font-weight: {weight}; background: transparent; border: none;")
+        if self.desc_label:
+            desc_color = "#AEAEB2" if hovering else "#636366"
+            self.desc_label.setStyleSheet(f"color: {desc_color}; font-family: 'PT Root UI', -apple-system, sans-serif; font-size: 12px; background: transparent; border: none;")
+        self.setStyleSheet("background: transparent; border: none; margin: 2px 4px;")
 
     def enterEvent(self, event):
-        self._update_style(True)
+        if not self.is_disabled:
+            self._update_style(True)
         super().enterEvent(event)
 
     def leaveEvent(self, event):
-        self._update_style(False)
+        if not self.is_disabled:
+            self._update_style(False)
         super().leaveEvent(event)
 
     def mouseReleaseEvent(self, event):
-        if event.button() == Qt.LeftButton:
+        if event.button() == Qt.LeftButton and not self.is_disabled:
+            if self.callback:
+                self.callback()
             self.clicked.emit(self.text, self.index)
         super().mouseReleaseEvent(event)
 
@@ -1026,14 +1063,26 @@ class ZugzwangDropdownMenu(QFrame):
         shadow.setOffset(0, 12)
         self.container.setGraphicsEffect(shadow)
         
-    def add_item(self, text: str, index: int, is_selected: bool = False):
-        item = ZugzwangDropdownItem(text, index, is_selected, self)
+    def add_item(self, text: str, index: int = 0, is_selected: bool = False, description: str = "", is_disabled: bool = False, is_destructive: bool = False, callback = None):
+        item = ZugzwangDropdownItem(text, index, is_selected, description=description, is_disabled=is_disabled, is_destructive=is_destructive, callback=callback, parent=self)
         item.clicked.connect(self._on_item_clicked)
         self.content_layout.addWidget(item)
+        return item
+
+    def add_divider(self):
+        line = QFrame()
+        line.setFixedHeight(1)
+        line.setStyleSheet("background: #3A3A3C; margin: 4px 0;")
+        self.content_layout.addWidget(line)
 
     def _on_item_clicked(self, text: str, index: int):
         self.itemSelected.emit(text, index)
         self.close()
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_Escape:
+            self.close()
+        super().keyPressEvent(event)
 
     def closeEvent(self, event):
         self.closed.emit()
@@ -1510,4 +1559,4 @@ class GlassToolTipFilter(QObject):
             self.tooltip.hide()
         return False
 
-# 1.2.2
+# 1.5.0
