@@ -15,6 +15,7 @@ import ssl
 import time
 import threading
 import socket
+from datetime import datetime, date
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
@@ -3120,7 +3121,7 @@ class EmailSenderPage(QWidget):
                     if current_acc:
                         sender_pool_service.record_account_send(current_acc.email)
                         current_acc.sent_today += 1
-                        current_acc.last_sent_date = datetime.now().date().isoformat()
+                        current_acc.last_sent_date = date.today().isoformat()
                         account_sent_count += 1
                     from ..core.security import LicenseManager
                     LicenseManager.record_email_send(1)
