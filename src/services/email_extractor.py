@@ -80,12 +80,24 @@ EXCLUDED_EMAIL_DOMAINS = {
     "rexx-systems.com", "d.vinci.de", "jobteaser.com", "whatchado.com",
 }
 
-# Emails with these local-part prefixes are typically unmonitored
-NOREPLY_PREFIXES = {
+# Emails with these local-part prefixes are unmonitored, administrative, or compliance boxes
+UNMONITORED_OR_ADMIN_PREFIXES = {
+    # Compliance & Legal (never job contacts)
+    "datenschutz", "dsgvo", "privacy", "dpo", "gdpr",
+    # Official / Legal court / authority service inboxes
+    "poststelle",
+    # Administrative & server
     "noreply", "no-reply", "no_reply",
     "donotreply", "do-not-reply", "do_not_reply",
-    "mailer-daemon", "postmaster",
+    "mailer-daemon", "postmaster", "hostmaster", "webmaster",
+    "abuse", "security", "noc", "spam",
+    # Billing / Invoicing
+    "rechnung", "rechnungen", "billing", "invoice", "invoices",
+    "buchhaltung", "accounting", "finanzen", "finance",
+    # Newsletter & unmonitored
+    "newsletter", "bounce", "feedback",
 }
+NOREPLY_PREFIXES = UNMONITORED_OR_ADMIN_PREFIXES
 
 # Prefixes that indicate placeholder/fake emails
 PLACEHOLDER_PREFIXES = {
@@ -529,22 +541,31 @@ def _is_valid_email(email: str) -> bool:
     if tld in FALSE_POSITIVE_TLDS:
         return False
 
-    # Reject noreply / do-not-reply addresses (useless for lead gen)
+    # Reject noreply / administrative / legal / compliance addresses (useless or harmful for outreach)
     local_lower = local.lower()
-    if local_lower in NOREPLY_PREFIXES:
+    if local_lower in UNMONITORED_OR_ADMIN_PREFIXES or any(
+        local_lower.startswith(p + ".") or local_lower.startswith(p + "-") or local_lower.startswith(p + "_")
+        for p in UNMONITORED_OR_ADMIN_PREFIXES
+    ):
+        return False
+
+    # Reject official German court / police authority domains that are not employers
+    domain_lower = domain.lower()
+    if any(domain_lower.endswith(suffix) for suffix in (
+        ".justiz.nrw.de", ".justiz.bayern.de", ".justiz.hessen.de", ".justiz.de",
+        ".polizei.nrw.de", ".polizei.bayern.de", ".polizei.de",
+    )):
         return False
 
     # Reject placeholder names (e.g. Max Mustermann, John Doe)
     if any(local_lower.startswith(p) for p in PLACEHOLDER_PREFIXES):
         return False
         
-    # Also check if domain contains portal keywords
-    portal_keywords = ("job", "karriere", "stellenanzeige", "bewerbung", "recruiting")
+    # Reject customer support / helpdesk inboxes on job portals
+    portal_keywords = ("jobboerse", "jobportal", "stellenportal", "stellenmarkt")
     if any(kw in domain.lower() for kw in portal_keywords):
-        # Allow it only if it's not a known big portal (already handled by blocklist)
-        # but be conservative: if it's info@somejobboard.com, we probably don't want it.
-        if local_lower in ("info", "kontakt", "support", "office", "admin"):
-             return False
+        if local_lower in ("support", "help", "kundenservice", "service", "admin"):
+            return False
 
     return True
 

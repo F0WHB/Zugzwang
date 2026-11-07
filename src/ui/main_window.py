@@ -456,11 +456,18 @@ class MainWindow(FramelessWindow):
             results_page = self._page_instances.get(2)
             if results_page:
                 self._sync_results_page(results_page)
+        elif idx == 7:
+            edit_page = self._page_instances.get(7)
+            if edit_page and hasattr(edit_page, "refresh"):
+                edit_page.refresh()
         for i, btn in self._page_btns.items():
             btn.setChecked(i == idx)
 
     def _open_edit_page(self):
         self._switch(7)
+        edit_page = self._page_instances.get(7)
+        if edit_page and hasattr(edit_page, "refresh"):
+            edit_page.refresh()
 
     def _wire_lazy_signals(self, idx: int, instance: QWidget):
         """Connect signals for pages created on-demand."""

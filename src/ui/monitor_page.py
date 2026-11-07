@@ -80,6 +80,7 @@ class MonitorPage(QWidget):
         self._update_queue: queue.Queue = queue.Queue()
         self._dropped_log_count = 0
         self._language = get_language(config_manager.settings.app_language)
+        self._job_is_running = False
 
         self._build_ui()
         self._connect_events()
@@ -344,9 +345,9 @@ class MonitorPage(QWidget):
         self._remaining_value.setStyleSheet("color: #636366; font-family: 'SF Mono', 'JetBrains Mono', monospace; font-size: 10px; font-weight: 500;")
         activity_card.add_header_widget(self._remaining_value)
         
-        live_indicator = QLabel("● LIVE")
-        live_indicator.setStyleSheet("color: #30D158; font-family: 'PT Root UI', sans-serif; font-weight: 700; font-size: 10px;")
-        activity_card.add_header_widget(live_indicator)
+        self._live_indicator = QLabel("● IDLE")
+        self._live_indicator.setStyleSheet("color: #8E8E93; font-family: 'PT Root UI', sans-serif; font-weight: 700; font-size: 10px;")
+        activity_card.add_header_widget(self._live_indicator)
 
         from PySide6.QtWidgets import QStackedWidget
         self._stream_stack = QStackedWidget()
@@ -463,9 +464,16 @@ class MonitorPage(QWidget):
             return
         self._update_queue.put(("log", {"level": str(level), "message": str(message)}))
 
-    def _on_completed(self, job_id: str = "", *args, **kw):
+    def _on_completed(self, job_id: str = "", total_found: int = 0, total_emails: int = 0, total_websites: int = 0, *args, **kw):
         self._active_job_id = ""
-        self._update_queue.put(("completed", {}))
+        self._update_queue.put((
+            "completed",
+            {
+                "total_found": total_found,
+                "total_emails": total_emails,
+                "total_websites": total_websites,
+            }
+        ))
 
     def _on_failed(self, job_id: str = "", error: str = "", *args, **kw):
         self._active_job_id = ""
@@ -497,6 +505,7 @@ class MonitorPage(QWidget):
         batch_lines = []
         last_log_summary = None
         latest_progress = None
+        completed_data = None
         job_ended_in_batch = False
         
         while not self._update_queue.empty() and processed_count < max_per_tick:
@@ -512,7 +521,7 @@ class MonitorPage(QWidget):
             elif event_type == "progress":
                 latest_progress = data
             elif event_type == "completed":
-                self._ui_completed()
+                completed_data = data
                 job_ended_in_batch = True
             elif event_type == "failed":
                 self._ui_failed(data.get("error", ""))
@@ -541,8 +550,11 @@ class MonitorPage(QWidget):
             elif event_type == "trial_limit":
                 self._ui_trial_limit()
 
-        if latest_progress and not job_ended_in_batch:
+        if latest_progress:
             self._ui_progress(latest_progress)
+
+        if job_ended_in_batch and completed_data is not None:
+            self._ui_completed(completed_data)
 
         if self._dropped_log_count:
             batch_lines.append(f"{time.strftime('%H:%M:%S')} [monitor] throttled {self._dropped_log_count} verbose log lines")
@@ -557,6 +569,7 @@ class MonitorPage(QWidget):
         job_title = data.get("job_title", "")
         city = data.get("city", "")
         self._total_expected_results = data.get("max_results", 0)
+        self._job_is_running = True
 
         query_text = f"{job_title} — {city}" if city else (job_title or "Unnamed Search")
         self._query_label.setText(query_text)
@@ -579,6 +592,8 @@ class MonitorPage(QWidget):
         self._pct_label.setText("0%")
         self._elapsed_value.setText(f"{tr('monitor.label.elapsed', self._language)} 00:00:00")
         self._remaining_value.setText(f"{tr('monitor.label.remaining', self._language)} —")
+        self._live_indicator.setText("● LIVE")
+        self._live_indicator.setStyleSheet("color: #30D158; font-family: 'PT Root UI', sans-serif; font-weight: 700; font-size: 10px;")
         
         self._btn_more.setEnabled(True)
         self._btn_pause.setEnabled(True)
@@ -611,8 +626,11 @@ class MonitorPage(QWidget):
         self._card_emails.set_subtitle(f"{accuracy}% coverage")
 
         self._card_sites.set_value(f"{websites:,}")
-        
         self._card_errors.set_value(f"{errors:,}")
+
+        # If job has already completed or is not running, do not let progress update overwrite completed state
+        if not self._job_is_running:
+            return
 
         if self._progress_bar.value() != pct:
             self._progress_bar.setValue(pct)
@@ -630,7 +648,21 @@ class MonitorPage(QWidget):
 
         self._snapshot_updated_value.setText(time.strftime("%H:%M:%S"))
 
-    def _ui_completed(self):
+    def _ui_completed(self, data: dict = None):
+        self._job_is_running = False
+        if data:
+            found = data.get("total_found", 0)
+            emails = data.get("total_emails", 0)
+            websites = data.get("total_websites", 0)
+            if found:
+                self._card_found.set_value(f"{found:,}")
+            if emails or found:
+                self._card_emails.set_value(f"{emails:,}")
+                accuracy = int((emails / found) * 100) if found else 0
+                self._card_emails.set_subtitle(f"{accuracy}% coverage")
+            if websites:
+                self._card_sites.set_value(f"{websites:,}")
+
         self._progress_bar.setValue(100)
         self._pct_label.setText("100%")
         self._status_line.setText(tr("monitor.status_line.success", self._language))
@@ -647,6 +679,8 @@ class MonitorPage(QWidget):
         self._progress_label.setText(tr("monitor.progress.done", self._language))
         self._elapsed_value.setText(f"{tr('monitor.label.elapsed', self._language)} {self._format_time(time.monotonic() - self._job_start_time, fixed=True)}")
         self._remaining_value.setText(f"{tr('monitor.label.remaining', self._language)} —")
+        self._live_indicator.setText("● DONE")
+        self._live_indicator.setStyleSheet("color: #30D158; font-family: 'PT Root UI', sans-serif; font-weight: 700; font-size: 10px;")
         self._btn_more.setEnabled(bool(self._current_config))
         self._btn_pause.setEnabled(False)
         self._btn_resume.setEnabled(False)
@@ -654,6 +688,7 @@ class MonitorPage(QWidget):
         self._ui_log("INFO", "=== Job completed successfully ===")
 
     def _ui_failed(self, error: str):
+        self._job_is_running = False
         self._status_line.setText(tr("monitor.status_line.failed", self._language).format(error=error or 'Unexpected error'))
         self._status_line.setStyleSheet("color: #FF453A; font-family: '-apple-system', sans-serif; font-size: 12px;")
         self._session_state.setText("ERROR")
@@ -666,6 +701,8 @@ class MonitorPage(QWidget):
         self._snapshot_updated_value.setText(time.strftime("%H:%M:%S"))
         
         self._progress_label.setText(tr("monitor.progress.failed", self._language))
+        self._live_indicator.setText("● IDLE")
+        self._live_indicator.setStyleSheet("color: #8E8E93; font-family: 'PT Root UI', sans-serif; font-weight: 700; font-size: 10px;")
         self._btn_more.setEnabled(bool(self._current_config))
         self._btn_pause.setEnabled(False)
         self._btn_resume.setEnabled(False)
@@ -707,6 +744,7 @@ class MonitorPage(QWidget):
         self._ui_log("INFO", "=== Job resumed ===")
 
     def _ui_cancelled(self):
+        self._job_is_running = False
         self._status_line.setText(tr("monitor.status_line.cancelled", self._language))
         self._status_line.setStyleSheet("color: #FF453A; font-family: '-apple-system', sans-serif; font-size: 12px; font-weight: 500;")
         self._session_state.setText("STOPPED")
@@ -721,6 +759,8 @@ class MonitorPage(QWidget):
             elapsed = time.monotonic() - self._job_start_time
             self._elapsed_value.setText(f"{tr('monitor.label.elapsed', self._language)} {self._format_time(elapsed, fixed=True)}")
         self._remaining_value.setText(f"{tr('monitor.label.remaining', self._language)} —")
+        self._live_indicator.setText("● IDLE")
+        self._live_indicator.setStyleSheet("color: #8E8E93; font-family: 'PT Root UI', sans-serif; font-weight: 700; font-size: 10px;")
         self._btn_more.setEnabled(bool(self._current_config))
         self._btn_pause.setEnabled(False)
         self._btn_resume.setEnabled(False)
@@ -729,6 +769,7 @@ class MonitorPage(QWidget):
 
     def _ui_trial_limit(self):
         """Show the trial limit dialog and stop UI timers."""
+        self._job_is_running = False
         self._status_line.setText(tr("monitor.status.trial", self._language))
         self._status_line.setStyleSheet("color: #FF453A; font-family: '-apple-system', sans-serif; font-size: 12px;")
         
@@ -736,6 +777,8 @@ class MonitorPage(QWidget):
         self._status_badge.setStyleSheet("color: #FF453A; background: rgba(255,69,58,0.15); border-radius: 6px; padding: 4px 10px; font-family: 'PT Root UI', monospace; font-size: 10px; font-weight: 600;")
         
         self._progress_label.setText("Daily limit of 20 scraps reached. Upgrade to unlock unlimited scraping.")
+        self._live_indicator.setText("● IDLE")
+        self._live_indicator.setStyleSheet("color: #8E8E93; font-family: 'PT Root UI', sans-serif; font-weight: 700; font-size: 10px;")
         self._btn_pause.setEnabled(False)
         self._btn_resume.setEnabled(False)
         self._btn_cancel.setEnabled(False)

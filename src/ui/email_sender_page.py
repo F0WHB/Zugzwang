@@ -643,13 +643,18 @@ class EmailSenderPage(QWidget):
         if not emails:
             return
         
-        # Merge with existing
-        clean_new = [e.strip() for e in emails if e.strip()]
+        # Merge with existing, filtering out invalid / administrative / court emails
+        from ..services.email_extractor import _is_valid_email
+        clean_new = [e.strip() for e in emails if e and e.strip() and _is_valid_email(e.strip())]
         current = self._get_recipients()
         combined = list(dict.fromkeys(current + clean_new))
         
         self._set_recipients(combined)
-        self._on_log(f"Imported {len(clean_new)} lead(s). Total: {len(combined)}", "SUCCESS")
+        skipped = len(emails) - len(clean_new)
+        if skipped > 0:
+            self._on_log(f"Imported {len(clean_new)} lead(s) ({skipped} filtered/invalid). Total: {len(combined)}", "INFO")
+        else:
+            self._on_log(f"Imported {len(clean_new)} lead(s). Total: {len(combined)}", "SUCCESS")
 
     def _init_widgets(self):
         self._current_sending_account = None
@@ -1508,22 +1513,6 @@ class EmailSenderPage(QWidget):
         monitor_split.addLayout(log_stack, 0, 1)
         layout.addLayout(monitor_split, 1)
 
-        # Gmail Policy Notice - Spanning Full Width at Bottom
-        notice_card = QFrame()
-        notice_card.setObjectName("NoticeCard")
-        notice_card.setStyleSheet("QFrame#NoticeCard { background: rgba(10, 132, 255, 0.08); border: none; border-radius: 10px; }")
-        notice_h = QHBoxLayout(notice_card); notice_h.setContentsMargins(12, 10, 12, 10); notice_h.setSpacing(10)
-        
-        from qfluentwidgets import IconWidget
-        n_ic = IconWidget(FluentIcon.INFO); n_ic.setFixedSize(16, 16); n_ic.setStyleSheet("background: transparent; border: none; color: #0A84FF;")
-        notice_h.addWidget(n_ic)
-        
-        n_txt = QLabel(tr("send.notice.gmail", self._language))
-        n_txt.setStyleSheet("color: #4EA1FF; font-size: 11px; font-weight: 500; font-family: 'PT Root UI', sans-serif;")
-        notice_h.addWidget(n_txt, 1)
-        
-        layout.addWidget(notice_card)
-
         return container
 
     def _clear_all_data(self):
@@ -2089,7 +2078,15 @@ class EmailSenderPage(QWidget):
         text = text.replace("{{SENDER_PHONE}}", sender_phone or "")
         text = text.replace("{{SENDER_ADDRESS}}", sender_address or "")
         text = text.replace("{{SENDER_CITY}}", sender_city or "")
-        text = text.replace("{{DATUM}}", datetime.now().strftime("%d.%m.%Y"))
+        try:
+            import datetime as _dt_mod
+            cur_date = _dt_mod.datetime.now().strftime("%d.%m.%Y")
+        except Exception:
+            import time as _time_mod
+            cur_date = _time_mod.strftime("%d.%m.%Y")
+
+        text = text.replace("{{DATUM}}", cur_date)
+        text = text.replace("{{DATE}}", cur_date)
         text = text.replace("{{ORT}}", __import__("re").sub(r"^\d+\s*", "", str(sender_city or "")).strip())
         text = text.replace("{{PLZ}}", plz or "")
 
@@ -2364,12 +2361,71 @@ class EmailSenderPage(QWidget):
 
     def _on_dedup(self):
         emails = self._get_recipients()
-        unique = list(dict.fromkeys(emails))
-        if len(unique) < len(emails):
-            self._set_recipients(unique)
-            self._on_log(f"De-duplicated list. {len(unique)} unique recipients.", "SUCCESS")
+        if not emails:
+            self._on_log("Recipient queue is empty.", "WARNING")
+            return
+            
+        from ..services.email_extractor import _is_valid_email
+        
+        # Step 1: Filter out any invalid / administrative / court emails
+        valid_emails = [e for e in emails if _is_valid_email(e)]
+        invalid_removed = len(emails) - len(valid_emails)
+        
+        # Step 2: Exact string deduplication
+        unique_emails = list(dict.fromkeys(valid_emails))
+        exact_dups = len(valid_emails) - len(unique_emails)
+        
+        # Step 3: Domain-level deduplication for corporate domains
+        # (Exclude free public webmail providers where different individuals share the same domain)
+        PUBLIC_DOMAINS = {
+            "gmail.com", "googlemail.com", "gmx.de", "gmx.net", "gmx.at", "gmx.ch",
+            "web.de", "t-online.de", "freenet.de", "posteo.de", "posteo.net",
+            "yahoo.com", "yahoo.de", "outlook.com", "outlook.de", "hotmail.com", "hotmail.de",
+            "live.com", "live.de", "icloud.com", "me.com", "mac.com", "mail.de", "arcor.de",
+            "1und1.de", "vodafone.de", "proton.me", "protonmail.com", "zoho.com",
+            "diakonie.de", "caritas.de", "awo.de", "drk.de", "johanniter.de", "malteser.de",
+            "asb.de", "lebenshilfe.de", "paritaetischer.de", "redcross.de", "dmsg.de",
+        }
+        
+        def _email_rank(e: str) -> int:
+            user = e.lower().split("@")[0]
+            if any(user.startswith(p) for p in ("bewerbung", "bewerber", "jobs", "job", "karriere", "personal", "recruiting", "hr")):
+                return 0
+            if any(user.startswith(p) for p in ("kontakt", "contact", "info", "office", "leitung", "zentrale", "empfang")):
+                return 1
+            return 2
+            
+        domain_best: dict[str, str] = {}
+        final_list = []
+        domain_dups = 0
+        
+        for email in unique_emails:
+            parts = email.split("@", 1)
+            if len(parts) != 2:
+                continue
+            dom = parts[1].lower()
+            if dom in PUBLIC_DOMAINS:
+                final_list.append(email)
+            else:
+                if dom not in domain_best:
+                    domain_best[dom] = email
+                    final_list.append(email)
+                else:
+                    domain_dups += 1
+                    prev_best = domain_best[dom]
+                    if _email_rank(email) < _email_rank(prev_best):
+                        domain_best[dom] = email
+                        final_list[final_list.index(prev_best)] = email
+
+        if len(final_list) < len(emails):
+            self._set_recipients(final_list)
+            details = []
+            if exact_dups > 0: details.append(f"{exact_dups} exact duplicate(s)")
+            if domain_dups > 0: details.append(f"{domain_dups} same-company duplicate(s)")
+            if invalid_removed > 0: details.append(f"{invalid_removed} invalid/admin email(s)")
+            self._on_log(f"Cleaned queue: Removed {', '.join(details)}. {len(final_list)} verified leads remaining.", "SUCCESS")
         else:
-            self._on_log("Queue is already deduplicated.", "INFO")
+            self._on_log("Queue is clean and deduplicated (no duplicate companies found).", "INFO")
 
     def _on_stop(self):
         self._stop_requested = True
@@ -2878,8 +2934,8 @@ class EmailSenderPage(QWidget):
         pool_candidates = list(pool) if is_rotating else []
         pool_idx = 0
         account_sent_count = 0
-        current_acc = pool_candidates[0] if pool_candidates else None
-        self._current_sending_account = current_acc
+        current_acc = None
+        self._current_sending_account = None
 
         chunk_size = 2 if rotation_mode == "pairs" else (1 if rotation_mode == "single" else (5 if rotation_mode == "batch5" else 999999))
 
@@ -2947,6 +3003,41 @@ class EmailSenderPage(QWidget):
             self._log(f"Skipped {skipped_count} recipient(s) (already sent).", "WARNING")
         if invalid_domain_count > 0:
             self._log(f"🛡️ Protected Sender Score: Automatically filtered out {invalid_domain_count} unreachable/invalid email address(es).", "WARNING")
+
+        # Anti-Spam Guard: deduplicate multiple corporate emails sharing the same company domain
+        PUBLIC_WEBMAIL_DOMAINS = {
+            "gmail.com", "googlemail.com", "gmx.de", "gmx.net", "gmx.at", "gmx.ch",
+            "web.de", "t-online.de", "freenet.de", "posteo.de", "posteo.net",
+            "yahoo.com", "yahoo.de", "outlook.com", "outlook.de", "hotmail.com", "hotmail.de",
+            "live.com", "live.de", "icloud.com", "me.com", "mac.com", "mail.de", "arcor.de",
+            "1und1.de", "vodafone.de", "proton.me", "protonmail.com", "zoho.com",
+            "diakonie.de", "caritas.de", "awo.de", "drk.de", "johanniter.de", "malteser.de",
+            "asb.de", "lebenshilfe.de", "paritaetischer.de", "redcross.de", "dmsg.de",
+        }
+        seen_domains: set[str] = set()
+        deduped_recipients = []
+        domain_dups_count = 0
+
+        for rec in recipients:
+            parts = rec.split("@", 1)
+            if len(parts) == 2:
+                dom = parts[1].lower()
+                if dom in PUBLIC_WEBMAIL_DOMAINS:
+                    deduped_recipients.append(rec)
+                elif dom in seen_domains:
+                    domain_dups_count += 1
+                else:
+                    seen_domains.add(dom)
+                    deduped_recipients.append(rec)
+            else:
+                deduped_recipients.append(rec)
+
+        if domain_dups_count > 0:
+            self._log(
+                f"🛡️ Anti-Spam Guard: Filtered out {domain_dups_count} duplicate address(es) sharing the same company domain to protect deliverability.",
+                "INFO"
+            )
+        recipients = deduped_recipients
             
         if not recipients:
             self._log("No new recipients to email. Broadcast finished.", "SUCCESS")
@@ -2990,9 +3081,9 @@ class EmailSenderPage(QWidget):
                     current_acc = selected_acc
                     self._current_sending_account = current_acc
 
-                    if account_switched or account_sent_count == 0:
+                    if account_switched:
                         self._log(
-                            f"🔄 Active Sender → '{current_acc.email}' (Turn {account_sent_count+1}/{chunk_size} • Capacity today: {current_acc.remaining_today()}/{current_acc.daily_limit})",
+                            f"🔄 Active Sender: '{current_acc.email}' (Capacity today: {current_acc.remaining_today()}/{current_acc.daily_limit})",
                             "INFO"
                         )
                 else:

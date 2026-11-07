@@ -127,6 +127,7 @@ class ScrapingOrchestrator:
         self._last_db_save_ts: float = 0.0
         self._persistence_lock = threading.Lock()
         self._is_persisting = False
+        self._persist_pending = False
         self._library_verify_count: int = 0
         
         # Load existing history from disk in a background thread so the main
@@ -409,8 +410,14 @@ class ScrapingOrchestrator:
             except Exception as e:
                 logger.warning(f"Background persistence failed: {e}")
             finally:
+                rerun = False
                 with self._persistence_lock:
                     self._is_persisting = False
+                    if getattr(self, "_persist_pending", False):
+                        rerun = True
+                        self._persist_pending = False
+                if rerun:
+                    self.persist_current_job()
 
         if sync:
             with self._persistence_lock:
@@ -421,7 +428,8 @@ class ScrapingOrchestrator:
         # Ensure only one persistence thread runs at a time to prevent SQLite locks
         with self._persistence_lock:
             if self._is_persisting:
-                logger.debug("Persistence already in progress, skipping batch.")
+                self._persist_pending = True
+                logger.debug("Persistence already in progress, marked pending.")
                 return
             self._is_persisting = True
             
@@ -589,6 +597,7 @@ class ScrapingOrchestrator:
                         level="INFO",
                     )
                 job.complete()
+                self.persist_current_job(sync=True)
                 event_bus.emit(
                     event_bus.JOB_PROGRESS,
                     job_id=job.id,

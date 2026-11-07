@@ -51,7 +51,7 @@ except (ImportError, Exception):
 JOBSUCHE_URL = "https://www.arbeitsagentur.de/jobsuche/"
 DETAIL_BASE  = "https://www.arbeitsagentur.de"
 LISTING_SEL  = 'a[href*="/jobsuche/jobdetail/"]'
-RESULT_CARD_SEL = '[id^="ergebnisliste-item-"], article:has(a[href*="/jobsuche/jobdetail/"])'
+RESULT_CARD_SEL = 'article.ergebnisliste-item, li.ergebnisliste-item, article:has(a[href*="/jobsuche/jobdetail/"])'
 
 CAPTCHA_ERROR_SIGNALS = [
     "beim laden der sicherheitsabfrage ist ein fehler aufgetreten",
@@ -121,6 +121,7 @@ class JobsucheScraper:
         self.job_id = job_id
         self.crawler = WebsiteEmailCrawler(session) if config.scrape_emails else None
         self.api_client = JobsucheAPIClient()
+        self._company_website_cache: dict[str, Optional[str]] = {}
         self._cancelled = False
         self._paused = False
         self._total_errors = 0
@@ -547,6 +548,35 @@ class JobsucheScraper:
             card = cards.nth(card_index)
             card_index += 1
 
+            # Fast pre-click preview to skip already-seen cards instantly (0ms instead of 8s)
+            try:
+                preview = await card.evaluate("""(el) => {
+                    const text = (el.innerText || '').trim();
+                    const link = el.querySelector('a[href*="/jobsuche/jobdetail/"]')?.getAttribute('href') || el.getAttribute('href') || '';
+                    return { text, link };
+                }""")
+                p_link = (preview.get("link") or "").strip()
+                if p_link and p_link in seen:
+                    logger.debug(f"[{self.job_id}] Skipping card {card_index} (link already seen)")
+                    continue
+
+                lines = [l.strip() for l in (preview.get("text") or "").splitlines() if l.strip()]
+                if len(lines) >= 2:
+                    p_title = lines[1] if len(lines) >= 2 else lines[0]
+                    p_comp = lines[2] if len(lines) >= 3 else ""
+                    p_title_clean = re.sub(r'^\d+[\.:\s]*(?:Suchergebnis:?\s*|Ergebnis:?\s*)?', '', p_title, flags=re.IGNORECASE).strip().lower()
+                    if " bei " in p_title_clean:
+                        p_title_clean = p_title_clean.split(" bei ")[0].strip()
+                    p_comp_clean = p_comp.lower().strip()
+                    p_comp_clean = re.sub(r'^\s*arbeitgeber\s*[:\-]?\s*', '', p_comp_clean, flags=re.IGNORECASE).strip()
+                    if p_comp_clean and p_title_clean:
+                        preview_key = f"{p_comp_clean}|{p_title_clean}"
+                        if preview_key in seen:
+                            logger.info(f"[{self.job_id}] Skipping duplicate card {card_index} ({p_comp} - {p_title_clean})")
+                            continue
+            except Exception:
+                pass
+
             try:
                 record = await self._extract_result_card(page, card, card_index)
                 if not record:
@@ -910,12 +940,12 @@ class JobsucheScraper:
 
         await self._click_result_card(page, card, card_index, "initial")
         
-        # Wait for the detail panel to update by checking text changes
+        # Wait for the detail panel to update by checking text changes (capped at ~1.2s)
         try:
             panel = page.locator('#jobdetail-container').first
-            for _ in range(50):
+            for _ in range(12):
                 await asyncio.sleep(0.1)
-                new_text = await panel.inner_text(timeout=500)
+                new_text = await panel.inner_text(timeout=300)
                 if new_text and new_text != old_text and "Wird geladen" not in new_text:
                     break
         except Exception:
@@ -1164,14 +1194,6 @@ class JobsucheScraper:
             if preferred_website:
                 record.website = preferred_website
 
-        # If website is still missing from page, search for official website
-        if not record.website and record.company_name:
-            searched_site = await self._search_company_website(
-                record.company_name, record.city or self.config.city or ""
-            )
-            if searched_site:
-                record.website = searched_site
-
         # Ensure city is not empty or generic country when user specified a target city
         if (not record.city or record.city.lower() in {"germany", "deutschland"}) and (self.config.city or self.config.region):
             record.city = self.config.city or self.config.region
@@ -1332,6 +1354,12 @@ class JobsucheScraper:
             logger.info(
                 f"[{self.job_id}] Application panel not visible for card {card_index}; continuing with visible detail data"
             )
+            if not record.website and record.company_name:
+                searched_site = await self._search_company_website(
+                    record.company_name, record.city or self.config.city or ""
+                )
+                if searched_site:
+                    record.website = searched_site
             return record.normalize() if (record.company_name or record.job_title or record.website) else None
 
         panel_text = await self._get_application_panel_text(page)
@@ -1424,6 +1452,13 @@ class JobsucheScraper:
         if not record.contact_person:
             record.contact_person = extract_contact_person_from_text(panel_text or "") or extract_contact_person_from_html(panel_html or "")
 
+        if not record.website and record.company_name:
+            searched_site = await self._search_company_website(
+                record.company_name, record.city or self.config.city or ""
+            )
+            if searched_site:
+                record.website = searched_site
+
         # Always save if we have useful signal, even with partial data
         has_useful_data = (
             record.company_name or record.job_title or
@@ -1483,17 +1518,19 @@ class JobsucheScraper:
 
         for attempt in range(2):
             try:
-                # Wait for at least one of the panel elements to become visible
+                # Wait for at least one of the panel elements to become visible (fast timeout)
                 locator = page.locator(combined_selector).first
-                await locator.wait_for(state='visible', timeout=3000)
+                wait_time = 900 if attempt == 0 else 600
+                await locator.wait_for(state='visible', timeout=wait_time)
                 try:
-                    await locator.scroll_into_view_if_needed(timeout=500)
+                    await locator.scroll_into_view_if_needed(timeout=300)
                 except Exception:
                     pass
                 logger.debug(f"[{self.job_id}] Application panel ready via combined selector")
                 return True
             except Exception:
-                await self._reveal_application_panel(page, attempt)
+                if attempt == 0:
+                    await self._reveal_application_panel(page, attempt)
         
         return False
 
@@ -2366,6 +2403,9 @@ class JobsucheScraper:
         """Fast fallback to search for the official company website if missing from Jobsuche."""
         if not company or len(company.strip()) < 3:
             return None
+        cache_key = company.strip().lower()
+        if hasattr(self, "_company_website_cache") and cache_key in self._company_website_cache:
+            return self._company_website_cache[cache_key]
         try:
             import urllib.request
             import urllib.parse
@@ -2385,6 +2425,8 @@ class JobsucheScraper:
 
             html = await asyncio.to_thread(_fetch)
             if not html:
+                if hasattr(self, "_company_website_cache"):
+                    self._company_website_cache[cache_key] = None
                 return None
 
             links = re.findall(r"uddg=([^&\"\x27]+)", html)
@@ -2401,9 +2443,13 @@ class JobsucheScraper:
                     continue
                 if not any(ig in norm.lower() for ig in ignore) and not self._is_untrusted_website_candidate(norm):
                     logger.info(f"[{self.job_id}] Discovered company website for {company}: {norm}")
+                    if hasattr(self, "_company_website_cache"):
+                        self._company_website_cache[cache_key] = norm
                     return norm
         except Exception as e:
             logger.debug(f"[{self.job_id}] Website search failed for {company}: {e}")
+        if hasattr(self, "_company_website_cache"):
+            self._company_website_cache[cache_key] = None
         return None
 
     async def _wait_for_enabled(self, page: Page, locator: Any, timeout_ms: int = 5_000) -> bool:
