@@ -444,4 +444,4 @@ class ToastNotification(QFrame):
         toast.raise_()
         return toast
 
-# 1.5.0
+# 1.5.2

@@ -3051,4 +3051,4 @@ class JobsucheScraper:
             self.config.country,
         ]))
 
-# 1.5.0
+# 1.5.2

@@ -470,13 +470,13 @@ class AppSettings:
     is_activated: bool = False
 
     # Update Sync & Backup
-    git_repo_url: str = "https://github.com/whbexc/Zugzwang"
+    git_repo_url: str = "https://github.com/F0WHB/Zugzwang"
     auto_update_enabled: bool = True
     auto_backup: bool = True
     backup_dir: str = ""
 
-    app_version: str = "1.5.0"
-    app_build: int = 0
+    app_version: str = "1.5.2"
+    app_build: int = 2
 
 
     # Free Trial Tracking
@@ -487,4 +487,4 @@ class AppSettings:
     trial_email_count: int = 0
     trial_email_last_reset_date: str = ""
 
-# 1.5.0
+# 1.5.2

@@ -71,4 +71,4 @@ class EventBus:
 # Global event bus instance
 event_bus = EventBus()
 
-# 1.5.0
+# 1.5.2

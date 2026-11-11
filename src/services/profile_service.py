@@ -785,4 +785,4 @@ def get_template_text(profile_id: str, conn: sqlite3.Connection | None = None) -
         "Mit freundlichen Grüßen"
     )
 
-# 1.5.0
+# 1.5.2

@@ -655,4 +655,4 @@ class ProfileBar(QFrame):
             except Exception as e:
                 logger.error(f"Failed to delete profile: {e}")
 
-# 1.5.0
+# 1.5.2

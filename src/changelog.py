@@ -1,14 +1,142 @@
 # ZUGZWANG Changelog Definitions
 # Contains version history and changes for the "What's New" dialog.
 
-APP_VERSION = "1.5.0"
+APP_VERSION = "1.5.2"
 
 CHANGELOG = [
     {
-        "version": "1.5.0",
-        "date": "October 23, 2026",
+        "version": "1.5.2",
+        "date": "November 11, 2026",
         "label": "LATEST",
         "label_color": "#30D158",
+        "changes": [
+            {
+                "type": "new",
+                "text": "Anti-Spam Guard for Corporate Domains — Automatic deduplication of recipient emails sharing the same company domain during broadcast campaigns, preserving public webmail addresses while preventing duplicate outreach to the same organization."
+            },
+            {
+                "type": "improved",
+                "text": "Smart Sender Rotation Logging — Cleaner active-sender switch logs showing remaining daily capacity without redundant turn counters."
+            },
+            {
+                "type": "fixed",
+                "text": "Robust Date Placeholder Resolution — Fallback to time.strftime if datetime import fails, guaranteeing {{DATUM}} and {{DATE}} always render correctly in generated letters."
+            },
+            {
+                "type": "fixed",
+                "text": "Sender Pool Initialization Fix — Null-safe sender selection prevents IndexError on empty pools and avoids stale account references during rotation."
+            },
+            {
+                "type": "improved",
+                "text": "Enhanced Invalid Email Filtering — Import and deduplication now reject administrative, legal, court, and compliance mailboxes (datenschutz, dsgvo, poststelle, billing, invoices, abuse, security, newsletters) using prefix and domain-suffix matching."
+            },
+            {
+                "type": "improved",
+                "text": "German Court & Police Domain Exclusion — Automatic rejection of *.justiz.*.de and *.polizei.*.de domains to prevent outreach to official authorities."
+            },
+            {
+                "type": "improved",
+                "text": "Portal Support Inbox Filtering — Blocks support@, help@, kundenservice@, service@ on job-board domains to avoid helpdesk dead-ends."
+            },
+            {
+                "type": "improved",
+                "text": "Deduplication Pipeline Overhaul — Three-pass cleaning: invalid/admin removal → exact-string dedup → corporate-domain dedup with role-aware ranking (bewerbung > kontakt > info > generic)."
+            },
+            {
+                "type": "improved",
+                "text": "Jobsuche Pre-Click Card Preview — Zero-cost DOM evaluation skips already-seen job cards instantly (0 ms vs ~8 s per card), with smart link-based deduplication across pagination."
+            },
+            {
+                "type": "improved",
+                "text": "Refined Jobsuche Result Selectors — Updated to article.ergebnisliste-item, li.ergebnisliste-item for stable card targeting across Arbeitsagentur layout changes."
+            },
+            {
+                "type": "improved",
+                "text": "Company Website Cache — In-memory caching prevents redundant website crawls for the same employer within a single scraping job."
+            },
+            {
+                "type": "improved",
+                "text": "Pending Persistence Flag — Scraping orchestrator queues a follow-up persistence run if a new batch arrives while the previous write is in-flight, eliminating SQLite lock contention."
+            },
+            {
+                "type": "improved",
+                "text": "Guaranteed Final Persist on Job Completion — Explicit synchronous persist_current_job(sync=True) on job finish ensures the last batch is never lost."
+            },
+            {
+                "type": "improved",
+                "text": "Live Monitor State Indicators — Real-time LIVE / DONE / IDLE / ERROR badges with color-coded dots on the Monitor page for at-a-glance job status."
+            },
+            {
+                "type": "improved",
+                "text": "Edit Page Auto-Refresh — Switching to or opening the Edit tab now triggers an automatic refresh to reflect latest profile/sender changes."
+            },
+        ]
+    },
+    {
+        "version": "1.5.1",
+        "date": "November 7, 2026",
+        "label": None,
+        "label_color": None,
+        "changes": [
+            {
+                "type": "improved",
+                "text": "Expanded Administrative & Compliance Email Filtering — New UNMONITORED_OR_ADMIN_PREFIXES list blocks datenschutz, dsgvo, privacy, dpo, gdpr, poststelle, billing/invoice/rechnung/buchhaltung/finanzen, newsletter/bounce/feedback, and server/admin prefixes (hostmaster, webmaster, abuse, security, noc, spam) in addition to classic noreply patterns."
+            },
+            {
+                "type": "improved",
+                "text": "Prefix-Wildcard Matching — Filters now catch prefix.*, prefix-*, prefix_* variants (e.g., datenschutz.berlin@, billing-support@) for comprehensive coverage."
+            },
+            {
+                "type": "improved",
+                "text": "German Court & Police Domain Exclusion — Automatic rejection of *.justiz.nrw.de, *.justiz.bayern.de, *.justiz.hessen.de, *.justiz.de, *.polizei.nrw.de, *.polizei.bayern.de, *.polizei.de domains."
+            },
+            {
+                "type": "improved",
+                "text": "Job Portal Support Inbox Filtering — Blocks support@, help@, kundenservice@, service@, admin@ on job-board domains (jobboerse, jobportal, stellenportal, stellenmarkt)."
+            },
+            {
+                "type": "improved",
+                "text": "Jobsuche Fast Pre-Click Preview — DOM-level evaluate() reads card text/link before click, skipping already-processed cards at ~0 ms overhead."
+            },
+            {
+                "type": "improved",
+                "text": "Stable Result Card Selectors — Updated to article.ergebnisliste-item, li.ergebnisliste-item, article:has(a[href*=/jobsuche/jobdetail/]) for robust targeting."
+            },
+            {
+                "type": "improved",
+                "text": "Company Website Cache — Per-job in-memory cache avoids re-crawling the same employer website multiple times."
+            },
+            {
+                "type": "improved",
+                "text": "Anti-Spam Corporate Domain Deduplication — During broadcast, filters out duplicate emails sharing the same corporate domain (preserving public webmail) with role-aware ranking to keep the most relevant contact (bewerbung > kontakt > info)."
+            },
+            {
+                "type": "improved",
+                "text": "Invalid Domain Protection Logging — Explicit Protected Sender Score log when unreachable domains are filtered pre-send."
+            },
+            {
+                "type": "improved",
+                "text": "Pending Persistence Flag — Orchestrator marks pending writes when SQLite is busy, then auto-re-runs after current write completes."
+            },
+            {
+                "type": "improved",
+                "text": "Guaranteed Final Sync Persist — Job completion triggers synchronous persistence to disk."
+            },
+            {
+                "type": "improved",
+                "text": "Live Monitor Status Indicators — Color-coded LIVE / DONE / IDLE badges on the Monitor page with real-time updates on job start, complete, fail, cancel, pause, resume, and trial-limit states."
+            },
+            {
+                "type": "improved",
+                "text": "Edit Page Auto-Refresh — Opening or switching to the Edit tab now calls refresh() to sync profile/sender pool state."
+            },
+        ]
+    },
+    {
+        "version": "1.5.0",
+        "date": "October 23, 2026",
+        "label": None,
+        "label_color": None,
         "changes": [
             {
                 "type": "new",
@@ -864,10 +992,150 @@ CHANGELOG = [
 
 CHANGELOG_AR = [
     {
-        "version": "1.5.0",
-        "date": "23 أكتوبر 2026",
+        "version": "1.5.2",
+        "date": "11 نوفمبر 2026",
         "label": "الأحدث",
         "label_color": "#30D158",
+        "type_labels": {
+            "new": "جديد",
+            "improved": "مُحسَّن",
+            "fixed": "مُصلَّح",
+            "removed": "مُزال"
+        },
+        "changes": [
+            {
+                "type": "new",
+                "text": "حارس مكافحة البريد العشوائي للنطاقات المؤسسية — إلغاء تكرار عناوين المستلمين التي تشترك في نفس نطاق الشركة تلقائياً أثناء الحملات، مع الحفاظ على عناوين البريد العام (Gmail، Outlook، GMX، إلخ) ومنع التواصل المكرر مع نفس المؤسسة."
+            },
+            {
+                "type": "improved",
+                "text": "سجلات تدوير المرسل الذكية — سجلات تبديل المرسل النشط أنظف تُظهر السعة اليومية المتبقية دون عدادات دورات زائدة."
+            },
+            {
+                "type": "fixed",
+                "text": "حل قوي لعنصر نائب التاريخ — تراجع إلى time.strftime إذا فشل استيراد datetime، مما يضمن عرض {{DATUM}} و {{DATE}} بشكل صحيح دائماً في الخطابات المولدة."
+            },
+            {
+                "type": "fixed",
+                "text": "إصلاح تهيئة مجمع المرسلين — اختيار المرسل الآمن من القيم الفارغة يمنع IndexError في المجمعات الفارغة ويمنع مراجع الحسابات القديمة أثناء التدوير."
+            },
+            {
+                "type": "improved",
+                "text": "تصفية رسائل البريد الإلكتروني غير الصالحة المحسّنة — الاستيراد وإلغاء التكرار يرفضان الآن صناديق البريد الإدارية والقانونية والمحاكم والامتثال (datenschutz، dsgvo، poststelle، billing، invoices، abuse، security، newsletters) باستخدام مطابقة البادئة واللاحقة للنطاق."
+            },
+            {
+                "type": "improved",
+                "text": "استبعاد نطاقات المحاكم والشرطة الألمانية — الرفض التلقائي لنطاقات *.justiz.*.de و *.polizei.*.de لمنع التواصل مع السلطات الرسمية."
+            },
+            {
+                "type": "improved",
+                "text": "تصفية صناديق دعم البوابات — حجب support@ و help@ و kundenservice@ و service@ على نطاقات لوحات الوظائف لتجنب الطرق المسدودة في مكتب المساعدة."
+            },
+            {
+                "type": "improved",
+                "text": "إصلاح شامل لخط أنابيب إلغاء التكرار — تنظيف ثلاثي المراحل: إزالة غير الصالحة/الإدارية → إلغاء تكرار النص الدقيق → إلغاء تكرار نطاق الشركة مع الترتيب حسب الدور (bewerbung > kontakt > info > عام)."
+            },
+            {
+                "type": "improved",
+                "text": "معاينة بطاقات Jobsuche قبل النقر — تقييم DOM بدون تكلفة يتخطى البطاقات التي تمت رؤيتها مسبقاً فوراً (0 ميلي ثانية مقابل ~8 ثوانٍ لكل بطاقة)، مع إلغاء تكرار ذكي قائم على الروابط عبر الصفحات."
+            },
+            {
+                "type": "improved",
+                "text": "محدّدات نتائج Jobsuche المحدثة — تم التحديث إلى article.ergebnisliste-item، li.ergebnisliste-item لاستهداف مستقر للبطاقات عبر تغييرات تخطيط Arbeitsagentur."
+            },
+            {
+                "type": "improved",
+                "text": "ذاكرة تخزين مؤقت لمواقع الشركات — تخزين مؤقت في الذاكرة يمنع الزحف المتكرر لنفس موقع صاحب العمل ضمن مهمة استخراج واحدة."
+            },
+            {
+                "type": "improved",
+                "text": "علم الاستمرارية المعلقة — منسق الاستخراج يضع في الطابور عملية استمرارية تابعة إذا وصلت دفعة جديدة بينما الكتابة السابقة قيد التنفيذ، مما يزيل تنافس قفل SQLite."
+            },
+            {
+                "type": "improved",
+                "text": "استمرارية نهائية مضمونة عند إكمال المهمة — استدعاء صريح متزامن لـ persist_current_job(sync=True) عند انتهاء المهمة يضمن عدم فقدان الدفعة الأخيرة أبداً."
+            },
+            {
+                "type": "improved",
+                "text": "مؤشرات حالة المراقب المباشرة —شارات LIVE / DONE / IDLE / ERROR فورية مع نقاط ملونة على صفحة المراقب لحالة المهمة بنظرة واحدة."
+            },
+            {
+                "type": "improved",
+                "text": "تحديث تلقائي لصفحة التحرير — التبديل إلى أو فتح تبويب التحرير يُطلق تحديثاً تلقائياً ليعكس أحدث تغييرات الملف الشخصي/مجمع المرسلين."
+            },
+        ]
+    },
+    {
+        "version": "1.5.1",
+        "date": "7 نوفمبر 2026",
+        "label": None,
+        "label_color": None,
+        "type_labels": {
+            "new": "جديد",
+            "improved": "مُحسَّن",
+            "fixed": "مُصلَّح",
+            "removed": "مُزال"
+        },
+        "changes": [
+            {
+                "type": "improved",
+                "text": "تصفية رسائل البريد الإلكتروني الإدارية والامتثال الموسعة — قائمة UNMONITORED_OR_ADMIN_PREFIXES الجديدة تحجب datenschutz، dsgvo، privacy، dpo، gdpr، poststelle، billing/invoice/rechnung/buchhaltung/finanzen، newsletter/bounce/feedback، وبادئات الخادم/الإدارة (hostmaster، webmaster، abuse، security، noc، spam) بالإضافة إلى أنماط noreply التقليدية."
+            },
+            {
+                "type": "improved",
+                "text": "مطابقة البادئة بنمط البدل — المرشحات الآن تلتقط متغيرات prefix.*، prefix-*، prefix_* (مثل datenschutz.berlin@، billing-support@) لتغطية شاملة."
+            },
+            {
+                "type": "improved",
+                "text": "استبعاد نطاقات المحاكم والشرطة الألمانية — الرفض التلقائي لنطاقات *.justiz.nrw.de، *.justiz.bayern.de، *.justiz.hessen.de، *.justiz.de، *.polizei.nrw.de، *.polizei.bayern.de، *.polizei.de."
+            },
+            {
+                "type": "improved",
+                "text": "تصفية صناديق دعم بوابات الوظائف — حجب support@، help@، kundenservice@، service@، admin@ على نطاقات لوحات الوظائف (jobboerse، jobportal، stellenportal، stellenmarkt)."
+            },
+            {
+                "type": "improved",
+                "text": "معاينة Jobsuche السريعة قبل النقر — قراءة evaluate() على مستوى DOM لنص/رابط البطاقة قبل النقر، متخطياً البطاقات المعالجة مسبقاً بتكلفة ~0 ميلي ثانية."
+            },
+            {
+                "type": "improved",
+                "text": "محدّدات بطاقات النتائج المستقرة — تم التحديث إلى article.ergebnisliste-item، li.ergebnisliste-item، article:has(a[href*=/jobsuche/jobdetail/]) لاستهداف قوي."
+            },
+            {
+                "type": "improved",
+                "text": "ذاكرة تخزين مؤقت لمواقع الشركات — ذاكرة تخزين مؤقت في الذاكرة لكل مهمة تتجنب إعادة الزحف لنفس موقع صاحب العمل عدة مرات."
+            },
+            {
+                "type": "improved",
+                "text": "إلغاء تكرار نطاقات الشركات أثناء الإرسال — يحجب رسائل البريد الإلكتروني المكررة التي تشترك في نفس نطاق الشركة (مع الحفاظ على البريد العام) مع ترتيب واعٍ للدور للاحتفاظ بالجهة الأكثر صلة (bewerbung > kontakt > info)."
+            },
+            {
+                "type": "improved",
+                "text": "تسجيل حماية النطاقات غير الصالحة — تسجيل صريح لـ Protected Sender Score عند تصفية النطاقات غير القابلة للوصول قبل الإرسال."
+            },
+            {
+                "type": "improved",
+                "text": "علم الاستمرارية المعلقة — المنسق يضع الكتابة المعلقة في الطابور عندما يكون SQLite مشغولاً، ثم يعيد التشغيل تلقائياً بعد اكتمال الكتابة الحالية."
+            },
+            {
+                "type": "improved",
+                "text": "استمرارية نهائية متزامنة مضمونة — إكمال المهمة يُطلق استمرارية متزامنة على القرص."
+            },
+            {
+                "type": "improved",
+                "text": "مؤشرات حالة المراقب المباشرة — شارات ملونة LIVE / DONE / IDLE على صفحة المراقب مع تحديثات فورية عند بدء المهمة، اكتمال، فشل، إلغاء، إيقاف مؤقت، استئناف، وحالات حد التجربة."
+            },
+            {
+                "type": "improved",
+                "text": "تحديث تلقائي لصفحة التحرير — فتح أو التبديل إلى تبويب التحرير يستدعي refresh() الآن لمزامنة حالة الملف الشخصي/مجمع المرسلين."
+            },
+        ]
+    },
+    {
+        "version": "1.5.0",
+        "date": "23 أكتوبر 2026",
+        "label": None,
+        "label_color": None,
         "type_labels": {
             "new": "جديد",
             "improved": "مُحسَّن",
@@ -1769,4 +2037,4 @@ CHANGELOG_AR = [
     }
 ]
 
-# 1.5.0
+# 1.5.2

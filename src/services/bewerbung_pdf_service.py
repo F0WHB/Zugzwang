@@ -500,4 +500,4 @@ def export_bewerbungsmappe(
                 result.append(dest_z)
         return result
 
-# 1.5.0
+# 1.5.2

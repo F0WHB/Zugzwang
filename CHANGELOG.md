@@ -2,6 +2,60 @@
 
 All notable changes and technical release notes for ZUGZWANG are documented in this file.
 
+## 1.5.2
+
+### Smart Sender Rotation & Anti-Spam Hardening
+- **Anti-Spam Guard for Corporate Domains** — Automatic deduplication of recipient emails sharing the same company domain during broadcast campaigns, preserving public webmail addresses (Gmail, Outlook, GMX, etc.) while preventing multiple contacts from the same organization from receiving duplicate outreach.
+- **Smart Sender Rotation Logging** — Cleaner active-sender switch logs showing remaining daily capacity without redundant turn counters.
+- **Robust Date Placeholder Resolution** — Fallback to `time.strftime` if `datetime` import fails, guaranteeing `{{DATUM}}` and `{{DATE}}` always render correctly in generated letters.
+- **Sender Pool Initialization Fix** — Null-safe sender selection prevents `IndexError` on empty pools and avoids stale account references during rotation.
+
+### Email Quality & Deliverability
+- **Enhanced Invalid Email Filtering** — Import and deduplication now reject administrative, legal, court, and compliance mailboxes (datenschutz, dsgvo, poststelle, billing, invoices, abuse, security, newsletters) using prefix and domain-suffix matching.
+- **German Court & Police Domain Exclusion** — Automatic rejection of `*.justiz.*.de` and `*.polizei.*.de` domains to prevent outreach to official authorities.
+- **Portal Support Inbox Filtering** — Blocks `support@`, `help@`, `kundenservice@`, `service@` on job-board domains to avoid helpdesk dead-ends.
+- **Deduplication Pipeline Overhaul** — Three-pass cleaning: invalid/admin removal → exact-string dedup → corporate-domain dedup with role-aware ranking (bewerbung > kontakt > info > generic).
+
+### Scraping Reliability
+- **Jobsuche Pre-Click Card Preview** — Zero-cost DOM evaluation skips already-seen job cards instantly (0 ms vs ~8 s per card), with smart link-based deduplication across pagination.
+- **Refined Jobsuche Result Selectors** — Updated to `article.ergebnisliste-item, li.ergebnisliste-item` for stable card targeting across Arbeitsagentur layout changes.
+- **Company Website Cache** — In-memory caching prevents redundant website crawls for the same employer within a single scraping job.
+
+### Persistence & Stability
+- **Pending Persistence Flag** — Scraping orchestrator now queues a follow-up persistence run if a new batch arrives while the previous write is in-flight, eliminating SQLite lock contention.
+- **Guaranteed Final Persist on Job Completion** — Explicit synchronous `persist_current_job(sync=True)` on job finish ensures the last batch is never lost.
+- **Live Monitor State Indicators** — Real-time "LIVE / DONE / IDLE / ERROR" badges with color-coded dots on the Monitor page for at-a-glance job status.
+- **Edit Page Auto-Refresh** — Switching to or opening the Edit tab now triggers an automatic refresh to reflect latest profile/sender changes.
+
+---
+
+## 1.5.1
+
+### Email Quality & Deliverability
+- **Expanded Administrative & Compliance Email Filtering** — New `UNMONITORED_OR_ADMIN_PREFIXES` list blocks datenschutz, dsgvo, privacy, dpo, gdpr, poststelle, billing/invoice/rechnung/buchhaltung/finanzen, newsletter/bounce/feedback, and server/admin prefixes (hostmaster, webmaster, abuse, security, noc, spam) in addition to classic noreply patterns.
+- **Prefix-Wildcard Matching** — Filters now catch `prefix.*`, `prefix-*`, `prefix_*` variants (e.g., `datenschutz.berlin@`, `billing-support@`) for comprehensive coverage.
+- **German Court & Police Domain Exclusion** — Automatic rejection of `*.justiz.nrw.de`, `*.justiz.bayern.de`, `*.justiz.hessen.de`, `*.justiz.de`, `*.polizei.nrw.de`, `*.polizei.bayern.de`, `*.polizei.de` domains.
+- **Job Portal Support Inbox Filtering** — Blocks `support@`, `help@`, `kundenservice@`, `service@`, `admin@` on job-board domains (jobboerse, jobportal, stellenportal, stellenmarkt).
+
+### Scraping Reliability
+- **Jobsuche Fast Pre-Click Preview** — DOM-level `evaluate()` reads card text/link before click, skipping already-processed cards at ~0 ms overhead.
+- **Stable Result Card Selectors** — Updated to `article.ergebnisliste-item, li.ergebnisliste-item, article:has(a[href*="/jobsuche/jobdetail/"])` for robust targeting.
+- **Company Website Cache** — Per-job in-memory cache avoids re-crawling the same employer website multiple times.
+
+### Sending Engine
+- **Anti-Spam Corporate Domain Deduplication** — During broadcast, filters out duplicate emails sharing the same corporate domain (preserving public webmail) with role-aware ranking to keep the most relevant contact (bewerbung > kontakt > info).
+- **Invalid Domain Protection Logging** — Explicit "Protected Sender Score" log when unreachable domains are filtered pre-send.
+
+### Persistence & Stability
+- **Pending Persistence Flag** — Orchestrator marks pending writes when SQLite is busy, then auto-re-runs after current write completes.
+- **Guaranteed Final Sync Persist** — Job completion triggers synchronous persistence to disk.
+
+### UI & Monitoring
+- **Live Monitor Status Indicators** — Color-coded "LIVE / DONE / IDLE" badges on the Monitor page with real-time updates on job start, complete, fail, cancel, pause, resume, and trial-limit states.
+- **Edit Page Auto-Refresh** — Opening or switching to the Edit tab now calls `refresh()` to sync profile/sender pool state.
+
+---
+
 ## 1.5.0
 
 ### Multi-Profile & Sender Pool Architecture
@@ -131,4 +185,4 @@ All notable changes and technical release notes for ZUGZWANG are documented in t
 - **Telemetry Noise Reduction** — Aggressively filtered low-level PyPDF warning noise ('Ignoring wrong pointing object') and internal startup traces from user activity streams.
 - **Startup Resource Optimization** — Reduced startup and dashboard refresh pressure to improve Google Maps launch responsiveness and avoid false temporary freeze behavior.
 
-<!-- 1.5.0 -->
+<!-- 1.5.2 -->

@@ -5830,4 +5830,4 @@ class EditPage(QWidget):
         except Exception as e:
             self._show_error("Batch Export & Send Failed", str(e))
 
-# 1.5.0
+# 1.5.2

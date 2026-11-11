@@ -583,4 +583,4 @@ class SenderPoolDialog(QDialog):
         self.input_name.clear()
         self._load_accounts_ui()
 
-# 1.5.0
+# 1.5.2

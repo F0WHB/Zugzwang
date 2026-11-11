@@ -226,4 +226,4 @@ def test_smtp_account(
     except Exception as e:
         return False, f"Connection failed: {str(e)}"
 
-# 1.5.0
+# 1.5.2

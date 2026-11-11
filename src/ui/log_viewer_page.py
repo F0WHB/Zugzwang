@@ -488,4 +488,4 @@ class LogViewerPage(QWidget):
         scrollbar = self._log_view.verticalScrollBar()
         scrollbar.setValue(scrollbar.maximum())
 
-# 1.5.0
+# 1.5.2
