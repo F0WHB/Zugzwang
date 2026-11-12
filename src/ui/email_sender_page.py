@@ -2940,10 +2940,7 @@ class EmailSenderPage(QWidget):
         chunk_size = 2 if rotation_mode == "pairs" else (1 if rotation_mode == "single" else (5 if rotation_mode == "batch5" else 999999))
 
         if fresh_per_message:
-            if is_rotating:
-                self._log(f"Rotating across {len(pool_candidates)} active sender accounts in chunks of {chunk_size}.", "INFO")
-            else:
-                self._log("Gmail mode detected. A fresh SMTP session will be opened for each recipient.", "INFO")
+            self._log("Gmail mode detected. A fresh SMTP session will be opened for each recipient.", "INFO")
         else:
             try:
                 self._log("Initializing SMTP Handshake...")
@@ -3076,6 +3073,13 @@ class EmailSenderPage(QWidget):
                         pool_idx = (pool_idx + 1) % len(pool_candidates)
                         account_sent_count = 0
 
+                    # If the currently selected account just exhausted its quota
+                    # mid-chunk, fail over to the next available account immediately
+                    # instead of waiting for the chunk boundary.
+                    if current_acc and current_acc not in pool_candidates:
+                        pool_idx = pool_idx % len(pool_candidates)
+                        account_sent_count = 0
+
                     selected_acc = pool_candidates[pool_idx % len(pool_candidates)]
                     account_switched = (current_acc is None) or (selected_acc.id != current_acc.id)
                     current_acc = selected_acc
@@ -3083,7 +3087,7 @@ class EmailSenderPage(QWidget):
 
                     if account_switched:
                         self._log(
-                            f"🔄 Active Sender: '{current_acc.email}' (Capacity today: {current_acc.remaining_today()}/{current_acc.daily_limit})",
+                            f"🔄 Active Sender: {current_acc.email} ({current_acc.remaining_today()})",
                             "INFO"
                         )
                 else:
@@ -3220,8 +3224,7 @@ class EmailSenderPage(QWidget):
                     self._refresh_recipient_history_state()
                     self._cleanup_sent_dynamic_pdf(rec)
                         
-                    acc_suffix = f" [via {current_acc.email}]" if current_acc else ""
-                    self._log(f"✓ Sent to {rec} ({i+1}/{total}){acc_suffix}", "SUCCESS")
+                    self._log(f"✓ Sent to {rec} ({i+1}/{total})", "SUCCESS")
 
                 except Exception as e:
                     if self._stop_requested: break
